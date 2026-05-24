@@ -31,11 +31,6 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "public/icon.ico",
-      "uninstallerIcon": "public/icon.ico",
-      "installerHeader": "public/installerHeader.png",
-      "installerSidebar": "public/installerSidebar.png",
-      "installerHeaderIcon": "public/icon.ico",
       "createDesktopShortcut": "always",
       "runAfterFinish": true,
       "perMachine": true,
