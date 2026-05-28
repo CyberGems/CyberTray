@@ -1,16 +1,19 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   --font-cyber: "Orbitron", sans-serif;
+  --font-montserrat: "Montserrat", sans-serif;
 }
 
 @layer base {
-  body {
+  html, body, #root {
     margin: 0;
     padding: 0;
+    width: 100%;
+    height: 100%;
     background-color: transparent !important;
     overflow: hidden;
     user-select: none;
@@ -112,24 +115,35 @@
 }
 
 /* Estilización de Barra de Scroll Cyberpunk */
-.custom-scrollbar::-webkit-scrollbar {
+.custom-scrollbar::-webkit-scrollbar,
+[data-cyber-scroll]::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-track {
+.custom-scrollbar::-webkit-scrollbar-track,
+[data-cyber-scroll]::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.3);
   border-radius: 4px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
+.custom-scrollbar::-webkit-scrollbar-thumb,
+[data-cyber-scroll]::-webkit-scrollbar-thumb {
   background: var(--neon-glow-border);
   border-radius: 4px;
   border: 1px solid rgba(0, 0, 0, 0.2);
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+[data-cyber-scroll]::-webkit-scrollbar-thumb:hover {
   background: var(--neon-glow-color);
+}
+
+/* Firefox scrollbar support */
+.custom-scrollbar,
+[data-cyber-scroll] {
+  scrollbar-width: thin;
+  scrollbar-color: var(--neon-glow-border) rgba(0, 0, 0, 0.3);
 }
 
 /* Efectos de Cristal Neón */

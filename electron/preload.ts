@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectFile: (options?: { filters?: Array<{ name: string; extensions: string[] }> }) =>
     ipcRenderer.invoke('select-file', options),
   selectImage: () => ipcRenderer.invoke('select-image'),
+  selectAudio: () => ipcRenderer.invoke('select-audio'),
   getImageData: (filePath: string) => ipcRenderer.invoke('get-image-data', filePath),
 
   // --- Monitors ---
@@ -35,6 +36,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // --- Neural Metrics (CPU/RAM/Disks) ---
   getSystemInfo: () => ipcRenderer.invoke('get-system-info'),
   getDiskInfo: () => ipcRenderer.invoke('get-disk-info'),
+  getRunningProcesses: () => ipcRenderer.invoke('get-running-processes'),
+  killProcess: (pid: number) => ipcRenderer.invoke('kill-process', pid),
 
   // --- Drag & Drop helpers ---
   resolveFilePath: (filePath: string) => ipcRenderer.invoke('resolve-file-path', filePath),
@@ -56,6 +59,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // --- Native Text Context Menu ---
   showTextContextMenu: (x: number, y: number) => ipcRenderer.invoke('show-text-context-menu', { x, y }),
+  showHandleContextMenu: () => ipcRenderer.invoke('show-handle-context-menu'),
 
   // --- Export/Import Centralized Config ---
   exportConfig: (jsonData: string) => ipcRenderer.invoke('export-config', jsonData),
@@ -108,9 +112,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // --- CyberTray Specific IPC channels ---
   toggleShelf: () => ipcRenderer.invoke('toggle-shelf'),
   setDragActive: (active: boolean) => ipcRenderer.invoke('set-drag-active', active),
+  trackHandleDragStart: () => ipcRenderer.invoke('track-handle-drag-start'),
+  trackHandleDragStop: () => ipcRenderer.invoke('track-handle-drag-stop'),
+  setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) =>
+    ipcRenderer.invoke('set-ignore-mouse-events', ignore, options),
   onShelfStateChange: (callback: (visible: boolean) => void) => {
     const handler = (_event: any, visible: boolean) => callback(visible);
     ipcRenderer.on('shelf-state-change', handler);
     return () => { ipcRenderer.removeListener('shelf-state-change', handler); };
-  }
+  },
+  onPlayLaunchSound: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('play-launch-sound', handler);
+    return () => { ipcRenderer.removeListener('play-launch-sound', handler); };
+  },
+
+  // --- Cyber-Sweep & Vault Channels ---
+  runDesktopSweep: () => ipcRenderer.invoke('run-desktop-sweep'),
+  getDefaultVaultPath: () => ipcRenderer.invoke('get-default-vault-path'),
+  openVaultFolder: () => ipcRenderer.invoke('open-vault-folder'),
+  importFileToVault: (filePath: string) => ipcRenderer.invoke('import-file-to-vault', filePath)
 });

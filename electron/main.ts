@@ -10,6 +10,10 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'local-resource', privileges: { bypassCSP: true, secure: true, supportFetchAPI: true, allowServiceWorkers: true } }
 ]);
 
+// Optimizar rendimiento de Chromium en segundo plano (evitar suspensión de GPU/renderizado y throttling de CPU)
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Ocultar advertencias de seguridad para desarrollo
@@ -24,6 +28,7 @@ let tray: Tray | null = null;
 let isQuitting = false;
 let isDragActive = false;
 let isDialogOpen = false;
+let dragInterval: NodeJS.Timeout | null = null;
 
 // ── CONFIGURACIÓN PREDETERMINADA ──
 interface CyberTrayConfig {
@@ -42,12 +47,26 @@ interface CyberTrayConfig {
   hoverTriggerEnabled: boolean;
   hoverTriggerDelay: number;
   hideOnDeadZoneClick: boolean;
+  handleAutoHide: boolean;
+  handleAutoHideDelay: number;
   bgType: 'solid' | 'gradient' | 'image';
   bgSolidColor: string;
   bgGradient: string;
   bgImage: string;
   bgCustomPath: string;
   language?: 'en' | 'es';
+  soundEnabled?: boolean;
+  soundPath?: string;
+  monitorBounds?: { x: number; y: number; width: number; height: number };
+  handleOffsetPercent?: number;
+  vaultPath?: string;
+  vaultPinEnabled?: boolean;
+  vaultPin?: string;
+  vaultLockTimeout?: number;
+  shortcutsList?: any[];
+  categoriesList?: any[];
+  totalLaunches?: number;
+  autoCheckUpdates?: boolean;
 }
 
 const DEFAULT_CONFIG: CyberTrayConfig = {
@@ -67,11 +86,22 @@ const DEFAULT_CONFIG: CyberTrayConfig = {
   hoverTriggerEnabled: false,
   hoverTriggerDelay: 300,
   hideOnDeadZoneClick: false,
+  handleAutoHide: false,
+  handleAutoHideDelay: 5,
   bgType: 'solid',
   bgSolidColor: '#070b13',
   bgGradient: 'preset-1',
   bgImage: 'preset-1',
   bgCustomPath: '',
+  soundEnabled: true,
+  soundPath: '',
+  handleOffsetPercent: 50,
+  vaultPath: '',
+  vaultPinEnabled: false,
+  vaultPin: '1234',
+  vaultLockTimeout: 0,
+  totalLaunches: 0,
+  autoCheckUpdates: true,
 };
 
 let config: CyberTrayConfig = { ...DEFAULT_CONFIG };
@@ -108,6 +138,9 @@ function loadConfig() {
 function saveConfig(newConfig: Partial<CyberTrayConfig>) {
   try {
     config = { ...config, ...newConfig };
+    if (newConfig.handleOffsetPercent === null || newConfig.handleOffsetPercent === undefined) {
+      delete (config as any).handleOffsetPercent;
+    }
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
     if (shelfWindow && !shelfWindow.isDestroyed()) {
       shelfWindow.webContents.send('reload-config');
@@ -121,6 +154,13 @@ function saveConfig(newConfig: Partial<CyberTrayConfig>) {
   }
 }
 
+function getVaultPath(): string {
+  if (config.vaultPath && config.vaultPath.trim() !== '') {
+    return config.vaultPath;
+  }
+  return path.join(app.getPath('userData'), 'vault');
+}
+
 // ── HOTSPOTS & UAC GUARD STATE ──
 let hotspotTimer: NodeJS.Timeout | null = null;
 let lastHotspotCorner = '';
@@ -131,13 +171,25 @@ let lastHotspotPollTime = 0;
 const HOTSPOT_LAG_THRESHOLD_MS = 400;
 let uacGuardTimer: NodeJS.Timeout | null = null;
 let uacResumeTimer: NodeJS.Timeout | null = null;
+let shelfAnimationTimer: NodeJS.Timeout | null = null;
 
 // --- Monitores e Identificación ---
 function getTargetDisplay(): Electron.Display {
   const displays = screen.getAllDisplays();
+  // 1. Intentar match exacto por ID
   if (config.monitorId) {
     const matched = displays.find(d => d.id.toString() === config.monitorId);
     if (matched) return matched;
+  }
+  // 2. Fallback: buscar por bounds guardados (por si Windows cambió el ID del display)
+  if (config.monitorBounds) {
+    const fallback = displays.find(d =>
+      d.bounds.x === config.monitorBounds.x &&
+      d.bounds.y === config.monitorBounds.y &&
+      d.bounds.width === config.monitorBounds.width &&
+      d.bounds.height === config.monitorBounds.height
+    );
+    if (fallback) return fallback;
   }
   return screen.getPrimaryDisplay();
 }
@@ -145,7 +197,7 @@ function getTargetDisplay(): Electron.Display {
 // ── POSICIONAMIENTO DE VENTANAS ──
 function getShelfBounds(display: Electron.Display, customHeight?: number): Electron.Rectangle {
   const workArea = display.workArea;
-  
+
   // Recuperar altura guardada o usar la mitad de la pantalla
   let height = customHeight;
   if (!height) {
@@ -159,39 +211,44 @@ function getShelfBounds(display: Electron.Display, customHeight?: number): Elect
   if (!height) {
     height = Math.round(workArea.height * 0.5);
   }
-  
+
   // Limitar altura (hasta el 95% para permitir extenderlo casi al completo)
   height = Math.max(200, Math.min(Math.round(workArea.height * 0.95), height));
-  
+
   const width = workArea.width;
   const x = workArea.x;
-  
+
   let y = workArea.y;
   if (config.dockPosition === 'bottom') {
     y = workArea.y + workArea.height - height;
   }
-  
+
   return { x, y, width, height };
 }
 
 function getHandleBounds(display: Electron.Display): Electron.Rectangle {
   const workArea = display.workArea;
-  const handleWidth = 150;
-  const handleHeight = 28;
+  const handleWidth = 200;
+  const windowHeight = 80;
   
-  let x = workArea.x + Math.round((workArea.width - handleWidth) / 2);
-  if (config.handlePosition === 'left') {
-    x = workArea.x + 40;
-  } else if (config.handlePosition === 'right') {
-    x = workArea.x + workArea.width - handleWidth - 40;
+  let offsetPercent = config.handleOffsetPercent !== undefined ? config.handleOffsetPercent : 50;
+  if (config.handleOffsetPercent === undefined) {
+    if (config.handlePosition === 'left') {
+      offsetPercent = 0;
+    } else if (config.handlePosition === 'right') {
+      offsetPercent = 100;
+    }
   }
+
+  let x = workArea.x + Math.round((workArea.width - handleWidth) * (offsetPercent / 100));
+  x = Math.max(workArea.x + 10, Math.min(workArea.x + workArea.width - handleWidth - 10, x));
   
   let y = workArea.y;
   if (config.dockPosition === 'bottom') {
-    y = workArea.y + workArea.height - handleHeight;
+    y = workArea.y + workArea.height - windowHeight;
   }
   
-  return { x, y, width: handleWidth, height: handleHeight };
+  return { x, y, width: handleWidth, height: windowHeight };
 }
 
 // --- Iconos de la Aplicación ---
@@ -225,11 +282,10 @@ function createWindows() {
     x: shelfBounds.x,
     y: shelfBounds.y,
     frame: false,
-    transparent: false, // Fondo opaco para rendimiento nativo 60fps sin composición de pantalla
+    transparent: true, // Habilitar transparencia para esquinas redondeadas y acople fluido sin bordes fantasma
     alwaysOnTop: config.alwaysOnTop,
     resizable: true,
     skipTaskbar: !config.showTaskbarIcon,
-    backgroundColor: '#070b13', // Fondo sólido cyberpunk oscuro
     show: false,
     icon: getAppIcon(),
     webPreferences: {
@@ -237,6 +293,7 @@ function createWindows() {
       nodeIntegration: false,
       contextIsolation: true,
       spellcheck: false,
+      backgroundThrottling: false,
     },
     autoHideMenuBar: true,
   });
@@ -304,9 +361,12 @@ function createWindows() {
       preload: path.join(__dirname, 'preload.mjs'),
       nodeIntegration: false,
       contextIsolation: true,
+      backgroundThrottling: false,
     },
     autoHideMenuBar: true,
   });
+
+  handleWindow.setIgnoreMouseEvents(true, { forward: true });
 
   if (VITE_DEV_SERVER_URL) {
     handleWindow.loadURL(`${VITE_DEV_SERVER_URL}?mode=handle`);
@@ -329,31 +389,126 @@ function createWindows() {
 }
 
 // ── CONTROL DE VISIBILIDAD DE SHELF ──
-function showShelf() {
+// ── SHELF SHOW/HIDE WINDOW ANIMATIONS ──
+function stopShelfAnimation() {
+  if (shelfAnimationTimer) {
+    clearInterval(shelfAnimationTimer);
+    shelfAnimationTimer = null;
+  }
+}
+
+function animateShelfShow(targetBounds: Electron.Rectangle, duration = 220) {
   if (!shelfWindow || shelfWindow.isDestroyed()) return;
-  
-  // Reposicionar antes de mostrar por si cambiaron de pantalla
-  alignWindows();
-  
+  stopShelfAnimation();
+
+  const isBottom = config.dockPosition === 'bottom';
+  const startY = isBottom
+    ? targetBounds.y + targetBounds.height
+    : targetBounds.y - targetBounds.height;
+
+  // Ensure window is fully opaque before showing (repair from any previous opacity=0 state)
+  shelfWindow.setOpacity(1);
+  shelfWindow.setBounds({ ...targetBounds, y: startY });
   shelfWindow.show();
   shelfWindow.focus();
-  shelfWindow.webContents.send('shelf-state-change', true);
-  
+
+  const startTime = Date.now();
+  shelfAnimationTimer = setInterval(() => {
+    if (!shelfWindow || shelfWindow.isDestroyed()) {
+      stopShelfAnimation();
+      return;
+    }
+
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    // ease-out cubic for smooth deceleration
+    const eased = 1 - Math.pow(1 - progress, 3);
+
+    const currentY = startY + (targetBounds.y - startY) * eased;
+    shelfWindow.setBounds({ ...targetBounds, y: currentY });
+
+    if (progress >= 1) {
+      stopShelfAnimation();
+      shelfWindow.setBounds(targetBounds);
+      shelfWindow.webContents.send('shelf-state-change', true);
+    }
+  }, 16);
+}
+
+function animateShelfHide(targetBounds: Electron.Rectangle, duration = 180) {
+  if (!shelfWindow || shelfWindow.isDestroyed()) return;
+  stopShelfAnimation();
+
+  const isBottom = config.dockPosition === 'bottom';
+  const endY = isBottom
+    ? targetBounds.y + targetBounds.height
+    : targetBounds.y - targetBounds.height;
+
+  const startTime = Date.now();
+  shelfAnimationTimer = setInterval(() => {
+    if (!shelfWindow || shelfWindow.isDestroyed()) {
+      stopShelfAnimation();
+      return;
+    }
+
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    // ease-in quad for acceleration away
+    const eased = progress * progress;
+
+    const currentY = targetBounds.y + (endY - targetBounds.y) * eased;
+
+    shelfWindow.setBounds({ ...targetBounds, y: currentY });
+
+    if (progress >= 1) {
+      stopShelfAnimation();
+      shelfWindow.hide();
+      shelfWindow.setBounds(targetBounds);
+      shelfWindow.webContents.send('shelf-state-change', false);
+
+      // Volver a mostrar el Cyber-Handle al ocultar la bandeja
+      if (config.handleVisible && handleWindow && !handleWindow.isDestroyed()) {
+        handleWindow.show();
+      }
+    }
+  }, 16);
+}
+
+function showShelf() {
+  if (!shelfWindow || shelfWindow.isDestroyed()) return;
+
+  // Play sound from the always-awake handleWindow if visible, otherwise fall back to shelfWindow
+  if (config.soundEnabled !== false) {
+    if (config.handleVisible && handleWindow && !handleWindow.isDestroyed() && handleWindow.isVisible()) {
+      handleWindow.webContents.send('play-launch-sound');
+    } else {
+      shelfWindow.webContents.send('play-launch-sound');
+    }
+  }
+
+  // Compute final bounds WITHOUT moving the window yet (avoid Chrome repaints)
+  const display = getTargetDisplay();
+  const shelfBounds = getShelfBounds(display);
+
+  // Update constraints and flags only; do NOT call setBounds yet
+  const workArea = display.workArea;
+  shelfWindow.setMinimumSize(workArea.width, 200);
+  shelfWindow.setMaximumSize(workArea.width, Math.round(workArea.height * 0.95));
+  shelfWindow.setAlwaysOnTop(config.alwaysOnTop);
+  shelfWindow.setSkipTaskbar(!config.showTaskbarIcon);
+
   // Ocultar suavemente el Cyber-Handle al abrir la bandeja para evitar ruido visual
   if (handleWindow && !handleWindow.isDestroyed()) {
     handleWindow.hide();
   }
+
+  animateShelfShow(shelfBounds);
 }
 
 function hideShelf() {
   if (!shelfWindow || shelfWindow.isDestroyed()) return;
-  shelfWindow.hide();
-  shelfWindow.webContents.send('shelf-state-change', false);
-  
-  // Volver a mostrar el Cyber-Handle al ocultar la bandeja
-  if (config.handleVisible && handleWindow && !handleWindow.isDestroyed()) {
-    handleWindow.show();
-  }
+  const bounds = shelfWindow.getBounds();
+  animateShelfHide(bounds);
 }
 
 function toggleShelf() {
@@ -430,7 +585,7 @@ function createTray() {
       type: 'radio',
       checked: config.dockPosition === 'top',
       click: () => {
-        saveConfig({ dockPosition: 'top' });
+        saveConfig({ dockPosition: 'top', handleOffsetPercent: null });
         alignWindows();
       }
     },
@@ -439,7 +594,7 @@ function createTray() {
       type: 'radio',
       checked: config.dockPosition === 'bottom',
       click: () => {
-        saveConfig({ dockPosition: 'bottom' });
+        saveConfig({ dockPosition: 'bottom', handleOffsetPercent: null });
         alignWindows();
       }
     },
@@ -647,8 +802,47 @@ function startUACGuard() {
   }, 200);
 }
 
+let vramCache: { data: { total: number; name: string } | null; ts: number } | null = null;
+let isFetchingVram = false;
+
+function fetchVramInfoInBackground() {
+  if (isFetchingVram) return;
+  isFetchingVram = true;
+  const psCommand = `powershell -NoProfile -Command "Get-WmiObject Win32_VideoController | Where-Object { $_.AdapterRAM -gt 0 } | Select-Object -First 1 Name,@{N='AdapterRAM';E={[math]::Round($_.AdapterRAM / 1GB, 2)}} | ConvertTo-Json"`;
+  exec(psCommand, { encoding: 'utf-8', timeout: 8000 }, (err, stdout) => {
+    isFetchingVram = false;
+    if (!err && stdout) {
+      try {
+        const gpuData = JSON.parse(stdout);
+        if (gpuData && gpuData.AdapterRAM > 0) {
+          vramCache = {
+            data: {
+              total: gpuData.AdapterRAM,
+              name: gpuData.Name?.trim() || 'GPU'
+            },
+            ts: Date.now()
+          };
+        }
+      } catch (e) {
+        // ignore JSON parse error
+      }
+    }
+    // If not set yet, store a fallback to avoid infinite loops/queries
+    if (!vramCache) {
+      vramCache = { data: null, ts: Date.now() };
+    }
+  });
+}
+
 // ── IPC INTERACTIVE COMMS BINDERS ──
 function registerIpcHandlers() {
+  ipcMain.handle('set-ignore-mouse-events', (event, ignore, options) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win && !win.isDestroyed()) {
+      win.setIgnoreMouseEvents(ignore, options);
+    }
+  });
+
   ipcMain.handle('launch-app', async (_, appPath, isAdmin) => {
     try {
       if (isAdmin && process.platform === 'win32') {
@@ -709,6 +903,20 @@ function registerIpcHandlers() {
     return null;
   });
 
+  ipcMain.handle('select-audio', async () => {
+    isDialogOpen = true;
+    const res = await dialog.showOpenDialog(shelfWindow!, {
+      properties: ['openFile'],
+      filters: [{ name: 'Audio Files', extensions: ['mp3', 'wav', 'ogg', 'aac', 'm4a'] }],
+    });
+    isDialogOpen = false;
+    showShelf();
+    if (!res.canceled && res.filePaths.length > 0) {
+      return res.filePaths[0];
+    }
+    return null;
+  });
+
   ipcMain.handle('get-image-data', async (_, filePath) => {
     try {
       if (fs.existsSync(filePath)) {
@@ -732,7 +940,10 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle('set-monitor', async (_, monitorId) => {
-    saveConfig({ monitorId });
+    const displays = screen.getAllDisplays();
+    const target = displays.find(d => d.id.toString() === monitorId);
+    const monitorBounds = target ? { x: target.bounds.x, y: target.bounds.y, width: target.bounds.width, height: target.bounds.height } : undefined;
+    saveConfig({ monitorId, monitorBounds });
     alignWindows();
   });
 
@@ -794,6 +1005,12 @@ function registerIpcHandlers() {
     const cpuModel = cpus.length > 0 ? cpus[0].model : 'Unknown';
     const cpuCores = cpus.length;
 
+    // VRAM Info (cached permanently once successfully loaded, fetched in background)
+    if (!vramCache) {
+      fetchVramInfoInBackground();
+    }
+    const vramInfo = vramCache ? vramCache.data : null;
+
     return {
       memory: {
         total: totalMem / (1024 * 1024 * 1024),
@@ -804,19 +1021,65 @@ function registerIpcHandlers() {
         model: cpuModel,
         cores: cpuCores
       },
+      vram: vramInfo,
       uptime: os.uptime()
     };
   });
   let diskCache: { data: any[], ts: number } | null = null;
 
   ipcMain.handle('get-disk-info', async () => {
-    if (diskCache && (Date.now() - diskCache.ts) < 60000) {
+    const hasCache = !!diskCache;
+    const cacheExpired = !hasCache || (Date.now() - diskCache.ts) >= 60000;
+
+    if (cacheExpired) {
+      // Revalidar en segundo plano asíncronamente para evitar congelar el hilo principal
+      const runQuery = () => {
+        exec('wmic logicaldisk get size,freespace,caption', { timeout: 3000, encoding: 'utf-8' }, (err, stdout) => {
+          if (!err && stdout) {
+            const lines = stdout.trim().split('\n').slice(1);
+            const disks: Array<{ drive: string; total: number; free: number; used: number; percent: number }> = [];
+            for (const line of lines) {
+              const parts = line.trim().split(/\s+/);
+              if (parts.length >= 3) {
+                const drive = parts[0];
+                const free = parseInt(parts[1], 10);
+                const total = parseInt(parts[2], 10);
+                if (!isNaN(free) && !isNaN(total) && total > 0) {
+                  const used = total - free;
+                  disks.push({
+                    drive,
+                    total: Math.round(total / (1024 * 1024 * 1024) * 10) / 10,
+                    free: Math.round(free / (1024 * 1024 * 1024) * 10) / 10,
+                    used: Math.round(used / (1024 * 1024 * 1024) * 10) / 10,
+                    percent: Math.round((used / total) * 100),
+                  });
+                }
+              }
+            }
+            if (disks.length > 0) {
+              diskCache = { data: disks, ts: Date.now() };
+            }
+          }
+        });
+      };
+
+      if (hasCache) {
+        // Si ya hay datos viejos, los devolvemos de inmediato y revalidamos de fondo (SWR)
+        runQuery();
+        return diskCache.data;
+      }
+    } else if (hasCache) {
+      // Caché válido menor a 60s
       return diskCache.data;
     }
+
+    // Primer inicio absoluto sin caché: ejecución bloqueante inicial para tener datos iniciales correctos
     return new Promise((resolve) => {
       exec('wmic logicaldisk get size,freespace,caption', { timeout: 3000, encoding: 'utf-8' }, (err, stdout) => {
-        if (err) {
-          resolve(diskCache?.data || [{ drive: 'C:', total: 500, free: 250, used: 250, percent: 50 }]);
+        if (err || !stdout) {
+          const fallback = [{ drive: 'C:', total: 500, free: 250, used: 250, percent: 50 }];
+          diskCache = { data: fallback, ts: Date.now() };
+          resolve(fallback);
           return;
         }
         const lines = stdout.trim().split('\n').slice(1);
@@ -845,6 +1108,64 @@ function registerIpcHandlers() {
       });
     });
   });
+
+  let processesCache: { data: any[], ts: number } | null = null;
+
+  ipcMain.handle('get-running-processes', async () => {
+    if (processesCache && (Date.now() - processesCache.ts) < 3000) {
+      return processesCache.data;
+    }
+    return new Promise((resolve) => {
+      exec('wmic process get ExecutablePath,ProcessId,Name,WorkingSetSize /format:csv', { timeout: 5000, encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
+        if (err || !stdout) {
+          resolve(processesCache?.data || []);
+          return;
+        }
+        const lines = stdout.split(/\r?\n/);
+        const processes: Array<{ pid: number, name: string, path: string, memory: number }> = [];
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith('Node,') || trimmed.startsWith('Node\r') || trimmed.startsWith('Node\n')) {
+            continue;
+          }
+          const parts = trimmed.split(',');
+          if (parts.length >= 5) {
+            const name = parts[parts.length - 3];
+            const pidStr = parts[parts.length - 2];
+            const memStr = parts[parts.length - 1];
+            const path = parts.slice(1, parts.length - 3).join(',');
+
+            const pid = parseInt(pidStr, 10);
+            const memory = parseInt(memStr, 10);
+            if (!isNaN(pid) && name) {
+              processes.push({
+                pid,
+                name,
+                path: path || '',
+                memory: isNaN(memory) ? 0 : memory
+              });
+            }
+          }
+        }
+        processesCache = { data: processes, ts: Date.now() };
+        resolve(processes);
+      });
+    });
+  });
+
+  ipcMain.handle('kill-process', async (_, pid) => {
+    return new Promise((resolve) => {
+      exec(`taskkill /F /PID ${pid}`, { windowsHide: true }, (err) => {
+        if (err) {
+          resolve({ success: false, error: err.message });
+        } else {
+          processesCache = null; // Invalidate cache immediately on process kill
+          resolve({ success: true });
+        }
+      });
+    });
+  });
+
   ipcMain.handle('resolve-file-path', async (_, filePath) => {
     return await resolveFullFileInfo(filePath);
   });
@@ -903,6 +1224,121 @@ function registerIpcHandlers() {
       { label: 'Seleccionar todo', role: 'selectAll' }
     ]);
     menu.popup({ window: shelfWindow!, x, y });
+  });
+
+  ipcMain.handle('show-handle-context-menu', async () => {
+    const HANDLE_CONTEXT_MENU_TRANSLATIONS = {
+      en: {
+        hide: 'Hide Cyber-Handle',
+        position: 'Position',
+        left: 'Left',
+        center: 'Center',
+        right: 'Right',
+        dock_top: 'Dock to Top',
+        dock_bottom: 'Dock to Bottom',
+        settings: 'Settings...',
+        exit: 'Exit'
+      },
+      es: {
+        hide: 'Ocultar Cyber-Handle',
+        position: 'Posición',
+        left: 'Izquierda',
+        center: 'Centro',
+        right: 'Derecha',
+        dock_top: 'Acoplar arriba',
+        dock_bottom: 'Acoplar abajo',
+        settings: 'Configuración...',
+        exit: 'Salir'
+      }
+    };
+
+    const lang = config.language === 'es' ? 'es' : 'en';
+    const t = HANDLE_CONTEXT_MENU_TRANSLATIONS[lang];
+    const hasCustomOffset = config.handleOffsetPercent !== undefined && config.handleOffsetPercent !== null;
+
+    const menu = Menu.buildFromTemplate([
+      {
+        label: t.hide,
+        click: () => {
+          saveConfig({ handleVisible: false });
+          alignWindows();
+        }
+      },
+      {
+        label: t.position,
+        type: 'submenu',
+        submenu: [
+          {
+            label: t.left,
+            type: 'radio',
+            checked: !hasCustomOffset && config.handlePosition === 'left',
+            click: () => {
+              saveConfig({ handlePosition: 'left', handleOffsetPercent: null });
+              alignWindows();
+            }
+          },
+          {
+            label: t.center,
+            type: 'radio',
+            checked: !hasCustomOffset && config.handlePosition === 'center',
+            click: () => {
+              saveConfig({ handlePosition: 'center', handleOffsetPercent: null });
+              alignWindows();
+            }
+          },
+          {
+            label: t.right,
+            type: 'radio',
+            checked: !hasCustomOffset && config.handlePosition === 'right',
+            click: () => {
+              saveConfig({ handlePosition: 'right', handleOffsetPercent: null });
+              alignWindows();
+            }
+          },
+          { type: 'separator' },
+          {
+            label: t.dock_top,
+            type: 'radio',
+            checked: config.dockPosition === 'top',
+            click: () => {
+              saveConfig({ dockPosition: 'top', handleOffsetPercent: null });
+              alignWindows();
+            }
+          },
+          {
+            label: t.dock_bottom,
+            type: 'radio',
+            checked: config.dockPosition === 'bottom',
+            click: () => {
+              saveConfig({ dockPosition: 'bottom', handleOffsetPercent: null });
+              alignWindows();
+            }
+          }
+        ]
+      },
+      { type: 'separator' },
+      {
+        label: t.settings,
+        click: () => {
+          showShelf();
+          setTimeout(() => {
+            if (shelfWindow && !shelfWindow.isDestroyed()) {
+              shelfWindow.webContents.send('open-settings');
+            }
+          }, 300);
+        }
+      },
+      { type: 'separator' },
+      {
+        label: t.exit,
+        click: () => {
+          isQuitting = true;
+          app.quit();
+        }
+      }
+    ]);
+
+    menu.popup({ window: handleWindow || undefined });
   });
 
   ipcMain.handle('export-config', async (_, jsonData) => {
@@ -998,6 +1434,216 @@ function registerIpcHandlers() {
       }, 200);
     }
   });
+
+  ipcMain.handle('track-handle-drag-start', async () => {
+    if (!handleWindow || handleWindow.isDestroyed()) return;
+
+    if (dragInterval) clearInterval(dragInterval);
+
+    const cursor = screen.getCursorScreenPoint();
+    const winBounds = handleWindow.getBounds();
+    const offsetX = cursor.x - winBounds.x;
+
+    const display = getTargetDisplay();
+    const workArea = display.workArea;
+    const handleWidth = 200;
+
+    dragInterval = setInterval(() => {
+      if (!handleWindow || handleWindow.isDestroyed()) {
+        if (dragInterval) {
+          clearInterval(dragInterval);
+          dragInterval = null;
+        }
+        return;
+      }
+
+      const currentCursor = screen.getCursorScreenPoint();
+      let newX = currentCursor.x - offsetX;
+      newX = Math.max(workArea.x + 10, Math.min(workArea.x + workArea.width - handleWidth - 10, newX));
+
+      handleWindow.setBounds({
+        x: newX,
+        y: winBounds.y,
+        width: winBounds.width,
+        height: winBounds.height
+      });
+    }, 10);
+  });
+
+  ipcMain.handle('track-handle-drag-stop', async () => {
+    if (dragInterval) {
+      clearInterval(dragInterval);
+      dragInterval = null;
+    }
+
+    if (handleWindow && !handleWindow.isDestroyed()) {
+      const finalX = handleWindow.getBounds().x;
+      const display = getTargetDisplay();
+      const workArea = display.workArea;
+      const handleWidth = 200;
+
+      let offsetPercent = ((finalX - workArea.x) / (workArea.width - handleWidth)) * 100;
+      offsetPercent = Math.max(0, Math.min(100, offsetPercent));
+
+      saveConfig({ handleOffsetPercent: offsetPercent });
+    }
+  });
+
+  ipcMain.handle('run-desktop-sweep', async () => {
+    try {
+      const desktopPath = app.getPath('desktop');
+      const targetVaultPath = getVaultPath();
+
+      // Ensure vault directory exists
+      if (!fs.existsSync(targetVaultPath)) {
+        fs.mkdirSync(targetVaultPath, { recursive: true });
+      }
+
+      const files = fs.readdirSync(desktopPath);
+      let count = 0;
+      const sweptShortcuts: any[] = [];
+
+      for (const file of files) {
+        const fullPath = path.join(desktopPath, file);
+        const ext = path.extname(file).toLowerCase();
+
+        // Skip folders/files that are links (.lnk, .url), or desktop.ini
+        if (ext === '.lnk' || ext === '.url' || file.toLowerCase() === 'desktop.ini') {
+          continue;
+        }
+
+        try {
+          const stats = fs.statSync(fullPath);
+          // Determine unique target filename to prevent collisions
+          let targetName = file;
+          let targetFullPath = path.join(targetVaultPath, targetName);
+          let suffix = 1;
+
+          while (fs.existsSync(targetFullPath)) {
+            const baseName = path.basename(file, ext);
+            targetName = `${baseName}_${suffix}${ext}`;
+            targetFullPath = path.join(targetVaultPath, targetName);
+            suffix++;
+          }
+
+          // Move the file/folder
+          fs.renameSync(fullPath, targetFullPath);
+          count++;
+
+          // Extract high-quality icon if it's a file
+          let iconDataUrl = '';
+          try {
+            if (fs.existsSync(targetFullPath) && stats.isFile()) {
+              let icon = await app.getFileIcon(targetFullPath, { size: 'large' });
+              if (!icon || icon.isEmpty()) {
+                icon = await app.getFileIcon(targetFullPath, { size: 'normal' });
+              }
+              if (icon && !icon.isEmpty()) {
+                iconDataUrl = icon.toDataURL();
+              }
+            }
+          } catch (e) {
+            console.warn('getFileIcon fail for swept file:', e);
+          }
+
+          sweptShortcuts.push({
+            id: Date.now() + count + Math.floor(Math.random() * 1000),
+            name: path.basename(file, ext), // Store original clean name
+            path: targetFullPath,
+            category: 'vault',
+            iconPath: iconDataUrl,
+            isAdmin: false,
+            delay: 0,
+            arguments: '',
+            usageCount: 0,
+            addedTimestamp: Date.now()
+          });
+
+        } catch (fileErr) {
+          console.error(`Error sweeping file ${file}:`, fileErr);
+        }
+      }
+
+      if (count > 0) {
+        // Save swept items to config shortcutsList
+        const existingShortcuts = (config as any).shortcutsList || [];
+        const updatedShortcuts = [...existingShortcuts, ...sweptShortcuts];
+        saveConfig({ shortcutsList: updatedShortcuts });
+      }
+
+      return { success: true, count };
+    } catch (err: any) {
+      console.error('Desktop sweep failed:', err);
+      return { success: false, error: err?.message || err };
+    }
+  });
+
+  ipcMain.handle('get-default-vault-path', async () => {
+    return path.join(app.getPath('userData'), 'vault');
+  });
+
+  ipcMain.handle('open-vault-folder', async () => {
+    const targetVaultPath = getVaultPath();
+    if (!fs.existsSync(targetVaultPath)) {
+      fs.mkdirSync(targetVaultPath, { recursive: true });
+    }
+    shell.openPath(targetVaultPath);
+    return true;
+  });
+
+  ipcMain.handle('import-file-to-vault', async (event, filePath: string) => {
+    try {
+      const targetVaultPath = getVaultPath();
+      if (!fs.existsSync(targetVaultPath)) {
+        fs.mkdirSync(targetVaultPath, { recursive: true });
+      }
+
+      const file = path.basename(filePath);
+      const ext = path.extname(filePath);
+      const baseName = path.basename(filePath, ext);
+
+      // Determine unique target path to prevent collisions
+      let targetName = file;
+      let targetFullPath = path.join(targetVaultPath, targetName);
+      let suffix = 1;
+
+      while (fs.existsSync(targetFullPath)) {
+        targetName = `${baseName}_${suffix}${ext}`;
+        targetFullPath = path.join(targetVaultPath, targetName);
+        suffix++;
+      }
+
+      // Copy file or folder recursively
+      fs.cpSync(filePath, targetFullPath, { recursive: true });
+
+      // Extract high-quality icon
+      let iconDataUrl = '';
+      try {
+        const stats = fs.statSync(targetFullPath);
+        if (stats.isFile()) {
+          let icon = await app.getFileIcon(targetFullPath, { size: 'large' });
+          if (!icon || icon.isEmpty()) {
+            icon = await app.getFileIcon(targetFullPath, { size: 'normal' });
+          }
+          if (icon && !icon.isEmpty()) {
+            iconDataUrl = icon.toDataURL();
+          }
+        }
+      } catch (e) {
+        console.warn('getFileIcon fail for imported file:', e);
+      }
+
+      return {
+        success: true,
+        path: targetFullPath,
+        iconPath: iconDataUrl,
+        name: baseName
+      };
+    } catch (err: any) {
+      console.error('Import file to vault failed:', err);
+      return { success: false, error: err?.message || err };
+    }
+  });
 }
 
 // ── PROTOCOLO DE RECURSO LOCAL ──
@@ -1024,6 +1670,11 @@ function registerLocalResourceProtocol() {
         else if (ext === '.gif') contentType = 'image/gif';
         else if (ext === '.webp') contentType = 'image/webp';
         else if (ext === '.svg') contentType = 'image/svg+xml';
+        else if (ext === '.mp3') contentType = 'audio/mpeg';
+        else if (ext === '.wav') contentType = 'audio/wav';
+        else if (ext === '.ogg') contentType = 'audio/ogg';
+        else if (ext === '.aac') contentType = 'audio/aac';
+        else if (ext === '.m4a') contentType = 'audio/mp4';
         
         return new Response(data, {
           headers: { 'Content-Type': contentType }
@@ -1043,6 +1694,7 @@ app.whenReady().then(() => {
   loadConfig();
   registerLocalResourceProtocol();
   registerIpcHandlers();
+  fetchVramInfoInBackground(); // Carga de VRAM asíncrona en segundo plano al iniciar
   createWindows();
   createTray();
   registerGlobalShortcutKey(config.shortcut);
