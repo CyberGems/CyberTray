@@ -10,10 +10,6 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'local-resource', privileges: { bypassCSP: true, secure: true, supportFetchAPI: true, allowServiceWorkers: true } }
 ]);
 
-// Optimizar rendimiento de Chromium en segundo plano (evitar suspensión de GPU/renderizado y throttling de CPU)
-app.commandLine.appendSwitch('disable-renderer-backgrounding');
-app.commandLine.appendSwitch('disable-background-timer-throttling');
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Ocultar advertencias de seguridad para desarrollo
@@ -306,7 +302,7 @@ function createWindows() {
       nodeIntegration: false,
       contextIsolation: true,
       spellcheck: false,
-      backgroundThrottling: false,
+      backgroundThrottling: true,
     },
     autoHideMenuBar: true,
   });
@@ -374,7 +370,7 @@ function createWindows() {
       preload: path.join(__dirname, 'preload.mjs'),
       nodeIntegration: false,
       contextIsolation: true,
-      backgroundThrottling: false,
+      backgroundThrottling: true,
     },
     autoHideMenuBar: true,
   });
