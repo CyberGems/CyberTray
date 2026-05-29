@@ -445,7 +445,7 @@ export default function App() {
       if (!latestTag) {
         throw new Error('No tag found');
       }
-      const currentVer = "1.60";
+      const currentVer = "1.70";
       const cleanLatest = latestTag.replace(/^v/, '');
       const latestNum = parseFloat(cleanLatest);
       const currentNum = parseFloat(currentVer);
@@ -541,36 +541,30 @@ export default function App() {
     }
   }, [mode]);
 
-  // Poll running processes list based on shelf visibility and Process Matrix modal state
-  useEffect(() => {
-    if (!isElectron || mode !== 'shelf') return;
-    if (!isShelfVisible) {
-      setRunningProcesses([]);
-      return;
-    }
+  const [isScanningProcesses, setIsScanningProcesses] = useState<boolean>(false);
 
-    const fetchProcesses = async () => {
-      try {
-        const list = await window.electronAPI!.getRunningProcesses();
-        if (Array.isArray(list)) {
-          setRunningProcesses(list);
-        }
-      } catch (err) {
-        console.error('Error fetching running processes:', err);
+  const handleScanProcesses = async () => {
+    if (!isElectron) return;
+    setIsScanningProcesses(true);
+    playCyberBeep();
+    try {
+      const list = await window.electronAPI!.getRunningProcesses();
+      if (Array.isArray(list)) {
+        setRunningProcesses(list);
       }
-    };
+    } catch (err) {
+      console.error('Error fetching running processes:', err);
+    } finally {
+      setIsScanningProcesses(false);
+    }
+  };
 
-    // Defer initial process scanning by 2 seconds to avoid stuttering during slide-in transition
-    const initialDelayTimeout = setTimeout(fetchProcesses, 2000);
-
-    // Setup polling: 3s if Process Matrix modal is open, 10s otherwise to keep green dots updated
-    const pollInterval = setInterval(fetchProcesses, showProcessMatrixModal ? 3000 : 10000);
-
-    return () => {
-      clearTimeout(initialDelayTimeout);
-      clearInterval(pollInterval);
-    };
-  }, [isShelfVisible, showProcessMatrixModal, mode]);
+  // Clear running processes list when the matrix modal is closed to release memory
+  useEffect(() => {
+    if (!showProcessMatrixModal) {
+      setRunningProcesses([]);
+    }
+  }, [showProcessMatrixModal]);
 
   // Auto-focus search input when shelf becomes visible
   useEffect(() => {
@@ -2396,9 +2390,6 @@ export default function App() {
                       <div className="min-w-0 flex-1 text-left">
                         <h4 className="font-montserrat font-bold text-white text-[12px] truncate uppercase tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1">
                           <span className="truncate">{item.name}</span>
-                          {isShortcutRunning(item) && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)] flex-shrink-0" title="ACTIVE" />
-                          )}
                         </h4>
                         <p className={`font-mono text-[9px] truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`} title={item.path}>
                           {item.category === 'vault' ? translate('vault_real_path', { path: item.path }) : item.path}
@@ -2408,6 +2399,22 @@ export default function App() {
 
                     {/* Indicators & Edit Button */}
                     <div className="flex items-center gap-1.5 flex-shrink-0 z-10">
+                      {activeCategory === 'all' && (() => {
+                        const catObj = categories.find(c => c.id === item.category);
+                        if (!catObj) return null;
+                        return (
+                          <span 
+                            className="text-[8px] font-cyber font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider select-none mr-1"
+                            style={{
+                              backgroundColor: `${catObj.color}15`,
+                              borderColor: `${catObj.color}40`,
+                              color: catObj.color,
+                            }}
+                          >
+                            {catObj.name}
+                          </span>
+                        );
+                      })()}
                       {item.isFavorite && (
                         <span className="text-[10px] text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]" title={langCode === 'es' ? 'Favorito' : 'Favorite'}>★</span>
                       )}
@@ -2420,12 +2427,6 @@ export default function App() {
                         <span className="text-[8px] font-mono text-cyan-400 bg-cyan-950/20 px-1 py-0.2 rounded flex items-center gap-0.5">
                           <Clock className="w-2.5 h-2.5" />
                           {item.delay}s
-                        </span>
-                      )}
-                      {proc && (
-                        <span className="text-[7.5px] font-cyber font-bold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-1 py-0.2 rounded flex items-center gap-1" title={`PID: ${proc.pid}`}>
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                          {Math.round(proc.memory / (1024 * 1024))} MB
                         </span>
                       )}
                       
@@ -2492,9 +2493,6 @@ export default function App() {
                         }}
                       >
                         <span className="truncate">{item.name}</span>
-                        {isShortcutRunning(item) && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)] flex-shrink-0" title="ACTIVE" />
-                        )}
                       </h4>
 
                       {/* Ocultar ruta en grid pequeño para evitar ruido visual */}
@@ -2509,8 +2507,25 @@ export default function App() {
                       )}
                       
                       {/* Detalles rápidos */}
-                      {(!isSmallGrid || proc) && (
+                      {(!isSmallGrid || (activeCategory === 'all')) && (
                         <div className={`flex items-center gap-1.5 mt-0.5 flex-wrap ${isSmallGrid ? 'justify-center' : 'justify-start'}`}>
+                          {activeCategory === 'all' && (() => {
+                            const catObj = categories.find(c => c.id === item.category);
+                            if (!catObj) return null;
+                            return (
+                              <span 
+                                className="text-[7.5px] font-cyber font-bold px-1.2 py-0.3 rounded border uppercase tracking-wider select-none animate-fade-in"
+                                style={{
+                                  backgroundColor: `${catObj.color}12`,
+                                  borderColor: `${catObj.color}30`,
+                                  color: catObj.color,
+                                  fontSize: isSmallGrid ? '6.5px' : '7.5px'
+                                }}
+                              >
+                                {catObj.name}
+                              </span>
+                            );
+                          })()}
                           {item.isAdmin && !isSmallGrid && (
                             <span className="text-[7.5px] font-montserrat font-bold bg-amber-500/10 border border-amber-500/30 text-amber-500 px-1 py-0.2 rounded" title={translate('shortcut_run_admin')}>
                               {translate('shortcut_admin_tag')}
@@ -2525,16 +2540,6 @@ export default function App() {
                           {item.usageCount > 0 && !isSmallGrid && (
                             <span className="text-[8px] font-mono text-slate-500">
                               {item.usageCount} ex.
-                            </span>
-                          )}
-                          {proc && (
-                            <span 
-                              className="text-[7.5px] font-cyber font-bold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-1 py-0.2 rounded flex items-center gap-1" 
-                              title={`PID: ${proc.pid}`}
-                              style={{ fontSize: isSmallGrid ? '7px' : '7.5px' }}
-                            >
-                              {!isSmallGrid && <span className="w-1 h-1 rounded-full bg-emerald-400 animate-ping" />}
-                              {Math.round(proc.memory / (1024 * 1024))} MB
                             </span>
                           )}
                         </div>
@@ -3875,7 +3880,7 @@ export default function App() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="text-right text-[10px] text-slate-400 mr-2">
+                  <div className="text-right text-[10px] text-slate-400 mr-1">
                     {langCode === 'es' ? 'PROCESOS: ' : 'PROCESSES: '}
                     <span className="text-emerald-400 font-bold">
                       {runningProcesses.filter(p =>
@@ -3885,6 +3890,19 @@ export default function App() {
                       ).length}
                     </span>
                   </div>
+                  {isElectron && (
+                    <button
+                      onClick={handleScanProcesses}
+                      disabled={isScanningProcesses}
+                      className="px-2 py-1 text-[9px] rounded border border-slate-800 hover:border-[var(--neon-glow-border)] bg-slate-950 hover:bg-slate-900 text-slate-300 hover:text-white flex items-center gap-1 transition-all cursor-pointer font-cyber disabled:opacity-50"
+                      title={langCode === 'es' ? 'Escanear procesos activos' : 'Scan active processes'}
+                    >
+                      <RefreshCw className={`w-2.5 h-2.5 ${isScanningProcesses ? 'animate-spin' : ''}`} />
+                      {isScanningProcesses 
+                        ? (langCode === 'es' ? 'ESCANEANDO' : 'SCANNING') 
+                        : (langCode === 'es' ? 'ESCANEAR' : 'SCAN')}
+                    </button>
+                  )}
                   <button
                     onClick={() => setShowProcessMatrixModal(false)}
                     className="w-7 h-7 rounded-lg border border-slate-800 hover:border-red-500/50 text-slate-500 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-all cursor-pointer flex-shrink-0"
@@ -3907,6 +3925,8 @@ export default function App() {
                   playCyberBeep={playCyberBeep}
                   setRunningProcesses={setRunningProcesses}
                   showToolbar={false}
+                  onScan={handleScanProcesses}
+                  isScanning={isScanningProcesses}
                 />
               </div>
 

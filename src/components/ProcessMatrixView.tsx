@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { translate, TranslationKey } from '../locales';
-import { Search, X } from 'lucide-react';
+import { Search, X, RefreshCw } from 'lucide-react';
 
 interface Process {
   pid: number;
@@ -21,6 +21,8 @@ interface ProcessMatrixViewProps {
   setRunningProcesses: (list: Process[]) => void;
   embedded?: boolean;
   showToolbar?: boolean;
+  onScan?: () => void;
+  isScanning?: boolean;
 }
 
 export default function ProcessMatrixView({
@@ -35,6 +37,8 @@ export default function ProcessMatrixView({
   setRunningProcesses,
   embedded = false,
   showToolbar = true,
+  onScan,
+  isScanning = false,
 }: ProcessMatrixViewProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isElectron = !!window.electronAPI;
@@ -201,8 +205,39 @@ export default function ProcessMatrixView({
             })}
           </div>
         ) : (
-          <div className="py-12 text-center text-slate-500 text-xs">
-            {langCode === 'es' ? 'No se encontraron procesos activos.' : 'No active processes found.'}
+          <div className="py-12 px-6 text-center text-slate-500 text-xs flex flex-col items-center justify-center h-full min-h-[220px] gap-4">
+            {isScanning ? (
+              <div className="flex flex-col items-center gap-3">
+                <RefreshCw className="w-8 h-8 text-[var(--neon-glow-color)] animate-spin" />
+                <span className="text-[var(--neon-glow-color)] font-cyber font-bold tracking-wider animate-pulse">
+                  {langCode === 'es' ? 'ESCANEANDO MATRIZ...' : 'SCANNING MATRIX...'}
+                </span>
+              </div>
+            ) : runningProcesses.length === 0 ? (
+              <div className="flex flex-col items-center gap-3">
+                <RefreshCw className="w-8 h-8 text-slate-700" />
+                <p className="text-slate-400 max-w-xs font-cyber tracking-wider">
+                  {langCode === 'es' ? 'MATRIZ DE PROCESOS DESCONECTADA' : 'PROCESS MATRIX OFFLINE'}
+                </p>
+                <p className="text-[10px] text-slate-600 max-w-xs">
+                  {langCode === 'es' 
+                    ? 'Inicie el escaneo de telemetría de tareas en tiempo real.' 
+                    : 'Initialize real-time task telemetry scan.'}
+                </p>
+                {onScan && (
+                  <button
+                    onClick={onScan}
+                    className="mt-2 px-4 py-2 border border-[var(--neon-glow-border)] bg-[var(--neon-glow-color)]/10 hover:bg-[var(--neon-glow-color)]/20 text-white font-cyber font-bold tracking-widest text-[10px] rounded-lg transition-all cursor-pointer shadow-[0_0_10px_rgba(59,130,246,0.1)] hover:shadow-[0_0_15px_rgba(59,130,246,0.2)]"
+                  >
+                    {langCode === 'es' ? 'INICIAR TELEMETRÍA' : 'INITIALIZE TELEMETRY'}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <span className="font-cyber text-slate-600">
+                {langCode === 'es' ? 'No se encontraron procesos activos.' : 'No active processes found.'}
+              </span>
+            )}
           </div>
         )}
       </div>
