@@ -423,6 +423,9 @@ function animateShelfShow(targetBounds: Electron.Rectangle, duration = 220) {
   shelfWindow.show();
   shelfWindow.focus();
 
+  // Mount React DOM immediately when opening to prevent window duplication glitch/pop
+  shelfWindow.webContents.send('shelf-state-change', true);
+
   const startTime = Date.now();
   shelfAnimationTimer = setInterval(() => {
     if (!shelfWindow || shelfWindow.isDestroyed()) {
@@ -441,7 +444,6 @@ function animateShelfShow(targetBounds: Electron.Rectangle, duration = 220) {
     if (progress >= 1) {
       stopShelfAnimation();
       shelfWindow.setBounds(targetBounds);
-      shelfWindow.webContents.send('shelf-state-change', true);
     }
   }, 16);
 }
@@ -799,7 +801,7 @@ function startHotspotPolling() {
       lastHotspotCorner = '';
       hotspotCooldown = false;
     }
-  }, 100);
+  }, 200);
 }
 
 // ── UAC SECURE DESKTOP GUARD (consent.exe) ──

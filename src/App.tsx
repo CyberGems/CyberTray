@@ -117,7 +117,7 @@ const normalizeCategoriesList = (list: any[] = []) => {
 let globalAudioCtx: AudioContext | null = null;
 
 export default function App() {
-  const currentVer = "1.9.5";
+  const currentVer = "1.9.6";
   // Modo de Ventana (Mode Detection)
   const [mode, setMode] = useState<'shelf' | 'handle'>('shelf');
   
@@ -446,7 +446,7 @@ export default function App() {
       if (!latestTag) {
         throw new Error('No tag found');
       }
-      const currentVerCompare = 1.95;
+      const currentVerCompare = 1.96;
       const cleanLatest = latestTag.replace(/^v/, '');
       const latestNum = parseFloat(cleanLatest);
       
@@ -1768,7 +1768,7 @@ export default function App() {
             <span className="w-[4.8px] h-[11.2px] bg-[var(--neon-glow-border)] rounded-sm shadow-[0_0_4px_var(--neon-glow-color-raw)]" />
             
             {/* Barra central (Grande - 100% tamaño, Pulsante) */}
-            <span className="w-[6px] h-[14px] bg-[var(--neon-glow-border)] rounded-sm shadow-[0_0_4px_var(--neon-glow-color-raw)] animate-pulse" />
+            <span className="w-[6px] h-[14px] bg-[var(--neon-glow-border)] rounded-sm shadow-[0_0_4px_var(--neon-glow-color-raw)]" />
             
             {/* Barra derecha interna (Mediana - 80% tamaño) */}
             <span className="w-[4.8px] h-[11.2px] bg-[var(--neon-glow-border)] rounded-sm shadow-[0_0_4px_var(--neon-glow-color-raw)]" />
