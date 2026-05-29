@@ -22,6 +22,18 @@ process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 // Forzar nombre único para userData
 app.setName('CyberTray');
 
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (shelfWindow) {
+      if (shelfWindow.isMinimized()) shelfWindow.restore();
+      showShelf();
+    }
+  });
+}
+
 let shelfWindow: BrowserWindow | null = null;
 let handleWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -1703,6 +1715,7 @@ function registerLocalResourceProtocol() {
 
 // ── INICIALIZACIÓN ──
 app.whenReady().then(() => {
+  if (!gotTheLock) return;
   loadConfig();
   registerLocalResourceProtocol();
   registerIpcHandlers();

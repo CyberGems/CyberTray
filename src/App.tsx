@@ -117,6 +117,7 @@ const normalizeCategoriesList = (list: any[] = []) => {
 let globalAudioCtx: AudioContext | null = null;
 
 export default function App() {
+  const currentVer = "1.9.0";
   // Modo de Ventana (Mode Detection)
   const [mode, setMode] = useState<'shelf' | 'handle'>('shelf');
   
@@ -445,12 +446,11 @@ export default function App() {
       if (!latestTag) {
         throw new Error('No tag found');
       }
-      const currentVer = "1.80";
+      const currentVerCompare = 1.90;
       const cleanLatest = latestTag.replace(/^v/, '');
       const latestNum = parseFloat(cleanLatest);
-      const currentNum = parseFloat(currentVer);
       
-      if (!isNaN(latestNum) && !isNaN(currentNum) && latestNum > currentNum) {
+      if (!isNaN(latestNum) && latestNum > currentVerCompare) {
         setUpdateCheckState({ status: 'update-available', latestVersion: latestTag });
       } else {
         setUpdateCheckState({ status: 'up-to-date', latestVersion: latestTag });
@@ -4700,7 +4700,7 @@ export default function App() {
                 <div className="w-full bg-slate-950/50 border border-slate-900 rounded-xl p-3.5 space-y-2.5 text-left text-[11px]">
                   <div className="flex justify-between items-center border-b border-slate-900/60 pb-1.5">
                     <span className="text-slate-400 font-cyber text-[10px] tracking-wider uppercase">{translate('about_version')}</span>
-                    <span className="text-white font-bold font-mono">v1.8.0</span>
+                    <span className="text-white font-bold font-mono">v{currentVer}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400 font-cyber text-[10px] tracking-wider uppercase">{translate('about_developer')}</span>
@@ -4749,7 +4749,7 @@ export default function App() {
                     <div className="space-y-2.5 w-full">
                       <div className="w-full py-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 flex items-center justify-center gap-2 font-bold tracking-widest text-[9.5px]">
                         <Check className="w-4 h-4 text-emerald-400" />
-                        {translate('update_up_to_date', { ver: "1.50" })}
+                        {translate('update_up_to_date', { ver: `v${currentVer}` })}
                       </div>
                       <button
                         onClick={() => { checkForUpdates(true); playCyberBeep(); }}
