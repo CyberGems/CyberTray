@@ -119,12 +119,14 @@ const STATE_FILE = path.join(app.getPath('userData'), 'cyber-tray-state.json');
 const TRAY_TRANSLATIONS = {
   en: {
     show: 'Show CyberTray',
+    show_handle: 'Show Cyber-Handle',
     pos_top: 'Position: Top',
     pos_bottom: 'Position: Bottom',
     exit: 'Exit'
   },
   es: {
     show: 'Mostrar CyberTray',
+    show_handle: 'Mostrar Cyber-Handle',
     pos_top: 'Posición: Superior',
     pos_bottom: 'Posición: Inferior',
     exit: 'Salir'
@@ -157,7 +159,7 @@ function saveConfig(newConfig: Partial<CyberTrayConfig>) {
       handleWindow.webContents.send('reload-config');
     }
     createTray();
-    // startHotspotPolling(); // Temporarily disabled for CPU isolation
+    startHotspotPolling();
   } catch (err) {
     console.error('Error saving config:', err);
   }
@@ -353,8 +355,7 @@ function createWindows() {
     shelfWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
-  // 2. Ventana Secundaria: Cyber-Handle (Manigueta) - Temporarily disabled for CPU isolation
-  /*
+  // 2. Ventana Secundaria: Cyber-Handle (Manigueta)
   handleWindow = new BrowserWindow({
     width: handleBounds.width,
     height: handleBounds.height,
@@ -389,7 +390,6 @@ function createWindows() {
       handleWindow?.show();
     }
   });
-  */
 
   shelfWindow.on('close', (e) => {
     if (!isQuitting) {
@@ -591,6 +591,16 @@ function createTray() {
       label: t.show,
       click: () => toggleShelf(),
     },
+    {
+      label: t.show_handle,
+      type: 'checkbox',
+      checked: config.handleVisible !== false,
+      click: (menuItem) => {
+        saveConfig({ handleVisible: menuItem.checked });
+        alignWindows();
+      }
+    },
+    { type: 'separator' },
     {
       label: t.pos_top,
       type: 'radio',
@@ -1719,12 +1729,12 @@ app.whenReady().then(() => {
   loadConfig();
   registerLocalResourceProtocol();
   registerIpcHandlers();
-  // fetchVramInfoInBackground(); // Temporarily disabled for CPU isolation
+  fetchVramInfoInBackground(); // Carga de VRAM asíncrona en segundo plano al iniciar
   createWindows();
   createTray();
   registerGlobalShortcutKey(config.shortcut);
-  // startHotspotPolling(); // Temporarily disabled for CPU isolation
-  // startUACGuard(); // Temporarily disabled for CPU isolation
+  startHotspotPolling();
+  startUACGuard();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
