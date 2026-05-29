@@ -1,7 +1,7 @@
 {
   "name": "cyber-tray",
   "private": true,
-  "version": "1.9.2",
+  "version": "1.9.3",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {

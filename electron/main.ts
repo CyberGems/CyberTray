@@ -157,7 +157,7 @@ function saveConfig(newConfig: Partial<CyberTrayConfig>) {
       handleWindow.webContents.send('reload-config');
     }
     createTray();
-    startHotspotPolling();
+    // startHotspotPolling(); // Temporarily disabled for CPU isolation
   } catch (err) {
     console.error('Error saving config:', err);
   }
@@ -353,7 +353,8 @@ function createWindows() {
     shelfWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
-  // 2. Ventana Secundaria: Cyber-Handle (Manigueta)
+  // 2. Ventana Secundaria: Cyber-Handle (Manigueta) - Temporarily disabled for CPU isolation
+  /*
   handleWindow = new BrowserWindow({
     width: handleBounds.width,
     height: handleBounds.height,
@@ -388,6 +389,7 @@ function createWindows() {
       handleWindow?.show();
     }
   });
+  */
 
   shelfWindow.on('close', (e) => {
     if (!isQuitting) {
@@ -1717,12 +1719,12 @@ app.whenReady().then(() => {
   loadConfig();
   registerLocalResourceProtocol();
   registerIpcHandlers();
-  fetchVramInfoInBackground(); // Carga de VRAM asíncrona en segundo plano al iniciar
+  // fetchVramInfoInBackground(); // Temporarily disabled for CPU isolation
   createWindows();
   createTray();
   registerGlobalShortcutKey(config.shortcut);
-  startHotspotPolling();
-  startUACGuard();
+  // startHotspotPolling(); // Temporarily disabled for CPU isolation
+  // startUACGuard(); // Temporarily disabled for CPU isolation
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

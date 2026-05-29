@@ -117,7 +117,7 @@ const normalizeCategoriesList = (list: any[] = []) => {
 let globalAudioCtx: AudioContext | null = null;
 
 export default function App() {
-  const currentVer = "1.9.2";
+  const currentVer = "1.9.3";
   // Modo de Ventana (Mode Detection)
   const [mode, setMode] = useState<'shelf' | 'handle'>('shelf');
   
@@ -446,7 +446,7 @@ export default function App() {
       if (!latestTag) {
         throw new Error('No tag found');
       }
-      const currentVerCompare = 1.92;
+      const currentVerCompare = 1.93;
       const cleanLatest = latestTag.replace(/^v/, '');
       const latestNum = parseFloat(cleanLatest);
       
@@ -689,6 +689,7 @@ export default function App() {
   useEffect(() => {
     if (mode === 'handle' || !isShelfVisible) return;
 
+    /*
     const fetchLightTelemetry = async () => {
       if (isElectron) {
         const info = await window.electronAPI!.getSystemInfo();
@@ -728,6 +729,7 @@ export default function App() {
       clearInterval(lightInterval);
       clearInterval(heavyInterval);
     };
+    */
   }, [mode, isShelfVisible]);
 
   // Limpieza del temporizador de hover al desmontar
@@ -1767,8 +1769,8 @@ export default function App() {
             {/* Barra izquierda interna (Mediana - 80% tamaño) */}
             <span className="w-[4.8px] h-[11.2px] bg-[var(--neon-glow-border)] rounded-sm shadow-[0_0_4px_var(--neon-glow-color-raw)]" />
             
-            {/* Barra central (Grande - 100% tamaño, Pulsante) */}
-            <span className="w-[6px] h-[14px] bg-[var(--neon-glow-border)] rounded-sm shadow-[0_0_4px_var(--neon-glow-color-raw)] animate-pulse" />
+            {/* Barra central (Grande - 100% tamaño) */}
+            <span className="w-[6px] h-[14px] bg-[var(--neon-glow-border)] rounded-sm shadow-[0_0_4px_var(--neon-glow-color-raw)]" />
             
             {/* Barra derecha interna (Mediana - 80% tamaño) */}
             <span className="w-[4.8px] h-[11.2px] bg-[var(--neon-glow-border)] rounded-sm shadow-[0_0_4px_var(--neon-glow-color-raw)]" />
