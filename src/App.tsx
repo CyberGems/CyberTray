@@ -117,7 +117,7 @@ const normalizeCategoriesList = (list: any[] = []) => {
 let globalAudioCtx: AudioContext | null = null;
 
 export default function App() {
-  const currentVer = "1.9.3";
+  const currentVer = "1.9.4";
   // Modo de Ventana (Mode Detection)
   const [mode, setMode] = useState<'shelf' | 'handle'>('shelf');
   
@@ -446,7 +446,7 @@ export default function App() {
       if (!latestTag) {
         throw new Error('No tag found');
       }
-      const currentVerCompare = 1.93;
+      const currentVerCompare = 1.94;
       const cleanLatest = latestTag.replace(/^v/, '');
       const latestNum = parseFloat(cleanLatest);
       
@@ -1802,6 +1802,10 @@ export default function App() {
   const bgCustomPath = config.bgCustomPath || '';
   const opacityVal = config.opacity !== undefined ? config.opacity : 85;
   const blurLevel = config.blurLevel !== undefined ? config.blurLevel : 20;
+
+  if (mode === 'shelf' && !isShelfVisible) {
+    return <div className={`theme-${config.theme} w-full h-screen bg-transparent`} />;
+  }
 
   return (
     <div 
