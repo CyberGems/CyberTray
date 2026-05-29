@@ -117,7 +117,7 @@ const normalizeCategoriesList = (list: any[] = []) => {
 let globalAudioCtx: AudioContext | null = null;
 
 export default function App() {
-  const currentVer = "1.9.0";
+  const currentVer = "1.9.1";
   // Modo de Ventana (Mode Detection)
   const [mode, setMode] = useState<'shelf' | 'handle'>('shelf');
   
@@ -446,7 +446,7 @@ export default function App() {
       if (!latestTag) {
         throw new Error('No tag found');
       }
-      const currentVerCompare = 1.90;
+      const currentVerCompare = 1.91;
       const cleanLatest = latestTag.replace(/^v/, '');
       const latestNum = parseFloat(cleanLatest);
       

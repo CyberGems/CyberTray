@@ -161,6 +161,7 @@ function saveConfig(newConfig: Partial<CyberTrayConfig>) {
       handleWindow.webContents.send('reload-config');
     }
     createTray();
+    startHotspotPolling();
   } catch (err) {
     console.error('Error saving config:', err);
   }
@@ -721,7 +722,11 @@ async function resolveFullFileInfo(filePath: string) {
 
 // ── ACTIVE CORNERS (Esquinas activas / Hotspots) ──
 function startHotspotPolling() {
-  if (hotspotTimer) clearInterval(hotspotTimer);
+  if (hotspotTimer) {
+    clearInterval(hotspotTimer);
+    hotspotTimer = null;
+  }
+  if (!config.hotspotCorners || config.hotspotCorners.length === 0) return;
   lastHotspotPollTime = Date.now();
   
   hotspotTimer = setInterval(() => {
@@ -737,8 +742,6 @@ function startHotspotPolling() {
       hotspotCooldown = false;
       return;
     }
-
-    if (config.hotspotCorners.length === 0) return;
 
     const { x, y } = screen.getCursorScreenPoint();
     const displays = screen.getAllDisplays();
@@ -793,9 +796,8 @@ function startHotspotPolling() {
 
 // ── UAC SECURE DESKTOP GUARD (consent.exe) ──
 function shouldPollUAC(): boolean {
-  const hasHotspots = config.hotspotCorners && config.hotspotCorners.length > 0;
   const isShelfOpen = shelfWindow && !shelfWindow.isDestroyed() && shelfWindow.isVisible();
-  return !!(hasHotspots || isShelfOpen);
+  return !!isShelfOpen;
 }
 
 function startUACGuard() {
