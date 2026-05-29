@@ -445,7 +445,7 @@ export default function App() {
       if (!latestTag) {
         throw new Error('No tag found');
       }
-      const currentVer = "1.70";
+      const currentVer = "1.80";
       const cleanLatest = latestTag.replace(/^v/, '');
       const latestNum = parseFloat(cleanLatest);
       const currentNum = parseFloat(currentVer);
@@ -1803,7 +1803,7 @@ export default function App() {
 
   return (
     <div 
-      className={`theme-${config.theme} ${bgType !== 'image' ? 'cyber-scanlines' : ''} w-full h-screen bg-[#070b13] border-[var(--neon-glow-border)] flex flex-col justify-between overflow-hidden shadow-2xl relative select-none ${
+      className={`theme-${config.theme} ${isShelfVisible && bgType !== 'image' ? 'cyber-scanlines' : ''} w-full h-screen bg-[#070b13] border-[var(--neon-glow-border)] flex flex-col justify-between overflow-hidden shadow-2xl relative select-none ${
         config.dockPosition === 'bottom' ? 'rounded-t-2xl' : 'rounded-b-2xl'
       }`}
       style={{
@@ -1937,11 +1937,11 @@ export default function App() {
               onMouseLeave={hideTooltip}
               className={`px-4 h-9.5 text-[11px] font-cyber font-bold tracking-widest rounded-lg border transition-all flex items-center gap-2 cursor-pointer flex-shrink-0 ${
                 activeCategory === 'all'
-                  ? 'bg-slate-900 text-white scale-105 category-all-active-btn border-[var(--neon-glow-border)] shadow-[0_0_8px_var(--neon-glow-color-raw)]'
+                  ? `bg-slate-900 text-white scale-105 ${isShelfVisible ? 'category-all-active-btn' : ''} border-[var(--neon-glow-border)] shadow-[0_0_8px_var(--neon-glow-color-raw)]`
                   : 'bg-transparent border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
               }`}
             >
-              <span className={activeCategory === 'all' ? 'category-all-text-active' : ''}>
+              <span className={activeCategory === 'all' && isShelfVisible ? 'category-all-text-active' : ''}>
                 {translate('cat_all')}
               </span>
               <span
@@ -1980,7 +1980,7 @@ export default function App() {
                       ? 'scale-105 bg-[var(--neon-glow-color-raw)]/10 text-white'
                       : isActive
                         ? isAll
-                          ? 'bg-slate-900 text-white scale-105 category-all-active-btn'
+                          ? `bg-slate-900 text-white scale-105 ${isShelfVisible ? 'category-all-active-btn' : ''}`
                           : 'bg-slate-900 scale-105'
                         : 'bg-transparent border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
                   } ${
@@ -2000,7 +2000,7 @@ export default function App() {
                       : isActive ? (isAll ? undefined : `0 0 5px ${cat.color || 'var(--neon-glow-color)'}`) : undefined
                   }}
                 >
-                  <span className={isAll && isActive ? 'category-all-text-active' : ''}>
+                  <span className={isAll && isActive && isShelfVisible ? 'category-all-text-active' : ''}>
                     {cat.id === 'all' ? translate('cat_all') : cat.name}
                   </span>
                   <span
@@ -4700,7 +4700,7 @@ export default function App() {
                 <div className="w-full bg-slate-950/50 border border-slate-900 rounded-xl p-3.5 space-y-2.5 text-left text-[11px]">
                   <div className="flex justify-between items-center border-b border-slate-900/60 pb-1.5">
                     <span className="text-slate-400 font-cyber text-[10px] tracking-wider uppercase">{translate('about_version')}</span>
-                    <span className="text-white font-bold font-mono">v1.50</span>
+                    <span className="text-white font-bold font-mono">v1.8.0</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400 font-cyber text-[10px] tracking-wider uppercase">{translate('about_developer')}</span>
