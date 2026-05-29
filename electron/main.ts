@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell, Tray, Menu, globalShortcut, screen, nativeImage, dialog, protocol, net } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
-import { exec, execSync } from 'node:child_process';
+import { exec, execSync, execFile } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 
@@ -780,13 +780,23 @@ function startHotspotPolling() {
 }
 
 // ── UAC SECURE DESKTOP GUARD (consent.exe) ──
+function shouldPollUAC(): boolean {
+  const hasHotspots = config.hotspotCorners && config.hotspotCorners.length > 0;
+  const isShelfOpen = shelfWindow && !shelfWindow.isDestroyed() && shelfWindow.isVisible();
+  return !!(hasHotspots || isShelfOpen);
+}
+
 function startUACGuard() {
   if (uacGuardTimer) clearInterval(uacGuardTimer);
   let uacWasActive = false;
 
   uacGuardTimer = setInterval(() => {
-    exec('tasklist /FI "IMAGENAME eq consent.exe" /NH', { windowsHide: true }, (err, stdout) => {
-      const isActive = !err && stdout.includes('consent.exe');
+    if (!shouldPollUAC()) {
+      uacWasActive = false;
+      return;
+    }
+    execFile('tasklist.exe', ['/FI', 'IMAGENAME eq consent.exe', '/NH'], { windowsHide: true }, (err, stdout) => {
+      const isActive = !err && stdout && stdout.includes('consent.exe');
       if (isActive && !uacWasActive) {
         hotspotsPausedByUAC = true;
         hideShelf();
@@ -797,9 +807,9 @@ function startUACGuard() {
           hotspotsPausedByUAC = false;
         }, 1500);
       }
-      uacWasActive = isActive;
+      uacWasActive = !!isActive;
     });
-  }, 200);
+  }, 1000);
 }
 
 let vramCache: { data: { total: number; name: string } | null; ts: number } | null = null;
@@ -1116,7 +1126,7 @@ function registerIpcHandlers() {
       return processesCache.data;
     }
     return new Promise((resolve) => {
-      exec('wmic process get ExecutablePath,ProcessId,Name,WorkingSetSize /format:csv', { timeout: 5000, encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
+      execFile('tasklist.exe', ['/FO', 'CSV', '/NH'], { timeout: 5000, encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
         if (err || !stdout) {
           resolve(processesCache?.data || []);
           return;
@@ -1125,24 +1135,26 @@ function registerIpcHandlers() {
         const processes: Array<{ pid: number, name: string, path: string, memory: number }> = [];
         for (const line of lines) {
           const trimmed = line.trim();
-          if (!trimmed || trimmed.startsWith('Node,') || trimmed.startsWith('Node\r') || trimmed.startsWith('Node\n')) {
+          if (!trimmed) {
             continue;
           }
-          const parts = trimmed.split(',');
-          if (parts.length >= 5) {
-            const name = parts[parts.length - 3];
-            const pidStr = parts[parts.length - 2];
-            const memStr = parts[parts.length - 1];
-            const path = parts.slice(1, parts.length - 3).join(',');
+          const matches = trimmed.match(/"([^"]*)"/g);
+          if (matches && matches.length >= 5) {
+            const name = matches[0].replace(/"/g, '');
+            const pidStr = matches[1].replace(/"/g, '');
+            const memStr = matches[4].replace(/"/g, '');
 
             const pid = parseInt(pidStr, 10);
-            const memory = parseInt(memStr, 10);
+            const cleanedMem = memStr.replace(/[^\d]/g, '');
+            const memoryKb = parseInt(cleanedMem, 10);
+            const memory = isNaN(memoryKb) ? 0 : memoryKb * 1024;
+
             if (!isNaN(pid) && name) {
               processes.push({
                 pid,
                 name,
-                path: path || '',
-                memory: isNaN(memory) ? 0 : memory
+                path: '',
+                memory
               });
             }
           }

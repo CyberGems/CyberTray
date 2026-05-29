@@ -445,7 +445,7 @@ export default function App() {
       if (!latestTag) {
         throw new Error('No tag found');
       }
-      const currentVer = "1.50";
+      const currentVer = "1.60";
       const cleanLatest = latestTag.replace(/^v/, '');
       const latestNum = parseFloat(cleanLatest);
       const currentNum = parseFloat(currentVer);
