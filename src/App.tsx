@@ -119,7 +119,7 @@ const normalizeCategoriesList = (list: any[] = []) => {
 let globalAudioCtx: AudioContext | null = null;
 
 export default function App() {
-  const currentVer = "1.9.6";
+  const currentVer = "1.5.1";
   // Modo de Ventana (Mode Detection)
   const [mode, setMode] = useState<'shelf' | 'handle'>('shelf');
   
