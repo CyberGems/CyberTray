@@ -5,15 +5,16 @@ import ProcessMatrixView from './components/ProcessMatrixView';
 import {
   Search, Grid, List as ListIcon, Plus, Clock, ArrowUpDown, Settings,
   Minus, X, LayoutGrid, Palette, Key, Trash2, Shield, Info,
-  Cpu, HardDrive, Minimize2, Power, FolderOpen, Pin, Play, Edit,
+  Cpu, HardDrive, Minimize2, Power, FolderOpen, FolderSearch, Pin, Play, Edit,
   Monitor, ExternalLink, Sliders, ChevronDown, RefreshCw, Upload, Check, Trash,
-  Activity, MemoryStick, Star, Lock
+  Activity, MemoryStick, Star, Lock,
+  CheckCircle2, AlertTriangle, CheckSquare, FlipHorizontal2
 } from 'lucide-react';
 
 declare global {
   interface Window {
     electronAPI?: {
-      launchApp: (path: string, isAdmin?: boolean) => Promise<{ success: boolean; error?: string }>;
+      launchApp: (path: string, isAdmin?: boolean, args?: string, cwd?: string) => Promise<{ success: boolean; error?: string }>;
       getUwpApps: () => Promise<Array<{ name: string; aumid: string; icon: string }>>;
       selectFile: (options?: { filters?: Array<{ name: string; extensions: string[] }> }) => Promise<{ name: string; path: string; iconPath?: string } | null>;
       selectImage: () => Promise<string | null>;
@@ -32,7 +33,7 @@ declare global {
       getDiskInfo: () => Promise<Array<{ drive: string; total: number; free: number; used: number; percent: number }>>;
       getRunningProcesses: () => Promise<Array<{ pid: number; name: string; path: string; memory: number }>>;
       killProcess: (pid: number) => Promise<{ success: boolean; error?: string }>;
-      resolveFilePath: (filePath: string) => Promise<{ name: string; path: string; ext: string; exists: boolean; iconPath: string } | null>;
+      resolveFilePath: (filePath: string) => Promise<{ name: string; path: string; ext: string; exists: boolean; iconPath: string; arguments?: string; cwd?: string } | null>;
       openFileLocation: (filePath: string) => Promise<{ success: boolean; error?: string }>;
       searchSystemFiles: (query: string) => Promise<Array<{ name: string; path: string; ext: string; type: 'app' | 'file' | 'folder'; icon?: string }>>;
       getIndexerSettings: () => Promise<{ enabled: boolean; maxDepth: number; paths: string[] }>;
@@ -70,6 +71,7 @@ declare global {
       runDesktopSweep: () => Promise<{ success: boolean; count?: number; error?: string }>;
       getDefaultVaultPath: () => Promise<string>;
       openVaultFolder: () => Promise<boolean>;
+      selectVaultFolder: () => Promise<string | null>;
       importFileToVault: (filePath: string) => Promise<{ success: boolean; path: string; iconPath: string; name: string; error?: string }>;
     };
   }
@@ -351,6 +353,40 @@ export default function App() {
   const handleDragStartPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const handleHasDraggedPastThreshold = useRef<boolean>(false);
 
+  // ── Sistema de toasts (avisos de acciones del sistema) ──
+  type ToastType = 'success' | 'error' | 'info';
+  type Toast = { id: number; type: ToastType; message: string; actionLabel?: string; onAction?: () => void; duration: number };
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const toastSeq = useRef<number>(0);
+  const toastTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+
+  const dismissToast = (id: number) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+    const tm = toastTimers.current[id];
+    if (tm) { clearTimeout(tm); delete toastTimers.current[id]; }
+  };
+
+  const pushToast = (
+    type: ToastType,
+    message: string,
+    opts?: { actionLabel?: string; onAction?: () => void; duration?: number }
+  ) => {
+    const id = ++toastSeq.current;
+    const duration = opts?.duration ?? (opts?.onAction ? 6000 : 3000);
+    // Mantener como máximo 3 visibles para no saturar el panel.
+    setToasts(prev => [...prev.slice(-2), { id, type, message, actionLabel: opts?.actionLabel, onAction: opts?.onAction, duration }]);
+    toastTimers.current[id] = setTimeout(() => dismissToast(id), duration);
+  };
+
+  // ── Selección múltiple / borrado en masa ──
+  const [selectionMode, setSelectionMode] = useState<boolean>(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [lassoRect, setLassoRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const lassoStart = useRef<{ x: number; y: number } | null>(null);
+  const lassoAdditive = useRef<boolean>(false);
+  const lastSelectedIndex = useRef<number | null>(null);
+  const gridScrollRef = useRef<HTMLElement | null>(null);
+
   const [searchFocused, setSearchFocused] = useState<boolean>(false);
   const [shortcutMenu, setShortcutMenu] = useState<{
     visible: boolean;
@@ -363,6 +399,7 @@ export default function App() {
   const categoryTabsRef = useRef<HTMLDivElement>(null);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
   const configRef = useRef<any>(config);
+  const shortcutsRef = useRef<any[]>(shortcuts);
   const launchAudioRef = useRef<HTMLAudioElement | null>(null);
   const folderAudioRef = useRef<HTMLAudioElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -370,6 +407,25 @@ export default function App() {
   useEffect(() => {
     configRef.current = config;
   }, [config]);
+
+  useEffect(() => {
+    shortcutsRef.current = shortcuts;
+  }, [shortcuts]);
+
+  // Atajos del modo selección: Esc sale, Ctrl/Cmd+A selecciona todo.
+  useEffect(() => {
+    if (!selectionMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        exitSelectionMode();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        handleSelectAll();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectionMode]);
 
   // Preload and initialize audio objects to eliminate playback delay
   useEffect(() => {
@@ -875,6 +931,118 @@ export default function App() {
     }
   };
 
+  // Importa archivos del sistema (uno o varios) a una categoría concreta.
+  // Reutilizado por el drop sobre el panel, sobre cualquier pestaña y sobre Favoritos.
+  const importDroppedFiles = async (
+    fileList: FileList,
+    targetCategory: string,
+    options?: { markFavorite?: boolean }
+  ) => {
+    if (!isElectron || !fileList || fileList.length === 0) return;
+
+    // Extraer TODAS las rutas de forma síncrona antes de cualquier 'await' para
+    // evitar que Chromium limpie/invalide el objeto dataTransfer por seguridad.
+    const filePaths: string[] = [];
+    for (let i = 0; i < fileList.length; i++) {
+      const filePath = window.electronAPI!.getPathForFile(fileList[i]);
+      if (filePath) {
+        filePaths.push(filePath);
+      }
+    }
+    if (filePaths.length === 0) return;
+
+    const newShortcuts = [...shortcuts];
+    // Clave de identidad: ruta destino + argumentos. Así dos accesos al mismo
+    // ejecutable con parámetros distintos (p. ej. mods de Factorio) son distintos.
+    const dupKey = (p, a) => JSON.stringify([(p || '').toLowerCase(), (a || '').toLowerCase()]);
+    let added = 0;
+    let updated = 0;
+    let duplicates = 0;
+    let resolveFailures = 0;
+
+    for (let i = 0; i < filePaths.length; i++) {
+      const resolved = await window.electronAPI!.resolveFilePath(filePaths[i]);
+      if (!resolved) { resolveFailures++; continue; }
+
+      let finalPath = resolved.path;
+      let finalIconPath = resolved.iconPath || '';
+      let finalName = resolved.name;
+      const finalArgs = resolved.arguments || '';
+      const finalCwd = resolved.cwd || '';
+
+      if (targetCategory === 'vault') {
+        const importRes = await window.electronAPI!.importFileToVault(resolved.path);
+        if (importRes.success) {
+          finalPath = importRes.path;
+          finalIconPath = importRes.iconPath;
+          finalName = importRes.name;
+        }
+      }
+
+      const key = dupKey(finalPath, finalArgs);
+      const existingIndex = newShortcuts.findIndex(
+        s => dupKey(s.path, s.arguments || '') === key
+      );
+
+      if (existingIndex !== -1) {
+        // Ya existe: solo actuar si algo cambia de verdad (reubicar de categoría
+        // o marcar favorito por primera vez). Un duplicado exacto es un no-op.
+        const existing = newShortcuts[existingIndex];
+        const willChangeCategory = existing.category !== targetCategory;
+        const willMarkFavorite = !!options?.markFavorite && !existing.isFavorite;
+        if (willChangeCategory || willMarkFavorite) {
+          newShortcuts[existingIndex] = {
+            ...existing,
+            category: targetCategory,
+            ...(options?.markFavorite ? { isFavorite: true } : {}),
+          };
+          updated++;
+        } else {
+          duplicates++;
+        }
+        continue;
+      }
+
+      newShortcuts.push({
+        id: Date.now() + i,
+        name: finalName,
+        path: finalPath,
+        category: targetCategory,
+        iconPath: finalIconPath,
+        isAdmin: false,
+        delay: 0,
+        arguments: finalArgs,
+        cwd: finalCwd,
+        usageCount: 0,
+        addedTimestamp: Date.now(),
+        ...(options?.markFavorite ? { isFavorite: true } : {}),
+      });
+      added++;
+    }
+
+    if (added > 0 || updated > 0) {
+      await saveDataToConfig(newShortcuts, categories);
+      playCyberBeep();
+    }
+
+    // Feedback de la acción del sistema vía toast.
+    if (added > 0) {
+      const addedMsg = added === 1
+        ? translate('toast_added_one')
+        : translate('toast_added_many', { count: String(added) });
+      const extra = updated > 0 ? ` · ${translate('toast_updated_many', { count: String(updated) })}` : '';
+      pushToast('success', addedMsg + extra);
+    } else if (updated > 0) {
+      pushToast('success', updated === 1
+        ? translate('toast_updated_one')
+        : translate('toast_updated_many', { count: String(updated) }));
+    } else if (duplicates > 0) {
+      pushToast('info', translate('toast_none_added'));
+    } else if (resolveFailures > 0) {
+      pushToast('error', translate('toast_resolve_error'));
+    }
+  };
+
   const handleFavoriteDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
@@ -891,7 +1059,17 @@ export default function App() {
 
   const handleFavoriteDrop = async (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setDragOverCategoryId(null);
+
+    // Archivos del sistema soltados sobre Favoritos: importar a la categoría
+    // visible (Favoritos no es una categoría real, sino el flag isFavorite).
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const targetCategory =
+        activeCategory === 'all' || activeCategory === 'favorites' ? 'utils' : activeCategory;
+      await importDroppedFiles(e.dataTransfer.files, targetCategory, { markFavorite: true });
+      return;
+    }
 
     const data = e.dataTransfer.getData('text/plain');
     if (data && data.startsWith('shortcut:')) {
@@ -912,8 +1090,16 @@ export default function App() {
   const handleCategoryDrop = async (e: React.DragEvent, cat: any) => {
     if (cat.id === 'all') return;
     e.preventDefault();
+    e.stopPropagation();
     setDragOverCategoryId(null);
     setDraggingCategoryId(null);
+
+    // Archivos del sistema soltados directamente sobre una pestaña/categoría:
+    // importarlos (uno o varios) asignándolos a esa categoría concreta.
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      await importDroppedFiles(e.dataTransfer.files, cat.id);
+      return;
+    }
 
     const data = e.dataTransfer.getData('text/plain');
     if (data && data.startsWith('category:')) {
@@ -978,68 +1164,13 @@ export default function App() {
     e.preventDefault();
     if (!isElectron) return;
 
-    const files = e.dataTransfer.files;
-    if (files.length === 0) return;
+    if (e.dataTransfer.files.length === 0) return;
 
-    // Extraer todas las rutas de archivo de forma sincrónica antes de cualquier 'await'
-    // para evitar que Chromium limpie/invalide el objeto dataTransfer por seguridad.
-    const filePaths: string[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const filePath = window.electronAPI!.getPathForFile(files[i]);
-      if (filePath) {
-        filePaths.push(filePath);
-      }
-    }
-
-    if (filePaths.length === 0) return;
-
-    const newShortcuts = [...shortcuts];
-    let addedCount = 0;
-
-    for (let i = 0; i < filePaths.length; i++) {
-      const filePath = filePaths[i];
-      const resolved = await window.electronAPI!.resolveFilePath(filePath);
-      if (resolved) {
-        // Agregar a la categoría activa (o utils por defecto)
-        const targetCategory = activeCategory === 'all' ? 'utils' : activeCategory;
-        
-        let finalPath = resolved.path;
-        let finalIconPath = resolved.iconPath || '';
-        let finalName = resolved.name;
-
-        if (targetCategory === 'vault') {
-          const importRes = await window.electronAPI!.importFileToVault(resolved.path);
-          if (importRes.success) {
-            finalPath = importRes.path;
-            finalIconPath = importRes.iconPath;
-            finalName = importRes.name;
-          }
-        }
-
-        const exists = newShortcuts.some(s => s.path.toLowerCase() === finalPath.toLowerCase());
-        
-        if (!exists) {
-          newShortcuts.push({
-            id: Date.now() + i,
-            name: finalName,
-            path: finalPath,
-            category: targetCategory,
-            iconPath: finalIconPath,
-            isAdmin: false,
-            delay: 0,
-            arguments: '',
-            usageCount: 0,
-            addedTimestamp: Date.now()
-          });
-          addedCount++;
-        }
-      }
-    }
-
-    if (addedCount > 0) {
-      await saveDataToConfig(newShortcuts, categories);
-      playCyberBeep();
-    }
+    // Soltado sobre el cuerpo del panel: agregar a la categoría activa
+    // (o 'utils' por defecto cuando estamos en "Todos"/"Favoritos").
+    const targetCategory =
+      activeCategory === 'all' || activeCategory === 'favorites' ? 'utils' : activeCategory;
+    await importDroppedFiles(e.dataTransfer.files, targetCategory);
   };
 
   const handleDesktopSweep = () => {
@@ -1126,13 +1257,12 @@ export default function App() {
     await saveDataToConfig(updated, categories);
 
     if (isElectron) {
-      // Lanzamiento nativo
-      let pathWithArgs = item.path;
-      if (item.arguments) {
-        pathWithArgs += ` ${item.arguments}`;
+      // Lanzamiento nativo (con argumentos y directorio de trabajo del acceso).
+      const res = await window.electronAPI!.launchApp(item.path, item.isAdmin, item.arguments, item.cwd);
+      if (res && res.success === false) {
+        pushToast('error', translate('toast_launch_error', { name: item.name }));
       }
-      await window.electronAPI!.launchApp(item.path, item.isAdmin);
-      
+
       // Auto-ocultar shelf al lanzar si no está anclada
       if (config.hideOnBlur) {
         await window.electronAPI!.windowHideToTray();
@@ -1264,6 +1394,160 @@ export default function App() {
     await saveDataToConfig(updated, categories);
     setShortcutModal({ open: false });
     playCyberBeep();
+  };
+
+  // ── Selección múltiple / borrado en masa ──
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+    setLassoRect(null);
+    lassoStart.current = null;
+    lastSelectedIndex.current = null;
+  };
+
+  const toggleSelectionMode = () => {
+    if (selectionMode) {
+      exitSelectionMode();
+    } else {
+      setSelectionMode(true);
+    }
+    playCyberBeep();
+  };
+
+  const handleSelectAll = () => {
+    setSelectedIds(new Set(getFilteredShortcuts().map((s: any) => s.id)));
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIds(new Set());
+    lastSelectedIndex.current = null;
+  };
+
+  const handleInvertSelection = () => {
+    setSelectedIds(prev => {
+      const next = new Set<number>();
+      for (const s of getFilteredShortcuts()) {
+        if (!prev.has(s.id)) next.add(s.id);
+      }
+      return next;
+    });
+  };
+
+  // Clic sobre un ítem en modo selección: toggle / rango (Shift) / aditivo (Ctrl/Cmd)
+  const handleItemSelect = (item: any, index: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const list = getFilteredShortcuts();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (e.shiftKey && lastSelectedIndex.current !== null) {
+        const a = Math.min(lastSelectedIndex.current, index);
+        const b = Math.max(lastSelectedIndex.current, index);
+        for (let i = a; i <= b; i++) { if (list[i]) next.add(list[i].id); }
+      } else if (e.ctrlKey || e.metaKey) {
+        if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+      } else {
+        if (next.has(item.id) && next.size === 1) {
+          next.delete(item.id);
+        } else {
+          next.clear();
+          next.add(item.id);
+        }
+      }
+      return next;
+    });
+    lastSelectedIndex.current = index;
+  };
+
+  const handleDeleteSelected = () => {
+    const ids = new Set(selectedIds);
+    const count = ids.size;
+    if (count === 0) return;
+    showConfirm(
+      translate('delete_selected_confirm_title'),
+      translate('delete_selected_confirm_desc', { count: String(count) }),
+      async () => {
+        const removed = shortcuts.filter(s => ids.has(s.id));
+        const remaining = shortcuts.filter(s => !ids.has(s.id));
+        await saveDataToConfig(remaining, categories);
+        exitSelectionMode();
+        playCyberBeep();
+        const msg = count === 1
+          ? translate('toast_deleted_one')
+          : translate('toast_deleted_many', { count: String(count) });
+        pushToast('success', msg, {
+          actionLabel: translate('toast_undo'),
+          onAction: async () => {
+            // Restaurar usando el estado MÁS reciente (ref), no el del closure.
+            const current = shortcutsRef.current || [];
+            const presentIds = new Set(current.map((s: any) => s.id));
+            const toRestore = removed.filter(s => !presentIds.has(s.id));
+            if (toRestore.length > 0) {
+              await saveDataToConfig([...current, ...toRestore], categories);
+            }
+          },
+        });
+      },
+      true
+    );
+  };
+
+  // ── Lasso (selección por arrastre) ──
+  const handleLassoMouseDown = (e: React.MouseEvent) => {
+    if (!selectionMode || e.button !== 0) return;
+    // Solo iniciar si el arrastre empieza en el fondo del contenedor, no sobre un ítem.
+    if ((e.target as HTMLElement).closest('[data-shortcut-id]')) return;
+    const container = gridScrollRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    lassoStart.current = {
+      x: e.clientX - rect.left + container.scrollLeft,
+      y: e.clientY - rect.top + container.scrollTop,
+    };
+    lassoAdditive.current = e.shiftKey || e.ctrlKey || e.metaKey;
+    setLassoRect({ x: lassoStart.current.x, y: lassoStart.current.y, w: 0, h: 0 });
+  };
+
+  const handleLassoMouseMove = (e: React.MouseEvent) => {
+    if (!lassoStart.current) return;
+    const container = gridScrollRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const curX = e.clientX - rect.left + container.scrollLeft;
+    const curY = e.clientY - rect.top + container.scrollTop;
+    const x = Math.min(lassoStart.current.x, curX);
+    const y = Math.min(lassoStart.current.y, curY);
+    const w = Math.abs(curX - lassoStart.current.x);
+    const h = Math.abs(curY - lassoStart.current.y);
+    setLassoRect({ x, y, w, h });
+
+    // Hit-test contra los ítems visibles.
+    const hits = new Set<number>();
+    const nodes = container.querySelectorAll('[data-shortcut-id]');
+    nodes.forEach(node => {
+      const nr = (node as HTMLElement).getBoundingClientRect();
+      const nx = nr.left - rect.left + container.scrollLeft;
+      const ny = nr.top - rect.top + container.scrollTop;
+      const intersects = nx < x + w && nx + nr.width > x && ny < y + h && ny + nr.height > y;
+      if (intersects) {
+        const id = Number((node as HTMLElement).dataset.shortcutId);
+        if (!isNaN(id)) hits.add(id);
+      }
+    });
+    setSelectedIds(prev => {
+      if (lassoAdditive.current) {
+        const next = new Set(prev);
+        hits.forEach(id => next.add(id));
+        return next;
+      }
+      return hits;
+    });
+  };
+
+  const handleLassoMouseUp = () => {
+    if (!lassoStart.current) return;
+    lassoStart.current = null;
+    setLassoRect(null);
   };
 
   // Gestor de Categorías
@@ -1462,6 +1746,9 @@ export default function App() {
   };
 
   const handleBackgroundClick = (e: React.MouseEvent) => {
+    // En modo selección, los clics/lassos en zona vacía son para seleccionar,
+    // no deben ocultar el panel.
+    if (selectionMode) return;
     if (!config.hideOnDeadZoneClick) return;
 
     const target = e.target as HTMLElement;
@@ -1820,6 +2107,62 @@ export default function App() {
       onDrop={handleDrop}
       onClick={handleBackgroundClick}
     >
+      {/* ── TOASTS (avisos de acciones del sistema) ── */}
+      {toasts.length > 0 && (
+        <div
+          className={`fixed left-1/2 -translate-x-1/2 z-[90000] flex flex-col gap-2 pointer-events-none w-[min(92%,420px)] ${config.dockPosition === 'top' ? 'top-20' : 'bottom-20'}`}
+        >
+          {toasts.map(t => (
+            <div
+              key={t.id}
+              className="pointer-events-auto relative overflow-hidden rounded-xl border bg-[#0c111c]/95 backdrop-blur-md shadow-[0_4px_24px_rgba(0,0,0,0.55)] animate-toast-in"
+              style={{
+                borderColor:
+                  t.type === 'error' ? 'rgba(244,63,94,0.5)'
+                  : t.type === 'success' ? 'var(--neon-glow-border)'
+                  : 'rgba(148,163,184,0.35)',
+              }}
+            >
+              <div className="flex items-center gap-3 px-3.5 py-2.5">
+                <div className="shrink-0">
+                  {t.type === 'success' && <CheckCircle2 className="w-5 h-5 text-[var(--neon-glow-color)]" />}
+                  {t.type === 'error' && <AlertTriangle className="w-5 h-5 text-rose-400" />}
+                  {t.type === 'info' && <Info className="w-5 h-5 text-slate-300" />}
+                </div>
+                <p className="flex-1 min-w-0 text-[12px] font-montserrat text-slate-100 leading-snug break-words">{t.message}</p>
+                {t.actionLabel && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); t.onAction?.(); dismissToast(t.id); }}
+                    className="shrink-0 text-[10px] font-cyber font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border border-[var(--neon-glow-border)] text-[var(--neon-glow-color)] hover:bg-[var(--neon-glow-color-raw)]/10 transition-colors cursor-pointer"
+                  >
+                    {t.actionLabel}
+                  </button>
+                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); dismissToast(t.id); }}
+                  className="shrink-0 text-slate-500 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="absolute bottom-0 left-0 h-[2.5px] w-full bg-white/5">
+                <div
+                  className="h-full w-full origin-left"
+                  style={{
+                    animation: `toast-shrink ${t.duration}ms linear forwards`,
+                    background:
+                      t.type === 'error'
+                        ? 'linear-gradient(90deg,#f43f5e,#fb7185)'
+                        : 'linear-gradient(90deg, var(--neon-glow-color), #a855f7)',
+                    boxShadow: '0 0 8px var(--neon-glow-color-raw)',
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── CAPA DE FONDO PERSONALIZADO (Solid / Gradient / Image) ── */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none">
         {bgType === 'solid' && (
@@ -1873,7 +2216,7 @@ export default function App() {
           <div className="flex items-center gap-2 flex-shrink-0 w-36">
             <CyberTrayLogo className="w-7 h-7" animated={activeTasksCount > 0} />
             <span className="font-cyber font-extrabold text-[13px] text-white tracking-widest bg-gradient-to-r from-white to-[var(--neon-glow-color)] bg-clip-text text-transparent hidden sm:inline">
-              CYBERTRAY
+              CyberTray
             </span>
           </div>
 
@@ -2236,6 +2579,63 @@ export default function App() {
 
             {/* Operations Panel (Visual Group) */}
             <div className="flex items-center gap-2">
+              {/* Cluster de selección (visible solo en modo selección) */}
+              {selectionMode && (
+                <div className="flex items-center gap-1 mr-1 pr-2 border-r border-slate-700/50 animate-fade-in">
+                  <span className="text-[10px] font-cyber font-bold tracking-wider text-[var(--neon-glow-color)] px-1 whitespace-nowrap">
+                    {translate('selected_count', { count: String(selectedIds.size) })}
+                  </span>
+                  <button
+                    onClick={handleSelectAll}
+                    onMouseEnter={(e) => showTooltip(e, translate('select_all').toUpperCase(), '', 'rgba(56,189,248,0.5)')}
+                    onMouseLeave={hideTooltip}
+                    className="h-8 w-8 bg-slate-800/40 border border-slate-700/50 hover:border-[var(--neon-glow-border)] text-slate-300 hover:text-[var(--neon-glow-color)] rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handleInvertSelection}
+                    onMouseEnter={(e) => showTooltip(e, translate('invert_selection').toUpperCase(), '', 'rgba(56,189,248,0.5)')}
+                    onMouseLeave={hideTooltip}
+                    className="h-8 w-8 bg-slate-800/40 border border-slate-700/50 hover:border-[var(--neon-glow-border)] text-slate-300 hover:text-[var(--neon-glow-color)] rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                  >
+                    <FlipHorizontal2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handleClearSelection}
+                    onMouseEnter={(e) => showTooltip(e, translate('unselect_all').toUpperCase(), '', 'rgba(148,163,184,0.5)')}
+                    onMouseLeave={hideTooltip}
+                    className="h-8 w-8 bg-slate-800/40 border border-slate-700/50 hover:border-slate-500 text-slate-300 hover:text-white rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handleDeleteSelected}
+                    disabled={selectedIds.size === 0}
+                    onMouseEnter={(e) => showTooltip(e, translate('delete_selected').toUpperCase(), '', 'rgba(244,63,94,0.5)')}
+                    onMouseLeave={hideTooltip}
+                    className="h-8 px-3 bg-rose-500/15 border border-rose-500/40 hover:border-rose-400 hover:bg-rose-500/25 disabled:opacity-40 disabled:cursor-not-allowed text-rose-300 hover:text-rose-200 font-cyber font-bold tracking-widest text-[10px] rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {translate('delete_selected')} ({selectedIds.size})
+                  </button>
+                </div>
+              )}
+
+              {/* Toggle modo selección */}
+              <button
+                onClick={toggleSelectionMode}
+                onMouseEnter={(e) => showTooltip(e, translate('selection_mode').toUpperCase(), selectionMode ? translate('selection_exit') : translate('selection_mode'), 'rgba(56,189,248,0.5)')}
+                onMouseLeave={hideTooltip}
+                className={`h-8 w-8 rounded-lg flex items-center justify-center border transition-all cursor-pointer ${
+                  selectionMode
+                    ? 'bg-[var(--neon-glow-color-raw)]/15 border-[var(--neon-glow-border)] text-[var(--neon-glow-color)] shadow-[0_0_8px_var(--neon-glow-color-raw)]'
+                    : 'bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-slate-500'
+                }`}
+              >
+                <CheckSquare className="w-4 h-4" />
+              </button>
+
               {/* Launch All */}
               <button
                 onClick={handleLaunchAll}
@@ -2300,8 +2700,22 @@ export default function App() {
       </header>
 
       {/* ── SECCIÓN CENTRAL (GRID DE ACCESOS DIRECTOS VIRTUALIZADOS) ── */}
-      <main className="flex-1 overflow-y-auto px-8 py-6 custom-scrollbar relative">
-        
+      <main
+        ref={gridScrollRef}
+        className={`flex-1 overflow-y-auto px-8 py-6 custom-scrollbar relative ${selectionMode ? 'select-none' : ''}`}
+        onMouseDown={handleLassoMouseDown}
+        onMouseMove={handleLassoMouseMove}
+        onMouseUp={handleLassoMouseUp}
+        onMouseLeave={handleLassoMouseUp}
+      >
+        {/* Rectángulo del lasso (selección por arrastre) */}
+        {lassoRect && (
+          <div
+            className="absolute z-30 pointer-events-none rounded-sm border border-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10"
+            style={{ left: lassoRect.x, top: lassoRect.y, width: lassoRect.w, height: lassoRect.h }}
+          />
+        )}
+
         {/* Banner Cyberpunk Decorativo si no hay items */}
         {filteredShortcutsList.length === 0 ? (
           <div className="w-full h-full flex flex-col items-center justify-center border border-dashed border-[var(--neon-glow-border)] rounded-xl bg-slate-950/65 backdrop-blur-md py-12 px-6 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
@@ -2366,12 +2780,28 @@ export default function App() {
                 elements.push(
                   <div
                     key={item.id}
-                    onClick={() => handleLaunch(item)}
+                    data-shortcut-id={item.id}
+                    onClick={(e) => selectionMode ? handleItemSelect(item, index, e) : handleLaunch(item)}
                     onContextMenu={(e) => handleShortcutContextMenu(e, item)}
-                    draggable
+                    draggable={!selectionMode}
                     onDragStart={(e) => handleShortcutDragStart(e, item)}
-                    className="cyber-panel-glow bg-slate-950/45 rounded-lg p-2 flex items-center justify-between gap-3 transition-all duration-300 hover:scale-102 hover:bg-slate-900/60 cursor-pointer relative group border border-slate-900/30 hover:border-[var(--neon-glow-border)]"
+                    className={`cyber-panel-glow bg-slate-950/45 rounded-lg p-2 flex items-center justify-between gap-3 transition-all duration-300 hover:scale-102 hover:bg-slate-900/60 cursor-pointer relative group border ${
+                      selectedIds.has(item.id)
+                        ? 'border-[var(--neon-glow-color)] ring-1 ring-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10'
+                        : 'border-slate-900/30 hover:border-[var(--neon-glow-border)]'
+                    }`}
                   >
+                    {selectionMode && (
+                      <span
+                        className={`absolute -top-1.5 -left-1.5 z-20 w-4 h-4 rounded-full flex items-center justify-center border transition-all ${
+                          selectedIds.has(item.id)
+                            ? 'bg-[var(--neon-glow-color)] border-[var(--neon-glow-color)] text-slate-950'
+                            : 'bg-slate-950/90 border-slate-600 text-transparent'
+                        }`}
+                      >
+                        <Check className="w-2.5 h-2.5" strokeWidth={3} />
+                      </span>
+                    )}
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       {/* Icono del Acceso Directo */}
                       <div 
@@ -2392,7 +2822,7 @@ export default function App() {
 
                       {/* Info Text */}
                       <div className="min-w-0 flex-1 text-left">
-                        <h4 className="font-montserrat font-bold text-white text-[12px] truncate uppercase tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1">
+                        <h4 className="font-montserrat font-bold text-white text-[12px] truncate tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1">
                           <span className="truncate">{item.name}</span>
                         </h4>
                         <p className={`font-mono text-[9px] truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`} title={item.path}>
@@ -2449,16 +2879,32 @@ export default function App() {
                 elements.push(
                   <div
                     key={item.id}
-                    onClick={() => handleLaunch(item)}
+                    data-shortcut-id={item.id}
+                    onClick={(e) => selectionMode ? handleItemSelect(item, index, e) : handleLaunch(item)}
                     onContextMenu={(e) => handleShortcutContextMenu(e, item)}
-                    draggable
+                    draggable={!selectionMode}
                     onDragStart={(e) => handleShortcutDragStart(e, item)}
-                    className={`cyber-panel-glow bg-slate-950/45 rounded-xl transition-all duration-300 hover:scale-103 cursor-pointer relative group ${
+                    className={`cyber-panel-glow rounded-xl transition-all duration-300 hover:scale-103 cursor-pointer relative group ${
+                      selectedIds.has(item.id)
+                        ? 'bg-[var(--neon-glow-color-raw)]/10 ring-1 ring-[var(--neon-glow-color)]'
+                        : 'bg-slate-950/45'
+                    } ${
                       isSmallGrid
                         ? 'p-2 flex flex-col items-center justify-center gap-1.5 text-center'
                         : 'p-3 flex items-center gap-3.5 text-left'
                     }`}
                   >
+                    {selectionMode && (
+                      <span
+                        className={`absolute top-1 left-1 z-20 w-4 h-4 rounded-full flex items-center justify-center border transition-all ${
+                          selectedIds.has(item.id)
+                            ? 'bg-[var(--neon-glow-color)] border-[var(--neon-glow-color)] text-slate-950'
+                            : 'bg-slate-950/90 border-slate-600 text-transparent'
+                        }`}
+                      >
+                        <Check className="w-2.5 h-2.5" strokeWidth={3} />
+                      </span>
+                    )}
                     {/* Icono del Acceso Directo */}
                     <div 
                       className="flex-shrink-0 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:border-[var(--neon-glow-color)] group-hover:shadow-[0_0_6px_var(--neon-glow-color-raw)] relative"
@@ -2489,7 +2935,7 @@ export default function App() {
                     {/* Info Text */}
                     <div className={`min-w-0 ${isSmallGrid ? 'w-full text-center flex flex-col items-center' : 'flex-1 text-left'}`}>
                       <h4 
-                        className="font-montserrat font-bold text-white truncate uppercase tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1"
+                        className="font-montserrat font-bold text-white truncate tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1"
                         style={{ 
                           fontSize: `${Math.max(9, Math.min(14, config.iconSize * 0.22))}px`,
                           justifyContent: isSmallGrid ? 'center' : 'flex-start',
@@ -2584,103 +3030,116 @@ export default function App() {
           </div>
         )}
 
-        {/* Collapsible Vault Manual Guide (Hidden behind Vault tab lock) */}
+        {/* Physical Files Directory Config (Hidden behind Files tab lock) */}
+        {activeCategory === 'vault' && (
+          <div className="mt-8 pt-6 border-t border-purple-900/30 max-w-4xl space-y-4 animate-fade-in">
+            <div className="bg-slate-950/40 p-4 border border-purple-950/50 rounded-xl space-y-3">
+              <div className="space-y-1">
+                <h5 className="font-montserrat font-bold text-purple-300 text-sm tracking-wide uppercase flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-purple-400" />
+                  {translate('vault_settings_path')}
+                </h5>
+                <p className="text-[11px] text-slate-400 leading-normal">
+                  {translate('vault_settings_path_desc')}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={config.vaultPath || ''}
+                  onChange={(e) => handleUpdateConfigSetting('vaultPath', e.target.value)}
+                  placeholder={isElectron ? "C:\\Users\\... (Default App Data Files)" : "Default Web Storage Path"}
+                  className="flex-1 min-w-0 bg-slate-950/80 border border-slate-900 text-slate-300 font-mono text-[11px] rounded-lg px-3 py-2 focus:outline-none truncate"
+                />
+                {isElectron && (
+                  <button
+                    onClick={async () => {
+                      const selected = await window.electronAPI!.selectVaultFolder();
+                      if (selected) {
+                        handleUpdateConfigSetting('vaultPath', selected);
+                        playFolderSound();
+                      }
+                    }}
+                    className="shrink-0 px-3 py-2 bg-purple-950/20 hover:bg-purple-950/30 border border-purple-900/50 hover:border-purple-800/80 text-purple-300 hover:text-purple-200 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+                  >
+                    <FolderSearch className="w-3.5 h-3.5" />
+                    {translate('vault_browse_folder')}
+                  </button>
+                )}
+                {isElectron && (
+                  <button
+                    onClick={async () => {
+                      const defPath = await window.electronAPI!.getDefaultVaultPath();
+                      handleUpdateConfigSetting('vaultPath', defPath);
+                      playFolderSound();
+                    }}
+                    className="shrink-0 px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    DEFAULT
+                  </button>
+                )}
+              </div>
+              {isElectron && (
+                <button
+                  onClick={() => window.electronAPI!.openVaultFolder()}
+                  className="w-full md:w-auto px-4 py-2 bg-purple-950/20 hover:bg-purple-950/30 border border-purple-900/50 hover:border-purple-800/80 text-purple-300 hover:text-purple-200 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  {translate('vault_open_folder')}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Collapsible Files Manual Guide (Hidden behind Files tab lock) — shown below the folder location */}
         {activeCategory === 'vault' && (
           <div className="mt-8 pt-6 border-t border-purple-900/30 max-w-4xl space-y-3 animate-fade-in">
             <div className="bg-slate-950/40 border border-purple-950/50 rounded-xl overflow-hidden">
               {/* Header Toggle */}
-              <button 
+              <button
                 onClick={() => { setShowVaultHelp(!showVaultHelp); playCyberBeep(); }}
                 className="w-full flex items-center justify-between px-4 py-3 bg-purple-950/10 hover:bg-purple-950/20 transition-all text-left cursor-pointer focus:outline-none"
               >
                 <div className="flex items-center gap-2">
                   <Info className="w-4 h-4 text-purple-400" />
-                  <span className="font-cyber font-bold text-white text-xs tracking-wider uppercase">
+                  <span className="font-montserrat font-bold text-white text-sm tracking-wide uppercase">
                     {translate('vault_guide_title')}
                   </span>
                 </div>
-                <span className="text-[10px] font-cyber font-bold text-purple-400/80 hover:text-purple-300">
+                <span className="text-[11px] font-montserrat font-bold text-purple-400/80 hover:text-purple-300">
                   {showVaultHelp ? translate('vault_guide_toggle_hide') : translate('vault_guide_toggle_show')}
                 </span>
               </button>
 
               {/* Collapsible Content */}
               {showVaultHelp && (
-                <div className="p-4 border-t border-purple-950/30 space-y-4 font-mono text-[10px] text-slate-400 select-text leading-relaxed">
-                  <p className="text-[11px] text-slate-300 font-cyber font-bold tracking-wide uppercase border-b border-purple-950/30 pb-2">
+                <div className="p-4 border-t border-purple-950/30 space-y-4 font-sans text-[11px] text-slate-400 select-text leading-relaxed">
+                  <p className="text-[12px] text-slate-300 font-montserrat font-bold tracking-wide uppercase border-b border-purple-950/30 pb-2">
                     {translate('vault_guide_intro')}
                   </p>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1 bg-slate-950/30 p-2.5 rounded border border-purple-950/20">
-                      <h6 className="font-cyber font-bold text-purple-400 tracking-wide">{translate('vault_guide_p1_title')}</h6>
+                    <div className="space-y-1.5 bg-slate-950/30 p-3 rounded border border-purple-950/20">
+                      <h6 className="font-montserrat font-bold text-purple-300 text-[12px] tracking-wide">{translate('vault_guide_p1_title')}</h6>
                       <p>{translate('vault_guide_p1_desc')}</p>
                     </div>
 
-                    <div className="space-y-1 bg-slate-950/30 p-2.5 rounded border border-purple-950/20">
-                      <h6 className="font-cyber font-bold text-purple-400 tracking-wide">{translate('vault_guide_p2_title')}</h6>
+                    <div className="space-y-1.5 bg-slate-950/30 p-3 rounded border border-purple-950/20">
+                      <h6 className="font-montserrat font-bold text-purple-300 text-[12px] tracking-wide">{translate('vault_guide_p2_title')}</h6>
                       <p>{translate('vault_guide_p2_desc')}</p>
                     </div>
 
-                    <div className="space-y-1 bg-slate-950/30 p-2.5 rounded border border-purple-950/20">
-                      <h6 className="font-cyber font-bold text-purple-400 tracking-wide">{translate('vault_guide_p3_title')}</h6>
+                    <div className="space-y-1.5 bg-slate-950/30 p-3 rounded border border-purple-950/20">
+                      <h6 className="font-montserrat font-bold text-purple-300 text-[12px] tracking-wide">{translate('vault_guide_p3_title')}</h6>
                       <p>{translate('vault_guide_p3_desc')}</p>
                     </div>
 
-                    <div className="space-y-1 bg-slate-950/30 p-2.5 rounded border border-purple-950/20">
-                      <h6 className="font-cyber font-bold text-purple-400 tracking-wide">{translate('vault_guide_p4_title')}</h6>
+                    <div className="space-y-1.5 bg-slate-950/30 p-3 rounded border border-purple-950/20">
+                      <h6 className="font-montserrat font-bold text-purple-300 text-[12px] tracking-wide">{translate('vault_guide_p4_title')}</h6>
                       <p>{translate('vault_guide_p4_desc')}</p>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Physical Vault Directory Config (Hidden behind Vault tab lock) */}
-        {activeCategory === 'vault' && (
-          <div className="mt-8 pt-6 border-t border-purple-900/30 max-w-4xl space-y-4 animate-fade-in">
-            <div className="bg-slate-950/40 p-4 border border-purple-950/50 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex-1 space-y-1">
-                <h5 className="font-cyber font-bold text-purple-400 text-xs tracking-wider uppercase flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5 text-purple-400" />
-                  {translate('vault_settings_path')}
-                </h5>
-                <p className="text-[9.5px] text-slate-500 leading-normal">
-                  {translate('vault_settings_path_desc')}
-                </p>
-                <div className="flex gap-2 mt-2">
-                  <input
-                    type="text"
-                    value={config.vaultPath || ''}
-                    onChange={(e) => handleUpdateConfigSetting('vaultPath', e.target.value)}
-                    placeholder={isElectron ? "C:\\Users\\... (Default App Data Vault)" : "Default Web Storage Path"}
-                    className="flex-1 bg-slate-950/80 border border-slate-900 text-slate-300 font-mono text-[10px] rounded-lg px-3 py-1.5 focus:outline-none truncate"
-                  />
-                  {isElectron && (
-                    <button
-                      onClick={async () => {
-                        const defPath = await window.electronAPI!.getDefaultVaultPath();
-                        handleUpdateConfigSetting('vaultPath', defPath);
-                        playFolderSound();
-                      }}
-                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer"
-                    >
-                      DEFAULT
-                    </button>
-                  )}
-                </div>
-              </div>
-              {isElectron && (
-                <div className="flex-shrink-0 flex items-end">
-                  <button
-                    onClick={() => window.electronAPI!.openVaultFolder()}
-                    className="w-full md:w-auto h-10 px-4 bg-purple-950/20 hover:bg-purple-950/30 border border-purple-900/50 hover:border-purple-800/80 text-purple-400 hover:text-purple-300 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <FolderOpen className="w-3.5 h-3.5" />
-                    {translate('vault_open_folder')}
-                  </button>
                 </div>
               )}
             </div>
@@ -2791,11 +3250,11 @@ export default function App() {
               className="fixed inset-x-0 bottom-10 h-[80%] z-50 bg-[#070b13]/95 border-t border-[var(--neon-glow-border)] shadow-2xl flex p-0 select-none overflow-hidden font-mono"
             >
               {/* Tab Navigation Menu */}
-              <div className="w-56 border-r border-slate-900 bg-slate-950/60 p-6 flex flex-col justify-between text-left">
+              <div className="w-56 border-r border-slate-900 bg-slate-950/60 p-6 flex flex-col justify-between text-left" style={{ zoom: 1.25 }}>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 border-b border-slate-800 pb-3.5 mb-4.5">
                     <Sliders className="w-4 h-4 text-purple-400" />
-                    <span className="font-cyber font-bold text-xs text-white tracking-widest">{translate('settings_title')}</span>
+                    <span className="font-montserrat font-bold text-xs text-white tracking-widest">{translate('settings_title')}</span>
                   </div>
                   
                   <button
@@ -2859,7 +3318,7 @@ export default function App() {
               </div>
 
               {/* Tab Contents */}
-              <div className="flex-1 p-8 overflow-y-auto custom-scrollbar text-left font-sans">
+              <div className="flex-1 p-8 overflow-y-auto custom-scrollbar text-left font-sans" style={{ zoom: 1.25 }}>
                 
                 {/* 1. GENERAL SYSTEM SETTINGS */}
                 {settingsTab === 'general' && (
@@ -2867,7 +3326,7 @@ export default function App() {
                     
                     {/* Idioma */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('general_language')}</h4>
+                      <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('general_language')}</h4>
                       <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('general_language_desc')}</p>
                       <div className="flex gap-2">
                         <button 
@@ -2889,7 +3348,7 @@ export default function App() {
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl grid grid-cols-2 gap-4">
                       
                       <div>
-                        <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('general_dock_position')}</h4>
+                        <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('general_dock_position')}</h4>
                         <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('general_dock_position_desc')}</p>
                         <div className="flex gap-2">
                           <button
@@ -2908,7 +3367,7 @@ export default function App() {
                       </div>
 
                       <div>
-                        <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('general_handle_position')}</h4>
+                        <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('general_handle_position')}</h4>
                         <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('general_handle_position_desc')}</p>
                         <div className="flex gap-2">
                           {['left', 'center', 'right'].map((pos) => (
@@ -2927,7 +3386,7 @@ export default function App() {
 
                     {/* Monitor de Despliegue */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('general_monitor')}</h4>
+                      <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('general_monitor')}</h4>
                       <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('general_monitor_desc')}</p>
                       
                       {monitors.length === 0 ? (
@@ -2950,7 +3409,7 @@ export default function App() {
 
                     {/* Atajo de Activación Global */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('general_shortcut')}</h4>
+                      <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('general_shortcut')}</h4>
                       <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('general_shortcut_desc')}</p>
                       
                       <div className="flex gap-3">
@@ -2981,7 +3440,7 @@ export default function App() {
                       {/* Mostrar manigueta */}
                       <div className="flex items-center justify-between">
                         <div>
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('general_handle_visible')}</h5>
+                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_handle_visible')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('general_handle_visible_desc')}</p>
                         </div>
                         <button
@@ -2995,7 +3454,7 @@ export default function App() {
                       {/* Hover Trigger Setting */}
                       <div className="flex items-center justify-between border-t border-slate-900 pt-3">
                         <div>
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('general_hover_trigger')}</h5>
+                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_hover_trigger')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('general_hover_trigger_desc')}</p>
                         </div>
                         <button
@@ -3010,7 +3469,7 @@ export default function App() {
                       {config.hoverTriggerEnabled && (
                         <div className="border-t border-slate-900 pt-3">
                           <div className="flex justify-between items-center mb-1">
-                            <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('general_hover_delay')}</h5>
+                            <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_hover_delay')}</h5>
                             <span className="text-[var(--neon-glow-color)] font-bold">{config.hoverTriggerDelay || 300}ms</span>
                           </div>
                           <p className="text-[9.5px] text-slate-500 mb-2">{translate('general_hover_delay_desc')}</p>
@@ -3029,7 +3488,7 @@ export default function App() {
                       {/* Ocultar al perder el foco */}
                       <div className="flex items-center justify-between border-t border-slate-900 pt-3">
                         <div>
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('general_hide_on_blur')}</h5>
+                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_hide_on_blur')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('general_hide_on_blur_desc')}</p>
                         </div>
                         <button
@@ -3047,7 +3506,7 @@ export default function App() {
                       {/* Ocultar al clickear zona muerta */}
                       <div className="flex items-center justify-between border-t border-slate-900 pt-3">
                         <div>
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('general_hide_on_dead_zone')}</h5>
+                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_hide_on_dead_zone')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('general_hide_on_dead_zone_desc')}</p>
                         </div>
                         <button
@@ -3064,7 +3523,7 @@ export default function App() {
                       {/* Mostrar en barra de tareas */}
                       <div className="flex items-center justify-between border-t border-slate-900 pt-3">
                         <div>
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('general_show_taskbar')}</h5>
+                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_show_taskbar')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('general_show_taskbar_desc')}</p>
                         </div>
                         <button
@@ -3082,7 +3541,7 @@ export default function App() {
                       {/* Ejecutar al iniciar Windows */}
                       <div className="flex items-center justify-between border-t border-slate-900 pt-3">
                         <div>
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('sys_startup')}</h5>
+                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('sys_startup')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('sys_startup_desc')}</p>
                         </div>
                         <button
@@ -3103,7 +3562,7 @@ export default function App() {
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('general_handle_auto_hide')}</h5>
+                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_handle_auto_hide')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('general_handle_auto_hide_desc')}</p>
                         </div>
                         <button
@@ -3117,7 +3576,7 @@ export default function App() {
                       {config.handleAutoHide && (
                         <div className="border-t border-slate-900 pt-3">
                           <div className="flex justify-between items-center mb-1">
-                            <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('general_handle_auto_hide_delay')}</h5>
+                            <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_handle_auto_hide_delay')}</h5>
                             <span className="text-[var(--neon-glow-color)] font-bold">{config.handleAutoHideDelay || 5}s</span>
                           </div>
                           <p className="text-[9.5px] text-slate-500 mb-2">{translate('general_handle_auto_hide_delay_desc')}</p>
@@ -3137,7 +3596,7 @@ export default function App() {
                     {/* Hotspot Corners */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
                       <div>
-                        <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('general_hotspots')}</h4>
+                        <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('general_hotspots')}</h4>
                         <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('general_hotspots_desc')}</p>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
@@ -3168,7 +3627,7 @@ export default function App() {
                       </div>
                       <div className="border-t border-slate-900 pt-3">
                         <div className="flex justify-between items-center mb-1">
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('general_hotspot_delay')}</h5>
+                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_hotspot_delay')}</h5>
                           <span className="text-[var(--neon-glow-color)] font-bold">{config.hotspotDelay || 300}ms</span>
                         </div>
                         <p className="text-[9.5px] text-slate-500 mb-2">{translate('general_hotspot_delay_desc')}</p>
@@ -3192,8 +3651,8 @@ export default function App() {
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('settings_sounds_title')}</h4>
-                          <h5 className="font-cyber font-bold text-slate-300 text-xs tracking-wider mt-2.5">{translate('settings_sound_launch_enable')}</h5>
+                          <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('settings_sounds_title')}</h4>
+                          <h5 className="font-montserrat font-bold text-slate-300 text-xs tracking-wider mt-2.5">{translate('settings_sound_launch_enable')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('settings_sound_launch_enable_desc')}</p>
                         </div>
                         <button
@@ -3206,7 +3665,7 @@ export default function App() {
 
                       {config.soundEnabled !== false && (
                         <div className="border-t border-slate-900 pt-3.5 space-y-2">
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('settings_sound_launch_path')}</h5>
+                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('settings_sound_launch_path')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('settings_sound_launch_path_desc')}</p>
                           
                           <div className="flex flex-col sm:flex-row gap-2 mt-2">
@@ -3251,13 +3710,13 @@ export default function App() {
                     {/* Cyber-Vault Security Options */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
                       <div>
-                        <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('vault_settings_title')}</h4>
+                        <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('vault_settings_title')}</h4>
                       </div>
 
                       {/* Enable PIN lock */}
                       <div className="flex items-center justify-between border-t border-slate-900 pt-3">
                         <div>
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('vault_settings_pin_enable')}</h5>
+                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('vault_settings_pin_enable')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('vault_settings_pin_enable_desc')}</p>
                         </div>
                         <button
@@ -3410,7 +3869,7 @@ export default function App() {
                       {/* Set PIN Code */}
                       {config.vaultPinEnabled && (
                         <div className="border-t border-slate-900 pt-3 space-y-2">
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('vault_settings_pin_code')}</h5>
+                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('vault_settings_pin_code')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('vault_settings_pin_code_desc')}</p>
                           
                           {!showChangePinForm ? (
@@ -3531,7 +3990,7 @@ export default function App() {
                       {/* Vault Lock Timeout */}
                       {config.vaultPinEnabled && (
                         <div className="border-t border-slate-900 pt-3 space-y-2">
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('vault_settings_timeout')}</h5>
+                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('vault_settings_timeout')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('vault_settings_timeout_desc')}</p>
                           <div className="flex flex-wrap gap-2">
                             {[
@@ -3567,7 +4026,7 @@ export default function App() {
                     
                     {/* Presets de Color */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('app_theme_presets')}</h4>
+                      <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('app_theme_presets')}</h4>
                       <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('app_theme_presets_desc')}</p>
                       
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -3592,7 +4051,7 @@ export default function App() {
 
                     {/* Selector de Tipo de Fondo */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('app_bg_type')}</h4>
+                      <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('app_bg_type')}</h4>
                       <div className="grid grid-cols-3 gap-2 mt-3">
                         {[
                           { id: 'solid', name: translate('app_bg_type_solid') },
@@ -3618,7 +4077,7 @@ export default function App() {
                     {config.bgType === 'solid' && (
                       <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-3">
                         <div>
-                          <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('app_bg_solid_color')}</h4>
+                          <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('app_bg_solid_color')}</h4>
                           <p className="text-[10px] text-slate-500 mt-1 mb-2.5">{translate('app_bg_solid_color_desc')}</p>
                         </div>
                         <div className="flex items-center gap-3">
@@ -3648,7 +4107,7 @@ export default function App() {
                     {config.bgType === 'gradient' && (
                       <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-3">
                         <div>
-                          <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('app_bg_gradients')}</h4>
+                          <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('app_bg_gradients')}</h4>
                           <p className="text-[10px] text-slate-500 mt-1 mb-2.5">{translate('app_bg_gradients_desc')}</p>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
@@ -3677,7 +4136,7 @@ export default function App() {
                     {config.bgType === 'image' && (
                       <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
                         <div>
-                          <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('app_bg_preset_images')}</h4>
+                          <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('app_bg_preset_images')}</h4>
                           <p className="text-[10px] text-slate-500 mt-1 mb-2.5">{translate('app_bg_preset_images_desc')}</p>
                         </div>
                         
@@ -3707,7 +4166,7 @@ export default function App() {
 
                         {/* Custom Background Image selection */}
                         <div className="border-t border-slate-900 pt-3">
-                          <h5 className="font-cyber font-bold text-white text-[10px] tracking-wider uppercase mb-1">{translate('app_bg_custom')}</h5>
+                          <h5 className="font-montserrat font-bold text-white text-[10px] tracking-wider uppercase mb-1">{translate('app_bg_custom')}</h5>
                           <p className="text-[9.5px] text-slate-500 mb-2">{translate('app_bg_custom_desc')}</p>
                           
                           <div className="flex gap-2">
@@ -3744,7 +4203,7 @@ export default function App() {
                         {config.bgType === 'image' && (
                           <div>
                             <div className="flex justify-between items-center mb-1">
-                              <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('app_opacity')}</h5>
+                              <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('app_opacity')}</h5>
                               <span className="text-[var(--neon-glow-color)] font-bold">{config.opacity}%</span>
                             </div>
                             <p className="text-[9.5px] text-slate-500 mb-2">{translate('app_opacity_desc')}</p>
@@ -3761,7 +4220,7 @@ export default function App() {
 
                         <div className={config.bgType === 'image' ? "border-t border-slate-900 pt-3" : ""}>
                           <div className="flex justify-between items-center mb-1">
-                            <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('app_blur')}</h5>
+                            <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('app_blur')}</h5>
                             <span className="text-[var(--neon-glow-color)] font-bold">{config.blurLevel}px</span>
                           </div>
                           <p className="text-[9.5px] text-slate-500 mb-2">{translate('app_blur_desc')}</p>
@@ -3787,7 +4246,7 @@ export default function App() {
                     
                     {/* Persistencia y backups */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('sys_backup')}</h4>
+                      <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('sys_backup')}</h4>
                       <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('sys_backup_desc')}</p>
                       
                       <div className="flex gap-2 flex-wrap">
@@ -3820,7 +4279,7 @@ export default function App() {
 
                     {/* Administrador de carpetas físicas indexadas */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-cyber font-bold text-red-400 text-xs tracking-widest">DANGER ZONE / NÚCLEO FÍSICO</h4>
+                      <h4 className="font-montserrat font-bold text-red-400 text-xs tracking-widest">DANGER ZONE / NÚCLEO FÍSICO</h4>
                       <p className="text-[10px] text-slate-500 mt-1 mb-3">Vaciar completamente la memoria de accesos inyectados de CyberTray.</p>
                       
                       <button
@@ -3876,7 +4335,7 @@ export default function App() {
               {/* Modal Header with title, sort, counter and close button */}
               <div className="flex items-center justify-between border-b border-slate-900 pb-3 mb-3 shrink-0">
                 <div>
-                  <h3 className="font-cyber font-bold text-white text-sm tracking-widest">{translate('tab_process_matrix')}</h3>
+                  <h3 className="font-montserrat font-bold text-white text-sm tracking-widest">{translate('tab_process_matrix')}</h3>
                   <p className="text-[10px] text-slate-500 mt-1">
                     {langCode === 'es'
                       ? 'Monitoreo de telemetría activa de la red y terminación de subprocesos.'
@@ -3988,7 +4447,7 @@ export default function App() {
               exit={{ scale: 0.95, opacity: 0 }}
               className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] z-[60] bg-[#070b13]/95 border border-[var(--neon-glow-border)] shadow-2xl rounded-2xl p-6 font-mono text-xs text-left"
             >
-              <h3 className="font-cyber font-bold text-white text-sm tracking-widest border-b border-slate-900 pb-3 mb-4.5">
+              <h3 className="font-montserrat font-bold text-white text-sm tracking-widest border-b border-slate-900 pb-3 mb-4.5">
                 {shortcutModal.item ? translate('modal_title_edit') : translate('modal_title_add')}
               </h3>
 
@@ -4075,7 +4534,7 @@ export default function App() {
                 {/* Ejecutar como Administrador Toggle */}
                 <div className="flex items-center justify-between bg-slate-950/40 p-3 border border-slate-900 rounded-xl">
                   <div>
-                    <h5 className="font-cyber font-bold text-white text-[11px] tracking-wider uppercase">{translate('modal_label_admin')}</h5>
+                    <h5 className="font-montserrat font-bold text-white text-[11px] tracking-wider uppercase">{translate('modal_label_admin')}</h5>
                     <p className="text-[9px] text-slate-500 mt-0.5">Requiere aprobación UAC de Windows al iniciar.</p>
                   </div>
                   <button
@@ -4145,7 +4604,7 @@ export default function App() {
               </div>
               
               <div>
-                <h3 className="font-cyber font-bold text-white text-xs tracking-widest">
+                <h3 className="font-montserrat font-bold text-white text-xs tracking-widest">
                   {translate('vault_locked_title')}
                 </h3>
                 <p className="text-[9px] text-slate-500 mt-1 uppercase tracking-wider">
@@ -4256,7 +4715,7 @@ export default function App() {
               exit={{ scale: 0.95, opacity: 0 }}
               className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-80 z-[60] bg-[#070b13]/95 border border-[var(--neon-glow-border)] shadow-2xl rounded-2xl p-5 font-mono text-xs text-left"
             >
-              <h3 className="font-cyber font-bold text-white text-xs tracking-widest border-b border-slate-900 pb-3 mb-4">
+              <h3 className="font-montserrat font-bold text-white text-xs tracking-widest border-b border-slate-900 pb-3 mb-4">
                 CREATE NEW CATEGORY
               </h3>
 
@@ -4370,7 +4829,7 @@ export default function App() {
               exit={{ scale: 0.95, opacity: 0 }}
               className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-80 z-[60] bg-[#070b13]/95 border border-[var(--neon-glow-border)] shadow-2xl rounded-2xl p-5 font-mono text-xs text-left"
             >
-              <h3 className="font-cyber font-bold text-white text-xs tracking-widest border-b border-slate-900 pb-3 mb-4">
+              <h3 className="font-montserrat font-bold text-white text-xs tracking-widest border-b border-slate-900 pb-3 mb-4">
                 RENAME CATEGORY
               </h3>
 
@@ -4616,7 +5075,7 @@ export default function App() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-cyber font-bold text-[13px] text-white tracking-widest uppercase truncate">
+                  <h3 className="font-montserrat font-bold text-[13px] text-white tracking-widest uppercase truncate">
                     {confirmModal.title}
                   </h3>
                   <p className="text-xs text-slate-400 mt-2 font-mono leading-relaxed">
@@ -4678,7 +5137,7 @@ export default function App() {
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-slate-900 pb-3 mb-4.5">
-                <h3 className="font-cyber font-bold text-white text-sm tracking-widest uppercase">
+                <h3 className="font-montserrat font-bold text-white text-sm tracking-widest uppercase">
                   {translate('about_title')}
                 </h3>
                 <button
@@ -4693,7 +5152,7 @@ export default function App() {
                 <CyberTrayLogo className="w-16 h-16 animate-pulse" animated={false} />
                 
                 <div>
-                  <h4 className="font-cyber font-bold text-lg text-white tracking-widest uppercase" style={{ fontFamily: 'Orbitron, sans-serif' }}>
+                  <h4 className="font-cyber font-bold text-lg text-white tracking-widest" style={{ fontFamily: 'Orbitron, sans-serif' }}>
                     CyberTray
                   </h4>
                   <p className="text-[10px] text-slate-500 mt-0.5 tracking-wider font-semibold">
@@ -4715,7 +5174,7 @@ export default function App() {
                 {/* Auto Update Check Toggle */}
                 <div className="w-full flex items-center justify-between bg-slate-950/40 p-3 border border-slate-900 rounded-xl text-left">
                   <div>
-                    <h5 className="font-cyber font-bold text-white text-[11px] tracking-wider uppercase">{translate('about_auto_check')}</h5>
+                    <h5 className="font-montserrat font-bold text-white text-[11px] tracking-wider uppercase">{translate('about_auto_check')}</h5>
                     <p className="text-[9px] text-slate-500 mt-0.5 leading-normal">{translate('about_auto_check_desc')}</p>
                   </div>
                   <button

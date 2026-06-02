@@ -5,7 +5,8 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron';
 // =====================================
 contextBridge.exposeInMainWorld('electronAPI', {
   // --- Launch App ---
-  launchApp: (appPath: string, isAdmin?: boolean) => ipcRenderer.invoke('launch-app', appPath, isAdmin),
+  launchApp: (appPath: string, isAdmin?: boolean, args?: string, cwd?: string) =>
+    ipcRenderer.invoke('launch-app', appPath, isAdmin, args, cwd),
   getUwpApps: () => ipcRenderer.invoke('get-uwp-apps'),
 
   // --- Native File Dialogs ---
@@ -131,5 +132,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   runDesktopSweep: () => ipcRenderer.invoke('run-desktop-sweep'),
   getDefaultVaultPath: () => ipcRenderer.invoke('get-default-vault-path'),
   openVaultFolder: () => ipcRenderer.invoke('open-vault-folder'),
+  selectVaultFolder: () => ipcRenderer.invoke('select-vault-folder'),
   importFileToVault: (filePath: string) => ipcRenderer.invoke('import-file-to-vault', filePath)
 });

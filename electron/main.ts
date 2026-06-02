@@ -169,7 +169,7 @@ function getVaultPath(): string {
   if (config.vaultPath && config.vaultPath.trim() !== '') {
     return config.vaultPath;
   }
-  return path.join(app.getPath('userData'), 'vault');
+  return path.join(app.getPath('userData'), 'CyberTray_files');
 }
 
 // ── HOTSPOTS & UAC GUARD STATE ──
@@ -590,6 +590,11 @@ function createTray() {
 
   const contextMenu = Menu.buildFromTemplate([
     {
+      label: `CyberTray v${app.getVersion()}`,
+      enabled: false,
+    },
+    { type: 'separator' },
+    {
       label: t.show,
       click: () => toggleShelf(),
     },
@@ -658,11 +663,20 @@ async function resolveFullFileInfo(filePath: string) {
     let ext = path.extname(normalized).toLowerCase();
     let resolvedPath = normalized;
     let resolvedName = path.basename(normalized, ext);
+    let resolvedArgs = '';
+    let resolvedCwd = '';
     let iconDataUrl = '';
 
     if (ext === '.lnk') {
+      // Conservar el nombre propio del acceso (ej. "factorio SeaBlock") en vez del
+      // basename del ejecutable destino, que seria identico para todos los .lnk.
+      const lnkName = resolvedName;
       try {
         const shortcut = shell.readShortcutLink(normalized);
+        // Capturar argumentos y directorio de trabajo del acceso para poder
+        // relanzarlo tal cual (clave para apps como Factorio con flags de mod).
+        resolvedArgs = shortcut.args || '';
+        resolvedCwd = shortcut.cwd || '';
         if (shortcut.target && fs.existsSync(shortcut.target)) {
           resolvedPath = path.resolve(shortcut.target);
         } else {
@@ -674,8 +688,10 @@ async function resolveFullFileInfo(filePath: string) {
             resolvedPath = path.resolve(output);
           }
         }
+        // El target solo se usa para lanzar y extraer el icono; el nombre visible
+        // sigue siendo el del .lnk.
         ext = path.extname(resolvedPath).toLowerCase();
-        resolvedName = path.basename(resolvedPath, ext);
+        resolvedName = lnkName;
       } catch (e) {
         console.error('Error resolving .lnk file:', e);
       }
@@ -723,6 +739,8 @@ async function resolveFullFileInfo(filePath: string) {
       ext,
       exists: fs.existsSync(resolvedPath),
       iconPath: iconDataUrl,
+      arguments: resolvedArgs,
+      cwd: resolvedCwd,
     };
   } catch (err) {
     console.error('Error resolveFullFileInfo:', err);
@@ -877,12 +895,18 @@ function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle('launch-app', async (_, appPath, isAdmin) => {
+  ipcMain.handle('launch-app', async (_, appPath, isAdmin, args, cwd) => {
     try {
-      if (isAdmin && process.platform === 'win32') {
-        const escapedPath = appPath.replace(/'/g, "''");
-        const command = `powershell -NoProfile -Command "Start-Process -FilePath '${escapedPath}' -Verb RunAs"`;
-        exec(command, { windowsHide: true });
+      const hasArgs = typeof args === 'string' && args.trim().length > 0;
+      // shell.openPath no admite argumentos; usamos Start-Process cuando hay que
+      // pasar parametros, fijar el directorio de trabajo o elevar (RunAs).
+      if (process.platform === 'win32' && (isAdmin || hasArgs || (cwd && cwd.trim()))) {
+        const esc = (s: string) => String(s).replace(/'/g, "''");
+        let command = `Start-Process -FilePath '${esc(appPath)}'`;
+        if (hasArgs) command += ` -ArgumentList '${esc(args)}'`;
+        if (cwd && cwd.trim()) command += ` -WorkingDirectory '${esc(cwd)}'`;
+        if (isAdmin) command += ` -Verb RunAs`;
+        exec(`powershell -NoProfile -Command "${command}"`, { windowsHide: true });
       } else {
         shell.openPath(appPath);
       }
@@ -1272,6 +1296,7 @@ function registerIpcHandlers() {
         right: 'Right',
         dock_top: 'Dock to Top',
         dock_bottom: 'Dock to Bottom',
+        monitor: 'Monitor',
         settings: 'Settings...',
         exit: 'Exit'
       },
@@ -1283,6 +1308,7 @@ function registerIpcHandlers() {
         right: 'Derecha',
         dock_top: 'Acoplar arriba',
         dock_bottom: 'Acoplar abajo',
+        monitor: 'Monitor',
         settings: 'Configuración...',
         exit: 'Salir'
       }
@@ -1291,6 +1317,23 @@ function registerIpcHandlers() {
     const lang = config.language === 'es' ? 'es' : 'en';
     const t = HANDLE_CONTEXT_MENU_TRANSLATIONS[lang];
     const hasCustomOffset = config.handleOffsetPercent !== undefined && config.handleOffsetPercent !== null;
+
+    // Submenú dinámico de monitores: refleja el monitor objetivo actual y permite cambiarlo desde el handle
+    const allDisplays = screen.getAllDisplays();
+    const primaryDisplayId = screen.getPrimaryDisplay().id;
+    const currentTargetId = getTargetDisplay().id;
+    const monitorSubmenu: Electron.MenuItemConstructorOptions[] = allDisplays.map((d, idx) => ({
+      label: `${d.label || `${t.monitor} ${idx + 1}`} — ${d.bounds.width}×${d.bounds.height}${d.id === primaryDisplayId ? ' ★' : ''}`,
+      type: 'radio',
+      checked: d.id === currentTargetId,
+      click: () => {
+        saveConfig({
+          monitorId: d.id.toString(),
+          monitorBounds: { x: d.bounds.x, y: d.bounds.y, width: d.bounds.width, height: d.bounds.height },
+        });
+        alignWindows();
+      },
+    }));
 
     const menu = Menu.buildFromTemplate([
       {
@@ -1351,6 +1394,11 @@ function registerIpcHandlers() {
             }
           }
         ]
+      },
+      {
+        label: t.monitor,
+        type: 'submenu',
+        submenu: monitorSubmenu
       },
       { type: 'separator' },
       {
@@ -1615,7 +1663,7 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle('get-default-vault-path', async () => {
-    return path.join(app.getPath('userData'), 'vault');
+    return path.join(app.getPath('userData'), 'CyberTray_files');
   });
 
   ipcMain.handle('open-vault-folder', async () => {
@@ -1625,6 +1673,21 @@ function registerIpcHandlers() {
     }
     shell.openPath(targetVaultPath);
     return true;
+  });
+
+  ipcMain.handle('select-vault-folder', async () => {
+    isDialogOpen = true; // Bypasa el autohide (hideOnBlur) mientras el diálogo nativo tiene el foco
+    const res = await dialog.showOpenDialog(shelfWindow!, {
+      title: 'Seleccionar carpeta de archivos',
+      defaultPath: getVaultPath(),
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    isDialogOpen = false;
+    showShelf(); // Reenfoca y muestra el panel al cerrar el diálogo
+    if (!res.canceled && res.filePaths.length > 0) {
+      return res.filePaths[0];
+    }
+    return null;
   });
 
   ipcMain.handle('import-file-to-vault', async (event, filePath: string) => {
@@ -1737,6 +1800,23 @@ app.whenReady().then(() => {
   registerGlobalShortcutKey(config.shortcut);
   startHotspotPolling();
   startUACGuard();
+
+  // Re-alinear ventanas cuando cambian los monitores (conexión / desconexión / cambio de resolución).
+  // Soluciona que, tras reiniciar Windows, el monitor objetivo aún no esté disponible al arrancar
+  // y la app caiga al primario sin volver a colocarse cuando el monitor real aparece.
+  let displayChangeTimer: NodeJS.Timeout | null = null;
+  const scheduleRealign = () => {
+    if (displayChangeTimer) clearTimeout(displayChangeTimer);
+    displayChangeTimer = setTimeout(() => { alignWindows(); }, 400);
+  };
+  screen.on('display-added', scheduleRealign);
+  screen.on('display-removed', scheduleRealign);
+  screen.on('display-metrics-changed', scheduleRealign);
+
+  // Reintentos diferidos al inicio: un monitor secundario puede conectarse unos segundos
+  // después del login de Windows, cuando la app ya arrancó.
+  setTimeout(() => alignWindows(), 1500);
+  setTimeout(() => alignWindows(), 4000);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

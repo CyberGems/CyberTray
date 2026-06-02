@@ -108,7 +108,7 @@ export default function ProcessMatrixView({
       {showToolbar && (
         <div className="flex items-center justify-between border-b border-slate-900 pb-2">
           <div>
-            <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('tab_process_matrix')}</h4>
+            <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('tab_process_matrix')}</h4>
             <p className="text-[10px] text-slate-500 mt-1">
               {langCode === 'es'
                 ? 'Monitoreo de telemetría activa de la red y terminación de subprocesos.'

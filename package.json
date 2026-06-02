@@ -2,6 +2,8 @@
   "name": "cyber-tray",
   "private": true,
   "version": "1.9.6",
+  "author": "CyberGems",
+  "description": "CyberTray — Cybernetic shortcut shelf and system tray companion by CyberGems.",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -15,6 +17,7 @@
   "build": {
     "appId": "com.cybertray.app",
     "productName": "CyberTray",
+    "copyright": "Copyright © 2026 CyberGems",
     "directories": {
       "output": "release"
     },
@@ -24,6 +27,7 @@
     ],
     "win": {
       "icon": "public/icon.png",
+      "publisherName": "CyberGems",
       "target": [
         "nsis"
       ]
