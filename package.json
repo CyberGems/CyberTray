@@ -27,7 +27,6 @@
     ],
     "win": {
       "icon": "public/icon.png",
-      "publisherName": "CyberGems",
       "target": [
         "nsis"
       ]
