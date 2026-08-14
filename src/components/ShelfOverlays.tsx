@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Edit, ExternalLink, FolderOpen, Play, Power, Shield, Trash2 } from 'lucide-react';
 import { translate } from '../locales';
-import { isElectron } from '../lib/appUtils';
+import { getFolderPath, isElectron } from '../lib/appUtils';
 
 interface ShelfOverlaysProps {
   langCode: string;
@@ -89,24 +89,24 @@ export default function ShelfOverlays({
               className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-80 z-[60] bg-[#070b13]/95 border border-[var(--neon-glow-border)] shadow-2xl rounded-2xl p-5 font-mono text-xs text-left"
             >
               <h3 className="font-ui font-bold text-white text-xs tracking-widest border-b border-slate-900 pb-3 mb-4">
-                {translate('modal_cat_create_title')}
+                {translate('modal_folder_create_title')}
               </h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-[9.5px] text-slate-500 mb-1.5 tracking-wider uppercase">{translate('modal_cat_create_label')}</label>
+                  <label className="block text-[9.5px] text-slate-500 mb-1.5 tracking-wider uppercase">{translate('modal_folder_create_label')}</label>
                   <input
                     type="text"
                     value={newCatName}
                     onChange={(e) => setNewCatName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleAddCategory(); }}
-                    placeholder={translate('modal_cat_create_placeholder')}
+                    placeholder={translate('modal_folder_create_placeholder')}
                     className="w-full bg-slate-950 border border-slate-900 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-[var(--neon-glow-color)] text-xs uppercase"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[9.5px] text-slate-500 mb-1.5 tracking-wider uppercase">{translate('modal_cat_color_label')}</label>
+                  <label className="block text-[9.5px] text-slate-500 mb-1.5 tracking-wider uppercase">{translate('modal_folder_color_label')}</label>
                   <div className="flex gap-2.5">
                     {['#3b82f6', '#a855f7', '#f59e0b', '#ef4444', '#10b981', '#ec4899'].map(color => (
                       <button
@@ -167,7 +167,7 @@ export default function ShelfOverlays({
               className="w-full py-1.5 px-3 text-left text-xs rounded hover:bg-slate-900 hover:text-white disabled:opacity-40 disabled:hover:bg-transparent text-slate-300 flex items-center gap-2 cursor-pointer border-0 bg-transparent"
             >
               <Edit className="w-3.5 h-3.5 text-slate-500" />
-              {translate('menu_rename_category')}
+              {translate('menu_rename_folder')}
             </button>
             <button 
               onClick={() => {
@@ -179,7 +179,7 @@ export default function ShelfOverlays({
               className="w-full py-1.5 px-3 text-left text-xs rounded hover:bg-red-950 hover:text-red-400 disabled:opacity-40 disabled:hover:bg-transparent text-red-500 flex items-center gap-2 cursor-pointer border-0 bg-transparent"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              {translate('menu_delete_category')}
+              {translate('menu_delete_folder')}
             </button>
           </div>
         </>
@@ -203,18 +203,18 @@ export default function ShelfOverlays({
               className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-80 z-[60] bg-[#070b13]/95 border border-[var(--neon-glow-border)] shadow-2xl rounded-2xl p-5 font-mono text-xs text-left"
             >
               <h3 className="font-ui font-bold text-white text-xs tracking-widest border-b border-slate-900 pb-3 mb-4">
-                {translate('modal_cat_rename_title')}
+                {translate('modal_folder_rename_title')}
               </h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-[9.5px] text-slate-500 mb-1.5 tracking-wider uppercase">{translate('modal_cat_rename_label')}</label>
+                  <label className="block text-[9.5px] text-slate-500 mb-1.5 tracking-wider uppercase">{translate('modal_folder_rename_label')}</label>
                   <input
                     type="text"
                     value={renameCatName}
                     onChange={(e) => setRenameCatName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleRenameCategory(); }}
-                    placeholder={translate('modal_cat_rename_placeholder')}
+                    placeholder={translate('modal_folder_rename_placeholder')}
                     className="w-full bg-slate-950 border border-slate-900 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-[var(--neon-glow-color)] text-xs uppercase"
                   />
                 </div>
@@ -328,7 +328,7 @@ export default function ShelfOverlays({
               }
             </button>
 
-            {/* Submenú de Mover a Categoría */}
+            {/* Submenú de Mover a Carpeta */}
             <div className="relative group">
               <button 
                 className="w-full py-1.5 px-3 text-left text-xs rounded hover:bg-slate-900 hover:text-white text-slate-300 flex items-center justify-between cursor-pointer border-0 bg-transparent"
@@ -346,16 +346,17 @@ export default function ShelfOverlays({
                 }`}
               >
                 {categories
-                  .filter(cat => cat.id !== 'all' && cat.id !== shortcutMenu.item.category && cat.id.trim() !== '')
-                  .map(cat => (
+                  .filter(folder => folder.id !== 'all' && folder.id !== shortcutMenu.item.category && folder.id.trim() !== '')
+                  .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))
+                  .map(folder => (
                     <button
-                      key={cat.id}
+                      key={folder.id}
                       onClick={async () => {
                         const item = shortcutMenu.item;
                         setShortcutMenu(null);
                         const updatedShortcuts = shortcuts.map(s => {
                           if (s.id === item.id) {
-                            return { ...s, category: cat.id };
+                            return { ...s, category: folder.id };
                           }
                           return s;
                         });
@@ -363,10 +364,10 @@ export default function ShelfOverlays({
                         playCyberBeep();
                       }}
                       className="w-full py-1.5 px-3 text-left text-xs rounded hover:bg-slate-900 hover:text-white text-slate-300 flex items-center gap-2 cursor-pointer border-0 bg-transparent"
-                      style={{ color: cat.color || undefined }}
+                      style={{ color: folder.color || undefined }}
                     >
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cat.color || 'var(--neon-glow-color)' }} />
-                      {cat.id === 'utils' ? translate('cat_utils') : cat.name}
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: folder.color || 'var(--neon-glow-color)' }} />
+                      {getFolderPath(categories, folder.id).map(item => item.id === 'all' ? translate('explorer_all') : item.name).join(' / ')}
                     </button>
                   ))}
               </div>

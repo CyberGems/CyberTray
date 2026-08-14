@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Trash2 } from 'lucide-react';
 import { translate } from '../locales';
+import { getFolderPath } from '../lib/appUtils';
 
 interface ShortcutFormModalProps {
   shortcutModal: { open: boolean; item?: any };
@@ -44,6 +45,14 @@ export default function ShortcutFormModal({
   handleBrowseFile,
   handleDeleteShortcut,
 }: ShortcutFormModalProps) {
+  const folderOptions = categories
+    .filter(folder => folder && folder.id && folder.id.trim() !== '' && folder.id !== 'all')
+    .sort((a, b) => {
+      const pathA = getFolderPath(categories, a.id).map(folder => folder.name).join('/');
+      const pathB = getFolderPath(categories, b.id).map(folder => folder.name).join('/');
+      return pathA.localeCompare(pathB);
+    });
+
   return (
     <AnimatePresence>
       {shortcutModal.open && (
@@ -106,9 +115,9 @@ export default function ShortcutFormModal({
                     onChange={(e) => setFormCategory(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-900 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-[var(--neon-glow-color)] text-xs"
                   >
-                    {categories.filter(c => c && c.id && c.id.trim() !== '' && c.id !== 'all').map(cat => (
-                      <option key={cat.id} value={cat.id} className="bg-slate-950">
-                        {cat.name}
+                    {folderOptions.map(folder => (
+                      <option key={folder.id} value={folder.id} className="bg-slate-950">
+                        {getFolderPath(categories, folder.id).map(item => item.id === 'all' ? translate('explorer_all') : item.name).join(' / ')}
                       </option>
                     ))}
                   </select>

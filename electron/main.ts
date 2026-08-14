@@ -74,6 +74,7 @@ interface CyberTrayConfig {
   vaultLockTimeout?: number;
   shortcutsList?: any[];
   categoriesList?: any[];
+  folderSchemaVersion?: number;
   totalLaunches?: number;
   autoCheckUpdates?: boolean;
 }
@@ -109,6 +110,7 @@ const DEFAULT_CONFIG: CyberTrayConfig = {
   vaultPinEnabled: false,
   vaultPin: '1234',
   vaultLockTimeout: 0,
+  folderSchemaVersion: 2,
   totalLaunches: 0,
   autoCheckUpdates: true,
 };

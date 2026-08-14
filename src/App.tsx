@@ -12,7 +12,19 @@ import SettingsPanel from './components/SettingsPanel';
 import PinPadModal from './components/PinPadModal';
 import AboutModal from './components/AboutModal';
 import ShelfOverlays from './components/ShelfOverlays';
-import { isElectron, INITIAL_CATEGORIES, normalizeCategoriesList, compareSemver } from './lib/appUtils';
+import FolderTree from './components/FolderTree';
+import {
+  isElectron,
+  INITIAL_CATEGORIES,
+  FOLDER_SCHEMA_VERSION,
+  normalizeCategoriesList,
+  normalizeShortcutsList,
+  createFolderId,
+  getChildFolders,
+  getDescendantFolderIds,
+  getFolderPath,
+  compareSemver,
+} from './lib/appUtils';
 import {
   Search, Grid, List as ListIcon, Plus, Clock, ArrowUpDown, Settings,
   Minus, X, LayoutGrid, Palette, Key, Trash2, Shield, Info,
@@ -124,6 +136,7 @@ export default function App() {
     bgCustomPath: '',
     soundEnabled: true,
     soundPath: '',
+    folderSchemaVersion: FOLDER_SCHEMA_VERSION,
   });
 
 
@@ -445,6 +458,7 @@ export default function App() {
   // Form de Nueva Categoría
   const [newCatName, setNewCatName] = useState<string>('');
   const [newCatColor, setNewCatColor] = useState<string>('#3b82f6');
+  const [newCatParentId, setNewCatParentId] = useState<string | null>(null);
 
   // Neural Telemetry States
   const [systemInfo, setSystemInfo] = useState<any>({
@@ -506,21 +520,28 @@ export default function App() {
         // Cargar config general de Electron
         const loadedConfig = await window.electronAPI!.loadConfig();
         if (loadedConfig) {
-          setConfig(loadedConfig);
+          const configWithFolderSchema = {
+            ...loadedConfig,
+            folderSchemaVersion: loadedConfig.folderSchemaVersion || FOLDER_SCHEMA_VERSION,
+          };
+          setConfig(configWithFolderSchema);
           setIsPinned(loadedConfig.alwaysOnTop !== undefined ? loadedConfig.alwaysOnTop : true);
           if (loadedConfig.language) {
             setLangCode(loadedConfig.language);
             setLocale(loadedConfig.language);
           }
-          if (loadedConfig.categoriesList) {
-            const sanitizedCats = normalizeCategoriesList(loadedConfig.categoriesList);
-            if (sanitizedCats.length > 0) {
-              setCategories(sanitizedCats);
-            } else {
-              setCategories(INITIAL_CATEGORIES);
-            }
+          const sanitizedCategories = normalizeCategoriesList(loadedConfig.categoriesList || INITIAL_CATEGORIES);
+          const sanitizedShortcuts = normalizeShortcutsList(loadedConfig.shortcutsList || [], sanitizedCategories);
+          setCategories(sanitizedCategories);
+          setShortcuts(sanitizedShortcuts);
+          if (loadedConfig.folderSchemaVersion !== FOLDER_SCHEMA_VERSION) {
+            await window.electronAPI!.saveConfig({
+              ...configWithFolderSchema,
+              folderSchemaVersion: FOLDER_SCHEMA_VERSION,
+              categoriesList: sanitizedCategories,
+              shortcutsList: sanitizedShortcuts,
+            }, { broadcastReload: false });
           }
-          if (loadedConfig.shortcutsList) setShortcuts(loadedConfig.shortcutsList);
           if (loadedConfig.autoCheckUpdates !== false) {
             checkForUpdates(false);
           }
@@ -852,16 +873,18 @@ export default function App() {
   // Persistencia de Atajos y Categorías
   const saveDataToConfig = async (newShortcuts: any[], newCategories: any[]) => {
     const normalizedCategories = normalizeCategoriesList(newCategories);
+    const normalizedShortcuts = normalizeShortcutsList(newShortcuts, normalizedCategories);
 
     cancelPendingUsagePersist();
-    setShortcuts(newShortcuts);
+    setShortcuts(normalizedShortcuts);
     setCategories(normalizedCategories);
 
     if (isElectron) {
       await window.electronAPI!.saveConfig({
         ...configRef.current,
-        shortcutsList: newShortcuts,
-        categoriesList: normalizedCategories
+        shortcutsList: normalizedShortcuts,
+        categoriesList: normalizedCategories,
+        folderSchemaVersion: FOLDER_SCHEMA_VERSION,
       });
     }
   };
@@ -1064,7 +1087,6 @@ export default function App() {
   };
 
   const handleCategoryDrop = async (e: React.DragEvent, cat: any) => {
-    if (cat.id === 'all') return;
     e.preventDefault();
     e.stopPropagation();
     setDragOverCategoryId(null);
@@ -1073,7 +1095,7 @@ export default function App() {
     // Archivos del sistema soltados directamente sobre una pestaña/categoría:
     // importarlos (uno o varios) asignándolos a esa categoría concreta.
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      await importDroppedFiles(e.dataTransfer.files, cat.id);
+      await importDroppedFiles(e.dataTransfer.files, cat.id === 'all' ? 'utils' : cat.id);
       return;
     }
 
@@ -1083,24 +1105,29 @@ export default function App() {
       if (!movingCategoryId || movingCategoryId === 'all' || movingCategoryId === cat.id) return;
 
       const currentCategories = normalizeCategoriesList(categories);
-      const movingIndex = currentCategories.findIndex(c => c.id === movingCategoryId);
-      const targetIndex = currentCategories.findIndex(c => c.id === cat.id);
-      if (movingIndex === -1 || targetIndex === -1) return;
+      const movingCategory = currentCategories.find(folder => folder.id === movingCategoryId);
+      if (!movingCategory) return;
 
-      const movingCategory = currentCategories[movingIndex];
-      const remainingCategories = currentCategories.filter(c => c.id !== movingCategoryId);
-      const targetIndexAfterRemoval = remainingCategories.findIndex(c => c.id === cat.id);
-      const targetRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      const insertAfter = e.clientX > targetRect.left + (targetRect.width / 2);
-      const insertIndex = targetIndexAfterRemoval + (insertAfter ? 1 : 0);
+      const descendants = getDescendantFolderIds(currentCategories, movingCategoryId);
+      if (cat.id !== 'all' && descendants.includes(cat.id)) {
+        showAlert(
+          translate('folder_move_invalid_title'),
+          translate('folder_move_invalid_desc')
+        );
+        return;
+      }
 
-      const reorderedCategories = [
-        ...remainingCategories.slice(0, insertIndex),
-        movingCategory,
-        ...remainingCategories.slice(insertIndex),
-      ];
+      const parentId = cat.id === 'all' ? null : cat.id;
+      const siblingOrders = currentCategories
+        .filter(folder => folder.id !== movingCategoryId && folder.parentId === parentId)
+        .map(folder => folder.order);
+      const nextOrder = siblingOrders.length > 0 ? Math.max(...siblingOrders) + 1 : 0;
+      const movedCategories = currentCategories.map(folder =>
+        folder.id === movingCategoryId ? { ...folder, parentId, order: nextOrder } : folder
+      );
 
-      await saveDataToConfig(shortcuts, reorderedCategories);
+      await saveDataToConfig(shortcuts, movedCategories);
+      if (activeCategory === movingCategoryId) setActiveCategory(movingCategoryId);
       playCyberBeep();
       return;
     }
@@ -1125,7 +1152,13 @@ export default function App() {
 
           const updatedShortcuts = shortcuts.map(s => {
             if (s.id === shortcutId) {
-              return { ...s, category: cat.id, path: finalPath, iconPath: finalIconPath, name: finalName };
+              return {
+                ...s,
+                category: cat.id === 'all' ? 'utils' : cat.id,
+                path: finalPath,
+                iconPath: finalIconPath,
+                name: finalName,
+              };
             }
             return s;
           });
@@ -1278,7 +1311,11 @@ export default function App() {
     setFormPath('');
     setFormArgs('');
     setFormDelay(0);
-    setFormCategory(activeCategory === 'all' ? 'utils' : activeCategory);
+    setFormCategory(
+      activeCategory === 'all' || activeCategory === 'favorites' || activeCategory === 'vault'
+        ? 'utils'
+        : activeCategory
+    );
     setFormAdmin(false);
     setFormHotkey('');
     setFormIconPath('');
@@ -1530,32 +1567,58 @@ export default function App() {
   // Gestor de Categorías
   const handleAddCategory = async () => {
     if (!newCatName.trim()) return;
-    const newId = newCatName.toLowerCase().replace(/\s+/g, '_');
-    
-    // Evitar duplicados
-    if (categories.some(c => c.id === newId)) return;
+    const parentId = newCatParentId && newCatParentId !== 'all' ? newCatParentId : null;
+    const folderName = newCatName.trim().toUpperCase();
+    const siblingExists = categories.some(
+      folder => folder.parentId === parentId && folder.name.trim().toLowerCase() === folderName.toLowerCase()
+    );
+    if (siblingExists) {
+      showAlert(
+        langCode === 'es' ? 'Carpeta Existente' : 'Folder Exists',
+        langCode === 'es' ? 'Ya existe una carpeta con ese nombre en esta ubicación.' : 'A folder with that name already exists here.'
+      );
+      return;
+    }
 
-    const updated = [...categories, { id: newId, name: newCatName.toUpperCase(), color: newCatColor }];
+    const siblingOrders = categories
+      .filter(folder => folder.id !== 'all' && folder.parentId === parentId)
+      .map(folder => folder.order);
+    const nextOrder = siblingOrders.length > 0 ? Math.max(...siblingOrders) + 1 : 0;
+    const newId = createFolderId();
+    const updated = [
+      ...categories,
+      { id: newId, name: folderName, color: newCatColor, parentId, order: nextOrder },
+    ];
     await saveDataToConfig(shortcuts, updated);
     setNewCatName('');
     setNewCatModal(false);
+    setNewCatParentId(null);
+    setActiveCategory(newId);
     playCyberBeep();
   };
 
   const handleDeleteCategory = async (id: string) => {
     if (id === 'all' || id === 'utils') return; // Protegidos
-    const updatedCats = categories.filter(c => c.id !== id);
-    // Reasignar shortcuts de la categoría borrada a utils
-    const updatedShortcuts = shortcuts.map(s => {
-      if (s.category === id) {
-        return { ...s, category: 'utils' };
-      }
-      return s;
-    });
+    const targetFolder = categories.find(folder => folder.id === id);
+    if (!targetFolder) return;
 
-    await saveDataToConfig(updatedShortcuts, updatedCats);
-    setActiveCategory('all');
-    playCyberBeep();
+    const removedIds = new Set([id, ...getDescendantFolderIds(categories, id)]);
+    const destination = targetFolder.parentId || 'utils';
+    showConfirm(
+      translate('folder_delete_confirm_title'),
+      translate('folder_delete_confirm_desc'),
+      async () => {
+        const updatedCats = categories.filter(folder => !removedIds.has(folder.id));
+        const updatedShortcuts = shortcuts.map(shortcut =>
+          removedIds.has(shortcut.category) ? { ...shortcut, category: destination } : shortcut
+        );
+
+        await saveDataToConfig(updatedShortcuts, updatedCats);
+        if (removedIds.has(activeCategory)) setActiveCategory(destination);
+        playCyberBeep();
+      },
+      true
+    );
   };
 
   // Rueda del ratón en pestañas
@@ -1576,41 +1639,40 @@ export default function App() {
     });
   };
 
+  const handleCreateFolder = (parentId: string | null) => {
+    setNewCatName('');
+    setNewCatColor('#3b82f6');
+    setNewCatParentId(parentId);
+    setNewCatModal(true);
+    playCyberBeep();
+  };
+
   // Renombrar categoría
   const handleRenameCategory = async () => {
     if (!renameCatName.trim() || !renameCatModal.category) return;
     const catId = renameCatModal.category.id;
     const newName = renameCatName.trim().toUpperCase();
-    const newId = newName.toLowerCase().replace(/\s+/g, '_');
 
-    // Evitar que colisione con otra categoría existente
-    if (categories.some(c => c.id === newId && c.id !== catId)) {
+    if (categories.some(
+      folder => folder.id !== catId
+        && folder.parentId === renameCatModal.category.parentId
+        && folder.name.trim().toLowerCase() === newName.toLowerCase()
+    )) {
       showAlert(
-        langCode === 'es' ? 'Categoría Existente' : 'Category Exists',
-        langCode === 'es' ? 'Esta categoría ya existe.' : 'This category already exists.'
+        langCode === 'es' ? 'Carpeta Existente' : 'Folder Exists',
+        langCode === 'es' ? 'Ya existe una carpeta con ese nombre aquí.' : 'A folder with that name already exists here.'
       );
       return;
     }
 
     const updatedCats = categories.map(c => {
       if (c.id === catId) {
-        return { ...c, name: newName, id: newId };
+        return { ...c, name: newName };
       }
       return c;
     });
 
-    // Actualizar también la categoría de los atajos que estaban en esta categoría
-    const updatedShortcuts = shortcuts.map(s => {
-      if (s.category === catId) {
-        return { ...s, category: newId };
-      }
-      return s;
-    });
-
-    await saveDataToConfig(updatedShortcuts, updatedCats);
-    if (activeCategory === catId) {
-      setActiveCategory(newId);
-    }
+    await saveDataToConfig(shortcuts, updatedCats);
     setRenameCatModal({ open: false });
     playCyberBeep();
   };
@@ -1816,7 +1878,12 @@ export default function App() {
   // Backup y Diagnóstico
   const handleExportBackup = async () => {
     if (!isElectron) return;
-    const backupData = JSON.stringify({ shortcuts, categories, config }, null, 2);
+    const backupData = JSON.stringify({
+      schemaVersion: FOLDER_SCHEMA_VERSION,
+      shortcutsList: shortcuts,
+      categoriesList: categories,
+      config: { ...config, folderSchemaVersion: FOLDER_SCHEMA_VERSION },
+    }, null, 2);
     const path = await window.electronAPI!.exportConfig(backupData);
     if (path) {
       showAlert(
@@ -1832,17 +1899,24 @@ export default function App() {
     if (raw) {
       try {
         const data = JSON.parse(raw);
-        if (data.shortcutsList || data.shortcuts) {
-          const importedShortcuts = data.shortcutsList || data.shortcuts;
-          const importedCategories = data.categoriesList || data.categories;
-          const importedConfig = data.config || config;
-          
+        const rawShortcuts = data.shortcutsList || data.shortcuts;
+        const rawCategories = data.categoriesList || data.categories;
+        if (Array.isArray(rawShortcuts) && Array.isArray(rawCategories)) {
+          const importedCategories = normalizeCategoriesList(rawCategories);
+          const importedShortcuts = normalizeShortcutsList(rawShortcuts, importedCategories);
+          const importedConfig = {
+            ...config,
+            ...(data.config || {}),
+            folderSchemaVersion: FOLDER_SCHEMA_VERSION,
+          };
+
           setConfig(importedConfig);
-          setShortcuts(importedShortcuts);
-          setCategories(importedCategories);
-          
           await saveDataToConfig(importedShortcuts, importedCategories);
-          await window.electronAPI!.saveConfig(importedConfig);
+          await window.electronAPI!.saveConfig({
+            ...importedConfig,
+            shortcutsList: importedShortcuts,
+            categoriesList: importedCategories,
+          });
           
           showAlert(
             langCode === 'es' ? 'Respaldo Importado' : 'Backup Imported',
@@ -1851,6 +1925,8 @@ export default function App() {
               window.location.reload();
             }
           );
+        } else {
+          throw new Error('Invalid backup structure');
         }
       } catch {
         showAlert(
@@ -1995,6 +2071,10 @@ export default function App() {
   const bgCustomPath = config.bgCustomPath || '';
   const opacityVal = config.opacity !== undefined ? config.opacity : 85;
   const blurLevel = config.blurLevel !== undefined ? config.blurLevel : 20;
+  const activeFolderPath = getFolderPath(categories, activeCategory);
+  const visibleChildFolders = activeCategory === 'all'
+    ? getChildFolders(categories, null)
+    : getChildFolders(categories, activeCategory);
 
   if (mode === 'shelf' && !isShelfVisible) {
     return <div className={`theme-${config.theme} w-full h-screen bg-transparent`} />;
@@ -2075,7 +2155,7 @@ export default function App() {
           </div>
 
           {/* Category Tabs Scroll Container (Centered Navigation) */}
-          <div className="flex-1 flex items-center relative overflow-hidden h-full mx-4">
+          <div className="hidden">
             <div
               ref={categoryTabsRef}
               onWheel={handleCategoryWheel}
@@ -2553,33 +2633,92 @@ export default function App() {
         </div>
       </header>
 
-      <ShortcutGrid
-        gridScrollRef={gridScrollRef}
-        selectionMode={selectionMode}
-        lassoRect={lassoRect}
-        filteredShortcutsList={filteredShortcutsList}
-        searchQuery={searchQuery}
-        viewMode={viewMode}
-        iconSortOrder={iconSortOrder}
-        config={config}
-        categories={categories}
-        activeCategory={activeCategory}
-        selectedIds={selectedIds}
-        langCode={langCode}
-        showVaultHelp={showVaultHelp}
-        setShowVaultHelp={setShowVaultHelp}
-        handleLassoMouseDown={handleLassoMouseDown}
-        handleLassoMouseMove={handleLassoMouseMove}
-        handleLassoMouseUp={handleLassoMouseUp}
-        handleItemSelect={handleItemSelect}
-        handleLaunch={handleLaunch}
-        handleShortcutContextMenu={handleShortcutContextMenu}
-        handleShortcutDragStart={handleShortcutDragStart}
-        handleOpenEditModal={handleOpenEditModal}
-        handleUpdateConfigSetting={handleUpdateConfigSetting}
-        playFolderSound={playFolderSound}
-        playCyberBeep={playCyberBeep}
-      />
+      <div className="flex-1 min-h-0 flex overflow-hidden">
+        <FolderTree
+          folders={categories}
+          activeFolderId={activeCategory}
+          onSelect={handleTabClick}
+          onContextMenu={handleCategoryContextMenu}
+          onCreateFolder={handleCreateFolder}
+          onDragStart={handleCategoryDragStart}
+          onFolderDrop={handleCategoryDrop}
+          onDragEnd={handleCategoryDragEnd}
+          draggingFolderId={draggingCategoryId}
+          dropFolderId={dragOverCategoryId}
+          onDropFolderChange={setDragOverCategoryId}
+        />
+
+        <main className="min-w-0 flex-1 min-h-0 flex flex-col">
+          <div className="h-10 shrink-0 flex items-center gap-1.5 px-5 border-b border-slate-900/80 bg-slate-950/25 overflow-x-auto">
+            <span className="text-[10px] text-slate-600 font-mono uppercase tracking-wider shrink-0">
+              {translate('explorer_folder_contents')}:
+            </span>
+            {(activeFolderPath.length > 0
+              ? activeFolderPath
+              : [{ id: activeCategory, name: activeCategory === 'favorites' ? translate('explorer_favorites') : translate('explorer_vault'), color: '', parentId: null, order: 0 }]
+            ).map((folder, index, path) => (
+              <React.Fragment key={folder.id}>
+                {index > 0 && <span className="text-slate-700 text-[10px]">/</span>}
+                <button
+                  type="button"
+                  onClick={() => handleTabClick(folder.id)}
+                  className={`text-[10px] font-ui tracking-wide uppercase truncate max-w-44 cursor-pointer ${
+                    index === path.length - 1 ? 'text-[var(--neon-glow-color)]' : 'text-slate-500 hover:text-slate-200'
+                  }`}
+                >
+                  {folder.id === 'all' ? translate('explorer_all') : folder.name}
+                </button>
+              </React.Fragment>
+            ))}
+          </div>
+
+          {visibleChildFolders.length > 0 && activeCategory !== 'favorites' && activeCategory !== 'vault' && (
+            <div className="shrink-0 flex items-center gap-2 px-5 py-2 border-b border-slate-900/60 overflow-x-auto">
+              {visibleChildFolders.map(folder => (
+                <button
+                  key={folder.id}
+                  type="button"
+                  onClick={() => handleTabClick(folder.id)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-slate-800 bg-slate-950/40 hover:border-[var(--neon-glow-border)] hover:bg-slate-900/80 text-slate-400 hover:text-white transition-all cursor-pointer"
+                >
+                  <FolderOpen className="w-3.5 h-3.5" style={{ color: folder.color }} />
+                  <span className="font-ui text-[10px] tracking-wide truncate max-w-36">{folder.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="flex-1 min-h-0">
+            <ShortcutGrid
+              gridScrollRef={gridScrollRef}
+              selectionMode={selectionMode}
+              lassoRect={lassoRect}
+              filteredShortcutsList={filteredShortcutsList}
+              searchQuery={searchQuery}
+              viewMode={viewMode}
+              iconSortOrder={iconSortOrder}
+              config={config}
+              categories={categories}
+              activeCategory={activeCategory}
+              selectedIds={selectedIds}
+              langCode={langCode}
+              showVaultHelp={showVaultHelp}
+              setShowVaultHelp={setShowVaultHelp}
+              handleLassoMouseDown={handleLassoMouseDown}
+              handleLassoMouseMove={handleLassoMouseMove}
+              handleLassoMouseUp={handleLassoMouseUp}
+              handleItemSelect={handleItemSelect}
+              handleLaunch={handleLaunch}
+              handleShortcutContextMenu={handleShortcutContextMenu}
+              handleShortcutDragStart={handleShortcutDragStart}
+              handleOpenEditModal={handleOpenEditModal}
+              handleUpdateConfigSetting={handleUpdateConfigSetting}
+              playFolderSound={playFolderSound}
+              playCyberBeep={playCyberBeep}
+            />
+          </div>
+        </main>
+      </div>
 
       <TelemetryBar
         categoriesCount={categories.length - 1}
