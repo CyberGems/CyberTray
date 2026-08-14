@@ -67,7 +67,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   importConfig: () => ipcRenderer.invoke('import-config'),
 
   // --- Persistent Storage ---
-  saveConfig: (config: any) => ipcRenderer.invoke('saveConfig', config),
+  saveConfig: (config: any, options?: { broadcastReload?: boolean }) =>
+    ipcRenderer.invoke('saveConfig', config, options),
   loadConfig: () => ipcRenderer.invoke('loadConfig'),
   getConfigPath: () => ipcRenderer.invoke('get-config-path'),
   openDataFolder: () => ipcRenderer.invoke('open-data-folder'),
@@ -82,10 +83,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // --- Pinning (Always on Top) ---
   setAlwaysOnTop: (enabled: boolean) => ipcRenderer.invoke('set-always-on-top', enabled),
-
-  // --- Dynamic shortcuts ---
-  registerAppShortcuts: (shortcuts: Array<{ id: number; path: string; shortcut: string; isAdmin: boolean }>) =>
-    ipcRenderer.invoke('register-app-shortcuts', shortcuts),
 
   // --- Shell runner ---
   runShellCommand: (command: string) => ipcRenderer.invoke('run-shell-command', command),

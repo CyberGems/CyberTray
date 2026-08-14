@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
-import { translate, TranslationKey } from '../locales';
+import React, { useMemo, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { translate } from '../locales';
 import { Search, X, RefreshCw } from 'lucide-react';
 
 interface Process {
@@ -25,6 +26,8 @@ interface ProcessMatrixViewProps {
   isScanning?: boolean;
 }
 
+const ROW_HEIGHT = 56;
+
 export default function ProcessMatrixView({
   runningProcesses,
   processSearchQuery,
@@ -42,10 +45,12 @@ export default function ProcessMatrixView({
 }: ProcessMatrixViewProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isElectron = !!window.electronAPI;
+  // Re-render when parent language changes (translate() reads module locale)
+  const _lang = langCode;
 
   const handleKillProcess = (pid: number) => {
     showConfirm(
-      langCode === 'es' ? 'Terminar Proceso' : 'Terminate Process',
+      translate('terminate_process_title'),
       translate('process_kill_confirm'),
       async () => {
         if (isElectron && window.electronAPI) {
@@ -85,44 +90,51 @@ export default function ProcessMatrixView({
 
   const isActiveSort = (column: 'pid' | 'name' | 'memory') => processSortOrder.startsWith(column);
 
-  const filtered = runningProcesses.filter(p =>
-    p.name.toLowerCase().includes(processSearchQuery.toLowerCase()) ||
-    p.pid.toString().includes(processSearchQuery) ||
-    (p.path && p.path.toLowerCase().includes(processSearchQuery.toLowerCase()))
-  );
+  const sorted = useMemo(() => {
+    const query = processSearchQuery.toLowerCase();
+    const filtered = runningProcesses.filter(p =>
+      p.name.toLowerCase().includes(query) ||
+      p.pid.toString().includes(processSearchQuery) ||
+      (p.path && p.path.toLowerCase().includes(query))
+    );
 
-  const sorted = [...filtered].sort((a, b) => {
-    switch (processSortOrder) {
-      case 'memory-desc': return b.memory - a.memory;
-      case 'memory-asc': return a.memory - b.memory;
-      case 'name-asc': return a.name.localeCompare(b.name);
-      case 'name-desc': return b.name.localeCompare(a.name);
-      case 'pid-asc': return a.pid - b.pid;
-      case 'pid-desc': return b.pid - a.pid;
-      default: return b.memory - a.memory;
-    }
+    return [...filtered].sort((a, b) => {
+      switch (processSortOrder) {
+        case 'memory-desc': return b.memory - a.memory;
+        case 'memory-asc': return a.memory - b.memory;
+        case 'name-asc': return a.name.localeCompare(b.name);
+        case 'name-desc': return b.name.localeCompare(a.name);
+        case 'pid-asc': return a.pid - b.pid;
+        case 'pid-desc': return b.pid - a.pid;
+        default: return b.memory - a.memory;
+      }
+    });
+  }, [runningProcesses, processSearchQuery, processSortOrder]);
+
+  const virtualizer = useVirtualizer({
+    count: sorted.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 10,
   });
 
   return (
-    <div className={`space-y-3 max-w-3xl font-mono text-xs flex flex-col ${embedded ? '' : 'h-full'}`}>
+    <div key={_lang} className={`space-y-3 max-w-3xl font-mono text-xs flex flex-col ${embedded ? '' : 'h-full'}`}>
       {showToolbar && (
         <div className="flex items-center justify-between border-b border-slate-900 pb-2">
           <div>
             <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('tab_process_matrix')}</h4>
             <p className="text-[10px] text-slate-500 mt-1">
-              {langCode === 'es'
-                ? 'Monitoreo de telemetría activa de la red y terminación de subprocesos.'
-                : 'Active network telemetry monitoring and subprocess termination.'}
+              {translate('process_matrix_desc')}
             </p>
           </div>
           <div className="text-right text-[10px] text-slate-400">
-            {langCode === 'es' ? 'PROCESOS: ' : 'PROCESSES: '}
-            <span className="text-emerald-400 font-bold">{filtered.length}</span>
+            {translate('process_count_label')}{' '}
+            <span className="text-emerald-400 font-bold">{sorted.length}</span>
           </div>
         </div>
       )}
 
-      {/* Buscador de procesos */}
       <div className="relative">
         <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
         <input
@@ -142,7 +154,6 @@ export default function ProcessMatrixView({
         )}
       </div>
 
-      {/* Cabeceras de tabla clickeables */}
       <div className="flex items-center justify-between bg-slate-950/70 border border-slate-900 px-4 py-2 text-[9px] font-bold tracking-wider select-none">
         <div className="flex-1 flex items-center gap-3">
           <button
@@ -155,7 +166,7 @@ export default function ProcessMatrixView({
             onClick={() => handleColumnSort('name')}
             className={`text-left hover:text-white transition-colors cursor-pointer ${isActiveSort('name') ? 'text-[var(--neon-glow-color)]' : 'text-slate-500'}`}
           >
-            {langCode === 'es' ? 'PROCESO / RUTA' : 'PROCESS / PATH'}{getSortIndicator('name')}
+            {translate('process_col_name')}{getSortIndicator('name')}
           </button>
         </div>
         <div className="flex items-center gap-4 w-44 justify-end">
@@ -163,22 +174,40 @@ export default function ProcessMatrixView({
             onClick={() => handleColumnSort('memory')}
             className={`w-20 text-right hover:text-white transition-colors cursor-pointer ${isActiveSort('memory') ? 'text-[var(--neon-glow-color)]' : 'text-slate-500'}`}
           >
-            {langCode === 'es' ? 'RAM' : 'MEMORY'}{getSortIndicator('memory')}
+            {translate('process_col_memory')}{getSortIndicator('memory')}
           </button>
-          <span className="w-16 text-center text-slate-500">{langCode === 'es' ? 'ACCION' : 'ACTION'}</span>
+          <span className="w-16 text-center text-slate-500">{translate('process_col_action')}</span>
         </div>
       </div>
 
-      {/* Lista de Procesos */}
-      <div ref={scrollContainerRef} className="border border-slate-900 rounded-xl overflow-y-auto custom-scrollbar bg-slate-950/20 flex-1" style={{ maxHeight: embedded ? 340 : undefined }}>
+      <div
+        ref={scrollContainerRef}
+        className="border border-slate-900 rounded-xl overflow-y-auto custom-scrollbar bg-slate-950/20 flex-1"
+        style={{ maxHeight: embedded ? 340 : undefined }}
+      >
         {sorted.length > 0 ? (
-          <div>
-            {sorted.map((proc) => {
+          <div
+            style={{
+              height: `${virtualizer.getTotalSize()}px`,
+              width: '100%',
+              position: 'relative',
+            }}
+          >
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const proc = sorted[virtualRow.index];
               const ramMb = Math.round(proc.memory / (1024 * 1024));
               return (
                 <div
                   key={proc.pid}
-                  className="flex items-center justify-between border-b border-slate-900/60 px-4 py-3 hover:bg-slate-900/40 font-mono text-xs text-slate-300"
+                  className="flex items-center justify-between border-b border-slate-900/60 px-4 hover:bg-slate-900/40 font-mono text-xs text-slate-300"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: `${virtualRow.size}px`,
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <span className="text-emerald-500 font-bold w-12 flex-shrink-0">PID {proc.pid}</span>
@@ -187,7 +216,7 @@ export default function ProcessMatrixView({
                         {proc.name}
                       </span>
                       <span className="text-[9px] text-slate-500 truncate block font-sans" title={proc.path}>
-                        {proc.path || 'System / Kernel Process'}
+                        {proc.path || translate('process_system_kernel')}
                       </span>
                     </div>
                   </div>
@@ -210,32 +239,30 @@ export default function ProcessMatrixView({
               <div className="flex flex-col items-center gap-3">
                 <RefreshCw className="w-8 h-8 text-[var(--neon-glow-color)] animate-spin" />
                 <span className="text-[var(--neon-glow-color)] font-cyber font-bold tracking-wider animate-pulse">
-                  {langCode === 'es' ? 'ESCANEANDO MATRIZ...' : 'SCANNING MATRIX...'}
+                  {translate('process_scanning')}
                 </span>
               </div>
             ) : runningProcesses.length === 0 ? (
               <div className="flex flex-col items-center gap-3">
                 <RefreshCw className="w-8 h-8 text-slate-700" />
                 <p className="text-slate-400 max-w-xs font-cyber tracking-wider">
-                  {langCode === 'es' ? 'MATRIZ DE PROCESOS DESCONECTADA' : 'PROCESS MATRIX OFFLINE'}
+                  {translate('process_offline_title')}
                 </p>
                 <p className="text-[10px] text-slate-600 max-w-xs">
-                  {langCode === 'es' 
-                    ? 'Inicie el escaneo de telemetría de tareas en tiempo real.' 
-                    : 'Initialize real-time task telemetry scan.'}
+                  {translate('process_offline_desc')}
                 </p>
                 {onScan && (
                   <button
                     onClick={onScan}
                     className="mt-2 px-4 py-2 border border-[var(--neon-glow-border)] bg-[var(--neon-glow-color)]/10 hover:bg-[var(--neon-glow-color)]/20 text-white font-cyber font-bold tracking-widest text-[10px] rounded-lg transition-all cursor-pointer shadow-[0_0_10px_rgba(59,130,246,0.1)] hover:shadow-[0_0_15px_rgba(59,130,246,0.2)]"
                   >
-                    {langCode === 'es' ? 'INICIAR TELEMETRÍA' : 'INITIALIZE TELEMETRY'}
+                    {translate('process_init_telemetry')}
                   </button>
                 )}
               </div>
             ) : (
               <span className="font-cyber text-slate-600">
-                {langCode === 'es' ? 'No se encontraron procesos activos.' : 'No active processes found.'}
+                {translate('process_none_found')}
               </span>
             )}
           </div>

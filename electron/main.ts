@@ -4,6 +4,7 @@ import path from 'node:path';
 import { exec, execSync, execFile } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
+import crypto from 'node:crypto';
 
 // Registrar el protocolo antes de que la app esté lista
 protocol.registerSchemesAsPrivileged([
@@ -116,6 +117,120 @@ let config: CyberTrayConfig = { ...DEFAULT_CONFIG };
 const CONFIG_FILE = path.join(app.getPath('userData'), 'cyber-tray-config.json');
 const STATE_FILE = path.join(app.getPath('userData'), 'cyber-tray-state.json');
 
+function getIconsDir(): string {
+  const dir = path.join(app.getPath('userData'), 'icons');
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+}
+
+function toLocalResourceUrl(absPath: string): string {
+  return `local-resource:///${absPath.replace(/\\/g, '/')}`;
+}
+
+function iconKeyForPath(filePath: string): string {
+  return crypto.createHash('sha1').update(String(filePath)).digest('hex').slice(0, 16);
+}
+
+function persistPngBuffer(buffer: Buffer, key: string): string {
+  const safe = String(key).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80) || 'icon';
+  const dest = path.join(getIconsDir(), `${safe}.png`);
+  fs.writeFileSync(dest, buffer);
+  return toLocalResourceUrl(dest);
+}
+
+function persistNativeIcon(icon: Electron.NativeImage, key: string): string {
+  return persistPngBuffer(icon.toPNG(), key);
+}
+
+function persistDataUrlIfNeeded(iconPath: string, key: string): string {
+  if (!iconPath || typeof iconPath !== 'string') return iconPath || '';
+  if (!iconPath.startsWith('data:')) return iconPath;
+  const match = iconPath.match(/^data:image\/[\w+.-]+;base64,(.+)$/);
+  if (!match) return iconPath;
+  try {
+    return persistPngBuffer(Buffer.from(match[1], 'base64'), key);
+  } catch (err) {
+    console.warn('Failed to persist data-URL icon:', err);
+    return iconPath;
+  }
+}
+
+function persistShortcutIconsInPlace(shortcuts?: any[]): any[] | undefined {
+  if (!Array.isArray(shortcuts)) return shortcuts;
+  return shortcuts.map((s: any) => {
+    if (s?.iconPath && String(s.iconPath).startsWith('data:')) {
+      return { ...s, iconPath: persistDataUrlIfNeeded(s.iconPath, String(s.id || iconKeyForPath(s.path || 'icon'))) };
+    }
+    return s;
+  });
+}
+
+function localResourceToFsPath(iconPath: string): string | null {
+  if (!iconPath || typeof iconPath !== 'string') return null;
+  if (iconPath.startsWith('data:')) return null;
+  if (iconPath.startsWith('http://') || iconPath.startsWith('https://')) return null;
+
+  let filePath = iconPath;
+  if (iconPath.startsWith('local-resource:')) {
+    filePath = decodeURIComponent(iconPath.replace(/^local-resource:\/\/\/?/i, ''));
+  }
+  filePath = path.normalize(filePath);
+  if (process.platform === 'win32' && filePath.startsWith('\\')) {
+    filePath = filePath.substring(1);
+  }
+  return fs.existsSync(filePath) ? filePath : null;
+}
+
+function embedIconsInShortcuts(shortcuts: any[]): any[] {
+  return shortcuts.map((s: any) => {
+    const fsPath = localResourceToFsPath(s?.iconPath);
+    if (!fsPath) return s;
+    try {
+      const buf = fs.readFileSync(fsPath);
+      if (buf.length < 32) return s;
+      const ext = path.extname(fsPath).toLowerCase();
+      const mime = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : ext === '.webp' ? 'image/webp' : 'image/png';
+      return { ...s, iconPath: `data:${mime};base64,${buf.toString('base64')}` };
+    } catch {
+      return s;
+    }
+  });
+}
+
+function embedIconsInBackupPayload(jsonData: string): string {
+  try {
+    const parsed = JSON.parse(jsonData);
+    if (Array.isArray(parsed.shortcuts)) {
+      parsed.shortcuts = embedIconsInShortcuts(parsed.shortcuts);
+    }
+    if (Array.isArray(parsed.shortcutsList)) {
+      parsed.shortcutsList = embedIconsInShortcuts(parsed.shortcutsList);
+    }
+    if (parsed.config && Array.isArray(parsed.config.shortcutsList)) {
+      parsed.config.shortcutsList = embedIconsInShortcuts(parsed.config.shortcutsList);
+    }
+    return JSON.stringify(parsed, null, 2);
+  } catch {
+    return jsonData;
+  }
+}
+
+function migrateConfigIconsToDisk() {
+  const migrated = persistShortcutIconsInPlace(config.shortcutsList);
+  if (!migrated || migrated === config.shortcutsList) return;
+  const changed = migrated.some((s: any, i: number) => s.iconPath !== config.shortcutsList?.[i]?.iconPath);
+  if (!changed) return;
+  config.shortcutsList = migrated;
+  try {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
+    console.log(`[CyberTray] Migrated ${migrated.filter((s: any) => String(s.iconPath || '').startsWith('local-resource:')).length} shortcut icons to disk`);
+  } catch (err) {
+    console.error('Error migrating shortcut icons to disk:', err);
+  }
+}
+
 const TRAY_TRANSLATIONS = {
   en: {
     show: 'Show CyberTray',
@@ -145,13 +260,28 @@ function loadConfig() {
   }
 }
 
-function saveConfig(newConfig: Partial<CyberTrayConfig>) {
+function saveConfig(
+  newConfig: Partial<CyberTrayConfig>,
+  options?: { broadcastReload?: boolean }
+) {
   try {
+    if (newConfig.shortcutsList) {
+      newConfig = {
+        ...newConfig,
+        shortcutsList: persistShortcutIconsInPlace(newConfig.shortcutsList),
+      };
+    }
     config = { ...config, ...newConfig };
     if (newConfig.handleOffsetPercent === null || newConfig.handleOffsetPercent === undefined) {
       delete (config as any).handleOffsetPercent;
     }
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
+
+    // Quiet saves (e.g. usageCount ticks) skip reload IPC to both windows
+    if (options?.broadcastReload === false) {
+      return;
+    }
+
     if (shelfWindow && !shelfWindow.isDestroyed()) {
       shelfWindow.webContents.send('reload-config');
     }
@@ -368,6 +498,7 @@ function createWindows() {
     skipTaskbar: true,
     focusable: false, // Evita transferencias de foco lentas al pasar o hacer clic
     show: false,
+    icon: getAppIcon(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       nodeIntegration: false,
@@ -571,9 +702,7 @@ function createTray() {
   const lang = (config as any).language === 'es' ? 'es' : 'en';
   const t = TRAY_TRANSLATIONS[lang];
 
-  const iconPath = VITE_DEV_SERVER_URL
-    ? path.join(__dirname, '../public/icon.png')
-    : path.join(__dirname, '../dist/icon.png');
+  const iconPath = getAppIconPath();
   
   let trayIcon = nativeImage.createEmpty();
   if (fs.existsSync(iconPath)) {
@@ -665,7 +794,7 @@ async function resolveFullFileInfo(filePath: string) {
     let resolvedName = path.basename(normalized, ext);
     let resolvedArgs = '';
     let resolvedCwd = '';
-    let iconDataUrl = '';
+    let iconFileUrl = '';
 
     if (ext === '.lnk') {
       // Conservar el nombre propio del acceso (ej. "factorio SeaBlock") en vez del
@@ -697,7 +826,9 @@ async function resolveFullFileInfo(filePath: string) {
       }
     }
 
-    // Extracción de Icono nativo de alta calidad
+    const iconKey = iconKeyForPath(resolvedPath);
+
+    // Extracción de Icono nativo de alta calidad → PNG en userData/icons
     try {
       if (fs.existsSync(resolvedPath)) {
         let icon = await app.getFileIcon(resolvedPath, { size: 'large' });
@@ -705,7 +836,7 @@ async function resolveFullFileInfo(filePath: string) {
           icon = await app.getFileIcon(resolvedPath, { size: 'normal' });
         }
         if (icon && !icon.isEmpty()) {
-          iconDataUrl = icon.toDataURL();
+          iconFileUrl = persistNativeIcon(icon, iconKey);
         }
       }
     } catch (e) {
@@ -713,7 +844,7 @@ async function resolveFullFileInfo(filePath: string) {
     }
 
     // Fallback de extracción de icono con PowerShell (para evitar iconos genéricos muy pequeños)
-    if (!iconDataUrl || iconDataUrl.length < 1500) {
+    if (!iconFileUrl) {
       try {
         const escapedPath = resolvedPath.replace(/'/g, "''");
         const psScript = `Add-Type -AssemblyName System.Drawing; $icon=[System.Drawing.Icon]::ExtractAssociatedIcon('${escapedPath}'); if ($icon) { $bmp=$icon.ToBitmap(); $tmp=[System.IO.Path]::GetTempFileName()+'.png'; $bmp.Save($tmp,[System.Drawing.Imaging.ImageFormat]::Png); Write-Output $tmp; $icon.Dispose(); $bmp.Dispose() }`;
@@ -725,7 +856,7 @@ async function resolveFullFileInfo(filePath: string) {
           const pngBuffer = fs.readFileSync(psOutput);
           fs.unlinkSync(psOutput);
           if (pngBuffer.length > 100) {
-            iconDataUrl = `data:image/png;base64,${pngBuffer.toString('base64')}`;
+            iconFileUrl = persistPngBuffer(pngBuffer, iconKey);
           }
         }
       } catch (psErr) {
@@ -738,7 +869,7 @@ async function resolveFullFileInfo(filePath: string) {
       path: resolvedPath,
       ext,
       exists: fs.existsSync(resolvedPath),
-      iconPath: iconDataUrl,
+      iconPath: iconFileUrl,
       arguments: resolvedArgs,
       cwd: resolvedCwd,
     };
@@ -1435,7 +1566,7 @@ function registerIpcHandlers() {
     isDialogOpen = false;
     showShelf();
     if (!res.canceled && res.filePath) {
-      fs.writeFileSync(res.filePath, jsonData, 'utf-8');
+      fs.writeFileSync(res.filePath, embedIconsInBackupPayload(jsonData), 'utf-8');
       return res.filePath;
     }
     return null;
@@ -1457,9 +1588,11 @@ function registerIpcHandlers() {
   });
 
   // --- Almacenamiento Dinámico Independiente ---
-  ipcMain.handle('saveConfig', async (_, newConfig) => {
-    saveConfig(newConfig);
-    alignWindows();
+  ipcMain.handle('saveConfig', async (_, newConfig, options?: { broadcastReload?: boolean }) => {
+    saveConfig(newConfig, options);
+    if (options?.broadcastReload !== false) {
+      alignWindows();
+    }
     return true;
   });
 
@@ -1479,11 +1612,6 @@ function registerIpcHandlers() {
   ipcMain.handle('set-always-on-top', async (_, enabled) => {
     saveConfig({ alwaysOnTop: enabled });
     alignWindows();
-    return { success: true };
-  });
-
-  ipcMain.handle('register-app-shortcuts', async (_, shortcuts) => {
-    // Registro dinámico opcional de shortcuts por app
     return { success: true };
   });
 
@@ -1614,8 +1742,8 @@ function registerIpcHandlers() {
           fs.renameSync(fullPath, targetFullPath);
           count++;
 
-          // Extract high-quality icon if it's a file
-          let iconDataUrl = '';
+          // Extract high-quality icon if it's a file → PNG on disk
+          let iconFileUrl = '';
           try {
             if (fs.existsSync(targetFullPath) && stats.isFile()) {
               let icon = await app.getFileIcon(targetFullPath, { size: 'large' });
@@ -1623,7 +1751,7 @@ function registerIpcHandlers() {
                 icon = await app.getFileIcon(targetFullPath, { size: 'normal' });
               }
               if (icon && !icon.isEmpty()) {
-                iconDataUrl = icon.toDataURL();
+                iconFileUrl = persistNativeIcon(icon, `sweep-${Date.now() + count}`);
               }
             }
           } catch (e) {
@@ -1635,7 +1763,7 @@ function registerIpcHandlers() {
             name: path.basename(file, ext), // Store original clean name
             path: targetFullPath,
             category: 'vault',
-            iconPath: iconDataUrl,
+            iconPath: iconFileUrl,
             isAdmin: false,
             delay: 0,
             arguments: '',
@@ -1715,8 +1843,8 @@ function registerIpcHandlers() {
       // Copy file or folder recursively
       fs.cpSync(filePath, targetFullPath, { recursive: true });
 
-      // Extract high-quality icon
-      let iconDataUrl = '';
+      // Extract high-quality icon → PNG on disk
+      let iconFileUrl = '';
       try {
         const stats = fs.statSync(targetFullPath);
         if (stats.isFile()) {
@@ -1725,7 +1853,7 @@ function registerIpcHandlers() {
             icon = await app.getFileIcon(targetFullPath, { size: 'normal' });
           }
           if (icon && !icon.isEmpty()) {
-            iconDataUrl = icon.toDataURL();
+            iconFileUrl = persistNativeIcon(icon, iconKeyForPath(targetFullPath));
           }
         }
       } catch (e) {
@@ -1735,7 +1863,7 @@ function registerIpcHandlers() {
       return {
         success: true,
         path: targetFullPath,
-        iconPath: iconDataUrl,
+        iconPath: iconFileUrl,
         name: baseName
       };
     } catch (err: any) {
@@ -1792,6 +1920,7 @@ function registerLocalResourceProtocol() {
 app.whenReady().then(() => {
   if (!gotTheLock) return;
   loadConfig();
+  migrateConfigIconsToDisk();
   registerLocalResourceProtocol();
   registerIpcHandlers();
   fetchVramInfoInBackground(); // Carga de VRAM asíncrona en segundo plano al iniciar

@@ -52,6 +52,9 @@ out/
 .env.test.local
 .env.production.local
 
+# Local design artifacts (source ico, mockups, etc.)
+artifacts/
+
 # Private Agent Instruction Files (MUST NOT be committed or pushed)
 AGENTS.md
 CLAUDE.md

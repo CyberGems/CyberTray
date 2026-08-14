@@ -1,14 +1,20 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { translate, TranslationKey, setLocale, getLocale } from './locales';
 import { motion, AnimatePresence } from 'motion/react';
 import ProcessMatrixView from './components/ProcessMatrixView';
+import CyberTrayLogo from './components/CyberTrayLogo';
+import HandleBar from './components/HandleBar';
+import ShortcutGrid from './components/ShortcutGrid';
+import TelemetryBar from './components/TelemetryBar';
+import ToastStack from './components/ToastStack';
+import { isElectron, INITIAL_CATEGORIES, normalizeCategoriesList, compareSemver } from './lib/appUtils';
 import {
   Search, Grid, List as ListIcon, Plus, Clock, ArrowUpDown, Settings,
   Minus, X, LayoutGrid, Palette, Key, Trash2, Shield, Info,
-  Cpu, HardDrive, Minimize2, Power, FolderOpen, FolderSearch, Pin, Play, Edit,
+  Minimize2, Power, Pin, Play, Edit,
   Monitor, ExternalLink, Sliders, ChevronDown, RefreshCw, Upload, Check, Trash,
-  Activity, MemoryStick, Star, Lock,
-  CheckCircle2, AlertTriangle, CheckSquare, FlipHorizontal2
+  Activity, MemoryStick, Star, Lock, Cpu, FolderOpen,
+  CheckSquare, FlipHorizontal2
 } from 'lucide-react';
 
 declare global {
@@ -47,7 +53,7 @@ declare global {
       openDevTools: () => Promise<{ success: boolean }>;
       exportConfig: (jsonData: string) => Promise<string | null>;
       importConfig: () => Promise<string | null>;
-      saveConfig: (config: any) => Promise<boolean>;
+      saveConfig: (config: any, options?: { broadcastReload?: boolean }) => Promise<boolean>;
       loadConfig: () => Promise<any | null>;
       getConfigPath: () => Promise<string>;
       openDataFolder: () => Promise<void>;
@@ -76,45 +82,6 @@ declare global {
     };
   }
 }
-
-const isElectron = !!window.electronAPI;
-
-// Icono CyberTray Logo
-const CyberTrayLogo = ({ className = "w-6 h-6", animated = false }: { className?: string, animated?: boolean }) => (
-  <div className={`relative ${className} flex items-center justify-center p-0.5`} style={animated ? { animation: 'spin 12s linear infinite' } : undefined}>
-    <svg viewBox="0 0 100 100" className="w-full h-full text-[var(--neon-glow-color)]" fill="none" stroke="currentColor" strokeWidth="8">
-      <polygon points="50,10 90,30 90,70 50,90 10,70 10,30" className="drop-shadow-[0_0_8px_var(--neon-glow-color)]" />
-      <line x1="50" y1="10" x2="50" y2="90" strokeDasharray="4 4" />
-      <polyline points="25,40 50,55 75,40" strokeWidth="6" />
-      <polyline points="25,60 50,75 75,60" strokeWidth="6" />
-    </svg>
-  </div>
-);
-
-// Categorías Virtuales Iniciales Predeterminadas
-const INITIAL_CATEGORIES = [
-  { id: 'all', name: 'ALL MODULES', color: '#a1a1aa' },
-  { id: 'ai', name: 'AI CORES', color: '#34d399' },
-  { id: 'browsers', name: 'BROWSERS', color: '#f97316' },
-  { id: 'comm', name: 'NET CHATS', color: '#6366f1' },
-  { id: 'design', name: 'CYBER ART', color: '#ef4444' },
-  { id: 'dev', name: 'GRID CODING', color: '#38bdf8' },
-  { id: 'gaming', name: 'HOLOCUBIERTAS', color: '#ec4899' },
-  { id: 'utils', name: 'DOCK TOOLS', color: '#60a5fa' },
-];
-
-const normalizeCategoriesList = (list: any[] = []) => {
-  const validCategories = list.filter((c: any) => c && c.id && c.id.trim() !== '' && c.name && c.name.trim() !== '');
-
-  if (validCategories.length === 0) {
-    return [...INITIAL_CATEGORIES];
-  }
-
-  const allCategory = validCategories.find((c: any) => c.id === 'all');
-  const restCategories = validCategories.filter((c: any) => c.id !== 'all');
-
-  return [allCategory || { ...INITIAL_CATEGORIES[0] }, ...restCategories];
-};
 
 let globalAudioCtx: AudioContext | null = null;
 
@@ -399,6 +366,8 @@ export default function App() {
   const categoryTabsRef = useRef<HTMLDivElement>(null);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
   const configRef = useRef<any>(config);
+  const usagePersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingUsageRef = useRef<{ shortcuts: any[]; totalLaunches: number } | null>(null);
   const shortcutsRef = useRef<any[]>(shortcuts);
   const launchAudioRef = useRef<HTMLAudioElement | null>(null);
   const folderAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -502,11 +471,9 @@ export default function App() {
       if (!latestTag) {
         throw new Error('No tag found');
       }
-      const currentVerCompare = 1.96;
-      const cleanLatest = latestTag.replace(/^v/, '');
-      const latestNum = parseFloat(cleanLatest);
-      
-      if (!isNaN(latestNum) && latestNum > currentVerCompare) {
+      const cleanLatest = String(latestTag).replace(/^v/i, '');
+
+      if (compareSemver(cleanLatest, currentVer) > 0) {
         setUpdateCheckState({ status: 'update-available', latestVersion: latestTag });
       } else {
         setUpdateCheckState({ status: 'up-to-date', latestVersion: latestTag });
@@ -540,27 +507,19 @@ export default function App() {
             setLangCode(loadedConfig.language);
             setLocale(loadedConfig.language);
           }
+          if (loadedConfig.categoriesList) {
+            const sanitizedCats = normalizeCategoriesList(loadedConfig.categoriesList);
+            if (sanitizedCats.length > 0) {
+              setCategories(sanitizedCats);
+            } else {
+              setCategories(INITIAL_CATEGORIES);
+            }
+          }
+          if (loadedConfig.shortcutsList) setShortcuts(loadedConfig.shortcutsList);
           if (loadedConfig.autoCheckUpdates !== false) {
             checkForUpdates(false);
           }
         }
-
-        // Cargar atajos desde su config independiente
-        const dataPath = await window.electronAPI!.getConfigPath();
-        try {
-          const rawConfig = await window.electronAPI!.loadConfig();
-          if (rawConfig) {
-            if (rawConfig.categoriesList) {
-              const sanitizedCats = normalizeCategoriesList(rawConfig.categoriesList);
-              if (sanitizedCats.length > 0) {
-                setCategories(sanitizedCats);
-              } else {
-                setCategories(INITIAL_CATEGORIES);
-              }
-            }
-            if (rawConfig.shortcutsList) setShortcuts(rawConfig.shortcutsList);
-          }
-        } catch {}
 
         // Obtener Monitores
         const mons = await window.electronAPI!.getMonitors();
@@ -669,27 +628,6 @@ export default function App() {
     }
     return () => clearAutoHideTimer();
   }, [mode, config.handleAutoHide, config.handleAutoHideDelay, startAutoHideTimer, clearAutoHideTimer]);
-
-  // Helper to determine if a shortcut's process is currently running
-  const isShortcutRunning = useCallback((item: any) => {
-    if (!item.path || item.path.startsWith('http://') || item.path.startsWith('https://')) {
-      return false;
-    }
-    try {
-      const normalizedPath = item.path.replace(/\\/g, '/');
-      const exeName = normalizedPath.split('/').pop()?.toLowerCase();
-      if (!exeName) return false;
-
-      return runningProcesses.some(p => {
-        const pName = p.name.toLowerCase();
-        if (pName === exeName) return true;
-        if (p.path && p.path.replace(/\\/g, '/').toLowerCase() === normalizedPath.toLowerCase()) return true;
-        return false;
-      });
-    } catch {
-      return false;
-    }
-  }, [runningProcesses]);
 
   // Helper to get active process info for a shortcut
   const getShortcutProcess = useCallback((item: any) => {
@@ -873,15 +811,48 @@ export default function App() {
     };
   }, []);
 
+  const cancelPendingUsagePersist = useCallback(() => {
+    if (usagePersistTimerRef.current) {
+      clearTimeout(usagePersistTimerRef.current);
+      usagePersistTimerRef.current = null;
+    }
+    pendingUsageRef.current = null;
+  }, []);
+
+  const scheduleUsagePersist = useCallback((newShortcuts: any[], totalLaunches: number) => {
+    pendingUsageRef.current = { shortcuts: newShortcuts, totalLaunches };
+    if (usagePersistTimerRef.current) {
+      clearTimeout(usagePersistTimerRef.current);
+    }
+    usagePersistTimerRef.current = setTimeout(async () => {
+      const pending = pendingUsageRef.current;
+      pendingUsageRef.current = null;
+      usagePersistTimerRef.current = null;
+      if (!pending || !isElectron) return;
+      try {
+        await window.electronAPI!.saveConfig(
+          {
+            ...configRef.current,
+            shortcutsList: pending.shortcuts,
+            totalLaunches: pending.totalLaunches,
+          },
+          { broadcastReload: false }
+        );
+      } catch (err) {
+        console.error('Error persisting usage stats:', err);
+      }
+    }, 2000);
+  }, []);
+
   // Persistencia de Atajos y Categorías
   const saveDataToConfig = async (newShortcuts: any[], newCategories: any[]) => {
     const normalizedCategories = normalizeCategoriesList(newCategories);
 
+    cancelPendingUsagePersist();
     setShortcuts(newShortcuts);
     setCategories(normalizedCategories);
 
     if (isElectron) {
-      // Usar configRef.current para no perder propiedades recientes como monitorId
       await window.electronAPI!.saveConfig({
         ...configRef.current,
         shortcutsList: newShortcuts,
@@ -1247,6 +1218,7 @@ export default function App() {
       return s;
     });
     setShortcuts(updated);
+    shortcutsRef.current = updated;
     
     // Incrementar launches global
     const nextTotalLaunches = (config.totalLaunches || 0) + 1;
@@ -1254,7 +1226,7 @@ export default function App() {
     setConfig(updatedConfig);
     configRef.current = updatedConfig;
 
-    await saveDataToConfig(updated, categories);
+    scheduleUsagePersist(updated, nextTotalLaunches);
 
     if (isElectron) {
       // Lanzamiento nativo (con argumentos y directorio de trabajo del acceso).
@@ -1717,34 +1689,6 @@ export default function App() {
     });
   };
 
-  // Filtrado y Ordenación de Accesos Directos
-  const getFilteredShortcuts = () => {
-    let list = shortcuts.filter(s => {
-      const matchSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          s.path.toLowerCase().includes(searchQuery.toLowerCase());
-      if (!matchSearch) return false;
-      if (activeCategory === 'favorites') return s.isFavorite === true;
-      if (activeCategory === 'all') {
-        if (s.category === 'vault') {
-          return !isVaultLocked();
-        }
-        return true;
-      }
-      return s.category === activeCategory;
-    });
-
-    // Ordenar
-    if (iconSortOrder === 'alpha') {
-      list.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (iconSortOrder === 'recent') {
-      list.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0));
-    } else if (iconSortOrder === 'added') {
-      list.sort((a, b) => (b.addedTimestamp || 0) - (a.addedTimestamp || 0));
-    }
-
-    return list;
-  };
-
   const handleBackgroundClick = (e: React.MouseEvent) => {
     // En modo selección, los clics/lassos en zona vacía son para seleccionar,
     // no deben ocultar el panel.
@@ -1859,6 +1803,7 @@ export default function App() {
   const handleChangeLanguage = (lang: 'en' | 'es') => {
     setLangCode(lang);
     setLocale(lang);
+    document.documentElement.lang = lang;
     handleUpdateConfigSetting('language', lang);
     playCyberBeep();
   };
@@ -1975,110 +1920,68 @@ export default function App() {
     } catch {}
   };
 
+  const filteredShortcutsList = useMemo(() => {
+    const vaultLocked = (() => {
+      if (config.vaultPinEnabled !== true) return false;
+      if (config.vaultLockTimeout === -1) return !vaultUnlockedSession;
+      if (config.vaultLockTimeout === 0) return lastVaultUnlockTime === 0;
+      const elapsedMs = Date.now() - lastVaultUnlockTime;
+      const timeoutMs = (config.vaultLockTimeout || 5) * 60 * 1000;
+      return elapsedMs > timeoutMs;
+    })();
+
+    let list = shortcuts.filter(s => {
+      const matchSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          s.path.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchSearch) return false;
+      if (activeCategory === 'favorites') return s.isFavorite === true;
+      if (activeCategory === 'all') {
+        if (s.category === 'vault') return !vaultLocked;
+        return true;
+      }
+      return s.category === activeCategory;
+    });
+
+    if (iconSortOrder === 'alpha') {
+      list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+    } else if (iconSortOrder === 'recent') {
+      list = [...list].sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0));
+    } else if (iconSortOrder === 'added') {
+      list = [...list].sort((a, b) => (b.addedTimestamp || 0) - (a.addedTimestamp || 0));
+    }
+    return list;
+  }, [shortcuts, searchQuery, activeCategory, iconSortOrder, config.vaultPinEnabled, config.vaultLockTimeout, vaultUnlockedSession, lastVaultUnlockTime]);
+
+  const getFilteredShortcuts = () => filteredShortcutsList;
+
   // =====================================
   // ── MODO HANDLE (MANIGUETA CIBERNÉTICA) ──
   // =====================================
   if (mode === 'handle') {
-    const isBottom = config.dockPosition === 'bottom';
     return (
-      <div 
-        className={`theme-${config.theme} w-full h-full flex flex-col items-center p-0 bg-transparent overflow-visible relative transition-opacity duration-1000 ${
-          isBottom ? 'justify-end pb-1' : 'justify-start pt-1'
-        } ${isHandleFadedOut ? 'opacity-0' : 'opacity-100'}`}
-      >
-        <AnimatePresence>
-          {handleHovered && (
-            <motion.div
-              initial={{ opacity: 0, y: isBottom ? 8 : -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: isBottom ? 8 : -8 }}
-              transition={{ duration: 0.15, ease: 'easeOut' }}
-              className={`absolute left-1/2 -translate-x-1/2 ${
-                isBottom ? 'bottom-[32px]' : 'top-[32px]'
-              } w-max whitespace-nowrap px-2 py-0.5 bg-slate-950/95 border border-[var(--neon-glow-border)] rounded-md shadow-[0_0_8px_var(--neon-glow-color-raw)] z-50 text-[8px] font-cyber text-white tracking-widest uppercase pointer-events-none flex items-center gap-1`}
-              style={{
-                textShadow: '0 0 4px var(--neon-glow-color)',
-              }}
-            >
-              <span className="w-1 h-1 bg-[var(--neon-glow-color)] rounded-full animate-pulse shadow-[0_0_3px_var(--neon-glow-color)]" />
-              {translate('tooltip_handle')}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <button
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onMouseEnter={() => {
-            if (isElectron) {
-              window.electronAPI!.setIgnoreMouseEvents(false);
-            }
-            clearAutoHideTimer();
-            setIsHandleFadedOut(false);
-            handleMouseEnter();
-            setHandleHovered(true);
-          }}
-          onMouseLeave={() => {
-            if (!config.handleAutoHide && isElectron) {
-              window.electronAPI!.setIgnoreMouseEvents(true, { forward: true });
-            }
-            startAutoHideTimer();
-            handleMouseLeave();
-            setHandleHovered(false);
-          }}
-          onDragEnter={async (e) => {
-            e.preventDefault();
-            if (isElectron) {
-              await window.electronAPI!.setDragActive(true);
-              await window.electronAPI!.toggleShelf();
-            }
-          }}
-          onDragOver={(e) => {
-            e.preventDefault();
-          }}
-          className="cyber-handle-bar w-[150px] h-[20px] rounded-md border flex items-center justify-center relative group"
-          style={{ cursor: isDraggingHandle ? 'grabbing' : 'pointer' }}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            if (isElectron) {
-              window.electronAPI!.showHandleContextMenu();
-            }
-          }}
-        >
-          {/* Decales de Líneas Circuitos neón */}
-          <div className="flex gap-2 items-center justify-center transition-all duration-300 group-hover:-translate-x-[34px] group-hover:opacity-50">
-            {/* Barra izquierda externa (Pequeña - 60% tamaño, 50% opacidad) */}
-            <span className="w-[3.6px] h-[8.4px] opacity-50 bg-[var(--neon-glow-border)] rounded-sm shadow-[0_0_4px_var(--neon-glow-color-raw)]" />
-            
-            {/* Barra izquierda interna (Mediana - 80% tamaño) */}
-            <span className="w-[4.8px] h-[11.2px] bg-[var(--neon-glow-border)] rounded-sm shadow-[0_0_4px_var(--neon-glow-color-raw)]" />
-            
-            {/* Barra central (Grande - 100% tamaño, Pulsante) */}
-            <span className="w-[6px] h-[14px] bg-[var(--neon-glow-border)] rounded-sm shadow-[0_0_4px_var(--neon-glow-color-raw)]" />
-            
-            {/* Barra derecha interna (Mediana - 80% tamaño) */}
-            <span className="w-[4.8px] h-[11.2px] bg-[var(--neon-glow-border)] rounded-sm shadow-[0_0_4px_var(--neon-glow-color-raw)]" />
-            
-            {/* Barra derecha externa (Pequeña - 60% tamaño, 50% opacidad) */}
-            <span className="w-[3.6px] h-[8.4px] opacity-50 bg-[var(--neon-glow-border)] rounded-sm shadow-[0_0_4px_var(--neon-glow-color-raw)]" />
-          </div>
-          
-          <div className="absolute right-3.5 flex items-center">
-            <span className="text-[9px] font-cyber text-[var(--neon-glow-color)] opacity-0 group-hover:opacity-100 transition-opacity tracking-widest uppercase">
-              ACTIVATE
-            </span>
-          </div>
-        </button>
-      </div>
+      <HandleBar
+        theme={config.theme}
+        dockPosition={config.dockPosition}
+        isHandleFadedOut={isHandleFadedOut}
+        handleHovered={handleHovered}
+        isDraggingHandle={isDraggingHandle}
+        handleAutoHide={!!config.handleAutoHide}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onMouseEnterHandle={handleMouseEnter}
+        onMouseLeaveHandle={handleMouseLeave}
+        clearAutoHideTimer={clearAutoHideTimer}
+        startAutoHideTimer={startAutoHideTimer}
+        setIsHandleFadedOut={setIsHandleFadedOut}
+        setHandleHovered={setHandleHovered}
+      />
     );
   }
 
   // =====================================
   // ── MODO SHELF (ESTANTE COMPLETO) ──
   // =====================================
-  const filteredShortcutsList = getFilteredShortcuts();
-
   // Variables defensivas contra configuraciones anteriores (fallback defaults)
   const bgType = config.bgType || 'solid';
   const bgSolidColor = config.bgSolidColor || '#070b13';
@@ -2107,61 +2010,7 @@ export default function App() {
       onDrop={handleDrop}
       onClick={handleBackgroundClick}
     >
-      {/* ── TOASTS (avisos de acciones del sistema) ── */}
-      {toasts.length > 0 && (
-        <div
-          className={`fixed left-1/2 -translate-x-1/2 z-[90000] flex flex-col gap-2 pointer-events-none w-[min(92%,420px)] ${config.dockPosition === 'top' ? 'top-20' : 'bottom-20'}`}
-        >
-          {toasts.map(t => (
-            <div
-              key={t.id}
-              className="pointer-events-auto relative overflow-hidden rounded-xl border bg-[#0c111c]/95 backdrop-blur-md shadow-[0_4px_24px_rgba(0,0,0,0.55)] animate-toast-in"
-              style={{
-                borderColor:
-                  t.type === 'error' ? 'rgba(244,63,94,0.5)'
-                  : t.type === 'success' ? 'var(--neon-glow-border)'
-                  : 'rgba(148,163,184,0.35)',
-              }}
-            >
-              <div className="flex items-center gap-3 px-3.5 py-2.5">
-                <div className="shrink-0">
-                  {t.type === 'success' && <CheckCircle2 className="w-5 h-5 text-[var(--neon-glow-color)]" />}
-                  {t.type === 'error' && <AlertTriangle className="w-5 h-5 text-rose-400" />}
-                  {t.type === 'info' && <Info className="w-5 h-5 text-slate-300" />}
-                </div>
-                <p className="flex-1 min-w-0 text-[12px] font-montserrat text-slate-100 leading-snug break-words">{t.message}</p>
-                {t.actionLabel && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); t.onAction?.(); dismissToast(t.id); }}
-                    className="shrink-0 text-[10px] font-cyber font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border border-[var(--neon-glow-border)] text-[var(--neon-glow-color)] hover:bg-[var(--neon-glow-color-raw)]/10 transition-colors cursor-pointer"
-                  >
-                    {t.actionLabel}
-                  </button>
-                )}
-                <button
-                  onClick={(e) => { e.stopPropagation(); dismissToast(t.id); }}
-                  className="shrink-0 text-slate-500 hover:text-white transition-colors cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <div className="absolute bottom-0 left-0 h-[2.5px] w-full bg-white/5">
-                <div
-                  className="h-full w-full origin-left"
-                  style={{
-                    animation: `toast-shrink ${t.duration}ms linear forwards`,
-                    background:
-                      t.type === 'error'
-                        ? 'linear-gradient(90deg,#f43f5e,#fb7185)'
-                        : 'linear-gradient(90deg, var(--neon-glow-color), #a855f7)',
-                    boxShadow: '0 0 8px var(--neon-glow-color-raw)',
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <ToastStack toasts={toasts} dockPosition={config.dockPosition} dismissToast={dismissToast} />
 
       {/* ── CAPA DE FONDO PERSONALIZADO (Solid / Gradient / Image) ── */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none">
@@ -2699,537 +2548,44 @@ export default function App() {
         </div>
       </header>
 
-      {/* ── SECCIÓN CENTRAL (GRID DE ACCESOS DIRECTOS VIRTUALIZADOS) ── */}
-      <main
-        ref={gridScrollRef}
-        className={`flex-1 overflow-y-auto px-8 py-6 custom-scrollbar relative ${selectionMode ? 'select-none' : ''}`}
-        onMouseDown={handleLassoMouseDown}
-        onMouseMove={handleLassoMouseMove}
-        onMouseUp={handleLassoMouseUp}
-        onMouseLeave={handleLassoMouseUp}
-      >
-        {/* Rectángulo del lasso (selección por arrastre) */}
-        {lassoRect && (
-          <div
-            className="absolute z-30 pointer-events-none rounded-sm border border-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10"
-            style={{ left: lassoRect.x, top: lassoRect.y, width: lassoRect.w, height: lassoRect.h }}
-          />
-        )}
+      <ShortcutGrid
+        gridScrollRef={gridScrollRef}
+        selectionMode={selectionMode}
+        lassoRect={lassoRect}
+        filteredShortcutsList={filteredShortcutsList}
+        searchQuery={searchQuery}
+        viewMode={viewMode}
+        iconSortOrder={iconSortOrder}
+        config={config}
+        categories={categories}
+        activeCategory={activeCategory}
+        selectedIds={selectedIds}
+        langCode={langCode}
+        showVaultHelp={showVaultHelp}
+        setShowVaultHelp={setShowVaultHelp}
+        handleLassoMouseDown={handleLassoMouseDown}
+        handleLassoMouseMove={handleLassoMouseMove}
+        handleLassoMouseUp={handleLassoMouseUp}
+        handleItemSelect={handleItemSelect}
+        handleLaunch={handleLaunch}
+        handleShortcutContextMenu={handleShortcutContextMenu}
+        handleShortcutDragStart={handleShortcutDragStart}
+        handleOpenEditModal={handleOpenEditModal}
+        handleUpdateConfigSetting={handleUpdateConfigSetting}
+        playFolderSound={playFolderSound}
+        playCyberBeep={playCyberBeep}
+      />
 
-        {/* Banner Cyberpunk Decorativo si no hay items */}
-        {filteredShortcutsList.length === 0 ? (
-          <div className="w-full h-full flex flex-col items-center justify-center border border-dashed border-[var(--neon-glow-border)] rounded-xl bg-slate-950/65 backdrop-blur-md py-12 px-6 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
-            {searchQuery.trim() !== '' ? (
-              <>
-                <Search className="w-12 h-12 text-slate-500 opacity-60 mb-4" />
-                <p className="text-xs font-mono text-slate-400 max-w-md text-center leading-relaxed tracking-wider">
-                  {translate('search_no_results', { query: searchQuery })}
-                </p>
-              </>
-            ) : (
-              <>
-                <Upload className="w-12 h-12 text-[var(--neon-glow-color)] opacity-70 animate-pulse mb-4" />
-                <p className="text-xs font-mono text-slate-200 max-w-md text-center leading-relaxed tracking-wider">
-                  {translate('shortcut_no_items')}
-                </p>
-              </>
-            )}
-          </div>
-        ) : (
-          <div 
-            className="grid gap-4 transition-all"
-            style={{
-              gridTemplateColumns: viewMode === 'list' 
-                ? 'repeat(auto-fill, minmax(280px, 1fr))' 
-                : `repeat(auto-fill, minmax(${config.iconSize * 2.8}px, 1fr))`
-            }}
-          >
-            {filteredShortcutsList.flatMap((item, index) => {
-              const proc = getShortcutProcess(item);
-              const elements = [];
-
-              if (viewMode === 'list' && iconSortOrder === 'alpha') {
-                const firstLetter = item.name.charAt(0).toUpperCase();
-                const pLetter = firstLetter.match(/[A-Z0-9]/i) ? firstLetter : '#';
-                const prevApp = index > 0 ? filteredShortcutsList[index - 1] : null;
-                let showHeader = false;
-
-                if (prevApp) {
-                  const prevFirstLetter = prevApp.name.charAt(0).toUpperCase();
-                  const prevPLetter = prevFirstLetter.match(/[A-Z0-9]/i) ? prevFirstLetter : '#';
-                  showHeader = pLetter !== prevPLetter;
-                } else {
-                  showHeader = true;
-                }
-
-                if (showHeader) {
-                  elements.push(
-                    <div 
-                      key={`header-list-${pLetter}`}
-                      className="col-span-full mt-4 mb-2 flex items-center gap-3 opacity-60 text-left select-none"
-                      style={{ gridColumn: '1 / -1' }}
-                    >
-                      <span className="text-[13px] font-cyber font-bold text-slate-400 w-6 pl-1 tracking-wider">{pLetter}</span>
-                      <div className="h-px bg-gradient-to-r from-slate-700/40 via-slate-800/10 to-transparent flex-1" />
-                    </div>
-                  );
-                }
-              }
-
-              if (viewMode === 'list') {
-                elements.push(
-                  <div
-                    key={item.id}
-                    data-shortcut-id={item.id}
-                    onClick={(e) => selectionMode ? handleItemSelect(item, index, e) : handleLaunch(item)}
-                    onContextMenu={(e) => handleShortcutContextMenu(e, item)}
-                    draggable={!selectionMode}
-                    onDragStart={(e) => handleShortcutDragStart(e, item)}
-                    className={`cyber-panel-glow bg-slate-950/45 rounded-lg p-2 flex items-center justify-between gap-3 transition-all duration-300 hover:scale-102 hover:bg-slate-900/60 cursor-pointer relative group border ${
-                      selectedIds.has(item.id)
-                        ? 'border-[var(--neon-glow-color)] ring-1 ring-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10'
-                        : 'border-slate-900/30 hover:border-[var(--neon-glow-border)]'
-                    }`}
-                  >
-                    {selectionMode && (
-                      <span
-                        className={`absolute -top-1.5 -left-1.5 z-20 w-4 h-4 rounded-full flex items-center justify-center border transition-all ${
-                          selectedIds.has(item.id)
-                            ? 'bg-[var(--neon-glow-color)] border-[var(--neon-glow-color)] text-slate-950'
-                            : 'bg-slate-950/90 border-slate-600 text-transparent'
-                        }`}
-                      >
-                        <Check className="w-2.5 h-2.5" strokeWidth={3} />
-                      </span>
-                    )}
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      {/* Icono del Acceso Directo */}
-                      <div 
-                        className="flex-shrink-0 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:border-[var(--neon-glow-color)] group-hover:shadow-[0_0_6px_var(--neon-glow-color-raw)]"
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                        }}
-                      >
-                        {item.iconPath ? (
-                          <img src={item.iconPath} alt={item.name} className="w-[85%] h-[85%] object-contain" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-slate-600 bg-slate-950 group-hover:text-[var(--neon-glow-color)]">
-                            <span className="font-cyber font-bold text-xs">&gt;_</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Info Text */}
-                      <div className="min-w-0 flex-1 text-left">
-                        <h4 className="font-montserrat font-bold text-white text-[12px] truncate tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1">
-                          <span className="truncate">{item.name}</span>
-                        </h4>
-                        <p className={`font-mono text-[9px] truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`} title={item.path}>
-                          {item.category === 'vault' ? translate('vault_real_path', { path: item.path }) : item.path}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Indicators & Edit Button */}
-                    <div className="flex items-center gap-1.5 flex-shrink-0 z-10">
-                      {activeCategory === 'all' && (() => {
-                        const catObj = categories.find(c => c.id === item.category);
-                        if (!catObj) return null;
-                        return (
-                          <span 
-                            className="text-[8px] font-cyber font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider select-none mr-1"
-                            style={{
-                              backgroundColor: `${catObj.color}15`,
-                              borderColor: `${catObj.color}40`,
-                              color: catObj.color,
-                            }}
-                          >
-                            {catObj.name}
-                          </span>
-                        );
-                      })()}
-                      {item.isFavorite && (
-                        <span className="text-[10px] text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]" title={langCode === 'es' ? 'Favorito' : 'Favorite'}>★</span>
-                      )}
-                      {item.isAdmin && (
-                        <span className="text-[7.5px] font-montserrat font-bold bg-amber-500/10 border border-amber-500/30 text-amber-500 px-1 py-0.2 rounded" title={translate('shortcut_run_admin')}>
-                          {translate('shortcut_admin_tag')}
-                        </span>
-                      )}
-                      {item.delay > 0 && (
-                        <span className="text-[8px] font-mono text-cyan-400 bg-cyan-950/20 px-1 py-0.2 rounded flex items-center gap-0.5">
-                          <Clock className="w-2.5 h-2.5" />
-                          {item.delay}s
-                        </span>
-                      )}
-                      
-                      <button
-                        onClick={(e) => handleOpenEditModal(item, e)}
-                        className="opacity-0 group-hover:opacity-100 rounded border border-slate-700 hover:border-[var(--neon-glow-color)] bg-slate-950 hover:bg-slate-900 text-slate-400 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer h-5 w-5 p-0"
-                        title="Edit Launch Configuration"
-                      >
-                        <Edit className="w-2.5 h-2.5" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              } else {
-                const isSmallGrid = config.iconSize < 48;
-                elements.push(
-                  <div
-                    key={item.id}
-                    data-shortcut-id={item.id}
-                    onClick={(e) => selectionMode ? handleItemSelect(item, index, e) : handleLaunch(item)}
-                    onContextMenu={(e) => handleShortcutContextMenu(e, item)}
-                    draggable={!selectionMode}
-                    onDragStart={(e) => handleShortcutDragStart(e, item)}
-                    className={`cyber-panel-glow rounded-xl transition-all duration-300 hover:scale-103 cursor-pointer relative group ${
-                      selectedIds.has(item.id)
-                        ? 'bg-[var(--neon-glow-color-raw)]/10 ring-1 ring-[var(--neon-glow-color)]'
-                        : 'bg-slate-950/45'
-                    } ${
-                      isSmallGrid
-                        ? 'p-2 flex flex-col items-center justify-center gap-1.5 text-center'
-                        : 'p-3 flex items-center gap-3.5 text-left'
-                    }`}
-                  >
-                    {selectionMode && (
-                      <span
-                        className={`absolute top-1 left-1 z-20 w-4 h-4 rounded-full flex items-center justify-center border transition-all ${
-                          selectedIds.has(item.id)
-                            ? 'bg-[var(--neon-glow-color)] border-[var(--neon-glow-color)] text-slate-950'
-                            : 'bg-slate-950/90 border-slate-600 text-transparent'
-                        }`}
-                      >
-                        <Check className="w-2.5 h-2.5" strokeWidth={3} />
-                      </span>
-                    )}
-                    {/* Icono del Acceso Directo */}
-                    <div 
-                      className="flex-shrink-0 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:border-[var(--neon-glow-color)] group-hover:shadow-[0_0_6px_var(--neon-glow-color-raw)] relative"
-                      style={{
-                        width: `${config.iconSize}px`,
-                        height: `${config.iconSize}px`,
-                      }}
-                    >
-                      {item.iconPath ? (
-                        <img src={item.iconPath} alt={item.name} className="w-[85%] h-[85%] object-contain" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-600 bg-slate-950 group-hover:text-[var(--neon-glow-color)]">
-                          <span className="font-cyber font-bold text-lg">&gt;_</span>
-                        </div>
-                      )}
-
-                      {/* Estrella de favorito integrada como badge en el icono en modo pequeño */}
-                      {item.isFavorite && isSmallGrid && (
-                        <span
-                          className="absolute -top-0.5 -right-0.5 text-[8px] text-amber-400 bg-slate-950/90 border border-amber-500/30 rounded-full w-3.5 h-3.5 flex items-center justify-center shadow-[0_0_4px_rgba(251,191,36,0.5)] z-10 font-sans"
-                          title={langCode === 'es' ? 'Favorito' : 'Favorite'}
-                        >
-                          ★
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Info Text */}
-                    <div className={`min-w-0 ${isSmallGrid ? 'w-full text-center flex flex-col items-center' : 'flex-1 text-left'}`}>
-                      <h4 
-                        className="font-montserrat font-bold text-white truncate tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1"
-                        style={{ 
-                          fontSize: `${Math.max(9, Math.min(14, config.iconSize * 0.22))}px`,
-                          justifyContent: isSmallGrid ? 'center' : 'flex-start',
-                          width: '100%'
-                        }}
-                      >
-                        <span className="truncate">{item.name}</span>
-                      </h4>
-
-                      {/* Ocultar ruta en grid pequeño para evitar ruido visual */}
-                      {!isSmallGrid && (
-                        <p 
-                          className={`font-mono truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
-                          title={item.path}
-                          style={{ fontSize: `${Math.max(8, Math.min(11, config.iconSize * 0.17))}px` }}
-                        >
-                          {item.category === 'vault' ? translate('vault_real_path', { path: item.path }) : item.path}
-                        </p>
-                      )}
-                      
-                      {/* Detalles rápidos */}
-                      {(!isSmallGrid || (activeCategory === 'all')) && (
-                        <div className={`flex items-center gap-1.5 mt-0.5 flex-wrap ${isSmallGrid ? 'justify-center' : 'justify-start'}`}>
-                          {activeCategory === 'all' && (() => {
-                            const catObj = categories.find(c => c.id === item.category);
-                            if (!catObj) return null;
-                            return (
-                              <span 
-                                className="text-[7.5px] font-cyber font-bold px-1.2 py-0.3 rounded border uppercase tracking-wider select-none animate-fade-in"
-                                style={{
-                                  backgroundColor: `${catObj.color}12`,
-                                  borderColor: `${catObj.color}30`,
-                                  color: catObj.color,
-                                  fontSize: isSmallGrid ? '6.5px' : '7.5px'
-                                }}
-                              >
-                                {catObj.name}
-                              </span>
-                            );
-                          })()}
-                          {item.isAdmin && !isSmallGrid && (
-                            <span className="text-[7.5px] font-montserrat font-bold bg-amber-500/10 border border-amber-500/30 text-amber-500 px-1 py-0.2 rounded" title={translate('shortcut_run_admin')}>
-                              {translate('shortcut_admin_tag')}
-                            </span>
-                          )}
-                          {item.delay > 0 && !isSmallGrid && (
-                            <span className="text-[8px] font-mono text-cyan-400 bg-cyan-950/20 px-1 py-0.2 rounded flex items-center gap-0.5">
-                              <Clock className="w-2.5 h-2.5" />
-                              {item.delay}s
-                            </span>
-                          )}
-                          {item.usageCount > 0 && !isSmallGrid && (
-                            <span className="text-[8px] font-mono text-slate-500">
-                              {item.usageCount} ex.
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Favorite Star — permanente en esquina superior derecha en modo grande */}
-                    {item.isFavorite && !isSmallGrid && (
-                      <span
-                        className="absolute right-2 top-2 text-[10px] text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)] z-10"
-                        title={langCode === 'es' ? 'Favorito' : 'Favorite'}
-                      >
-                        ★
-                      </span>
-                    )}
-
-                    {/* Edit Button overlay */}
-                    <button
-                      onClick={(e) => handleOpenEditModal(item, e)}
-                      className="absolute opacity-0 group-hover:opacity-100 rounded border border-slate-700 hover:border-[var(--neon-glow-color)] bg-slate-950 hover:bg-slate-900 text-slate-400 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer"
-                      style={{
-                        width: isSmallGrid ? '18px' : '24px',
-                        height: isSmallGrid ? '18px' : '24px',
-                        right: isSmallGrid ? '4px' : '8px',
-                        top: isSmallGrid ? '4px' : '8px',
-                        padding: 0
-                      }}
-                      title="Edit Launch Configuration"
-                    >
-                      <Edit style={{ width: isSmallGrid ? '10px' : '13px', height: isSmallGrid ? '10px' : '13px' }} />
-                    </button>
-                  </div>
-                );
-              }
-
-              return elements;
-            })}
-          </div>
-        )}
-
-        {/* Physical Files Directory Config (Hidden behind Files tab lock) */}
-        {activeCategory === 'vault' && (
-          <div className="mt-8 pt-6 border-t border-purple-900/30 max-w-4xl space-y-4 animate-fade-in">
-            <div className="bg-slate-950/40 p-4 border border-purple-950/50 rounded-xl space-y-3">
-              <div className="space-y-1">
-                <h5 className="font-montserrat font-bold text-purple-300 text-sm tracking-wide uppercase flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-purple-400" />
-                  {translate('vault_settings_path')}
-                </h5>
-                <p className="text-[11px] text-slate-400 leading-normal">
-                  {translate('vault_settings_path_desc')}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={config.vaultPath || ''}
-                  onChange={(e) => handleUpdateConfigSetting('vaultPath', e.target.value)}
-                  placeholder={isElectron ? "C:\\Users\\... (Default App Data Files)" : "Default Web Storage Path"}
-                  className="flex-1 min-w-0 bg-slate-950/80 border border-slate-900 text-slate-300 font-mono text-[11px] rounded-lg px-3 py-2 focus:outline-none truncate"
-                />
-                {isElectron && (
-                  <button
-                    onClick={async () => {
-                      const selected = await window.electronAPI!.selectVaultFolder();
-                      if (selected) {
-                        handleUpdateConfigSetting('vaultPath', selected);
-                        playFolderSound();
-                      }
-                    }}
-                    className="shrink-0 px-3 py-2 bg-purple-950/20 hover:bg-purple-950/30 border border-purple-900/50 hover:border-purple-800/80 text-purple-300 hover:text-purple-200 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
-                  >
-                    <FolderSearch className="w-3.5 h-3.5" />
-                    {translate('vault_browse_folder')}
-                  </button>
-                )}
-                {isElectron && (
-                  <button
-                    onClick={async () => {
-                      const defPath = await window.electronAPI!.getDefaultVaultPath();
-                      handleUpdateConfigSetting('vaultPath', defPath);
-                      playFolderSound();
-                    }}
-                    className="shrink-0 px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap"
-                  >
-                    DEFAULT
-                  </button>
-                )}
-              </div>
-              {isElectron && (
-                <button
-                  onClick={() => window.electronAPI!.openVaultFolder()}
-                  className="w-full md:w-auto px-4 py-2 bg-purple-950/20 hover:bg-purple-950/30 border border-purple-900/50 hover:border-purple-800/80 text-purple-300 hover:text-purple-200 text-[11px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  <FolderOpen className="w-3.5 h-3.5" />
-                  {translate('vault_open_folder')}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Collapsible Files Manual Guide (Hidden behind Files tab lock) — shown below the folder location */}
-        {activeCategory === 'vault' && (
-          <div className="mt-8 pt-6 border-t border-purple-900/30 max-w-4xl space-y-3 animate-fade-in">
-            <div className="bg-slate-950/40 border border-purple-950/50 rounded-xl overflow-hidden">
-              {/* Header Toggle */}
-              <button
-                onClick={() => { setShowVaultHelp(!showVaultHelp); playCyberBeep(); }}
-                className="w-full flex items-center justify-between px-4 py-3 bg-purple-950/10 hover:bg-purple-950/20 transition-all text-left cursor-pointer focus:outline-none"
-              >
-                <div className="flex items-center gap-2">
-                  <Info className="w-4 h-4 text-purple-400" />
-                  <span className="font-montserrat font-bold text-white text-sm tracking-wide uppercase">
-                    {translate('vault_guide_title')}
-                  </span>
-                </div>
-                <span className="text-[11px] font-montserrat font-bold text-purple-400/80 hover:text-purple-300">
-                  {showVaultHelp ? translate('vault_guide_toggle_hide') : translate('vault_guide_toggle_show')}
-                </span>
-              </button>
-
-              {/* Collapsible Content */}
-              {showVaultHelp && (
-                <div className="p-4 border-t border-purple-950/30 space-y-4 font-sans text-[11px] text-slate-400 select-text leading-relaxed">
-                  <p className="text-[12px] text-slate-300 font-montserrat font-bold tracking-wide uppercase border-b border-purple-950/30 pb-2">
-                    {translate('vault_guide_intro')}
-                  </p>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5 bg-slate-950/30 p-3 rounded border border-purple-950/20">
-                      <h6 className="font-montserrat font-bold text-purple-300 text-[12px] tracking-wide">{translate('vault_guide_p1_title')}</h6>
-                      <p>{translate('vault_guide_p1_desc')}</p>
-                    </div>
-
-                    <div className="space-y-1.5 bg-slate-950/30 p-3 rounded border border-purple-950/20">
-                      <h6 className="font-montserrat font-bold text-purple-300 text-[12px] tracking-wide">{translate('vault_guide_p2_title')}</h6>
-                      <p>{translate('vault_guide_p2_desc')}</p>
-                    </div>
-
-                    <div className="space-y-1.5 bg-slate-950/30 p-3 rounded border border-purple-950/20">
-                      <h6 className="font-montserrat font-bold text-purple-300 text-[12px] tracking-wide">{translate('vault_guide_p3_title')}</h6>
-                      <p>{translate('vault_guide_p3_desc')}</p>
-                    </div>
-
-                    <div className="space-y-1.5 bg-slate-950/30 p-3 rounded border border-purple-950/20">
-                      <h6 className="font-montserrat font-bold text-purple-300 text-[12px] tracking-wide">{translate('vault_guide_p4_title')}</h6>
-                      <p>{translate('vault_guide_p4_desc')}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* ── BARRA DE ESTADO INFERIOR (STATUS BAR) ── */}
-      <footer className="h-10 border-t border-[var(--neon-glow-border)] flex items-center justify-between px-8 bg-slate-950/80 z-10 text-xs font-mono text-slate-400">
-        
-        {/* Sección Izquierda: Estadísticas de CyberTray */}
-        <div className="flex items-center gap-4.5">
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-600">{translate('stat_total_categories')}:</span>
-            <span className="text-purple-400 font-bold">{categories.length - 1}</span>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-600">{translate('stat_total_shortcuts')}:</span>
-            <span className="text-[var(--neon-glow-color)] font-bold">{shortcuts.length}</span>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-600">{translate('stat_total_launches')}:</span>
-            <span className="text-pink-400 font-bold">{config.totalLaunches || 0}</span>
-          </div>
-        </div>
-
-        {/* Sección Derecha: Telemetría de Recursos del Sistema */}
-        <div className="flex items-center gap-5">
-          
-          {/* Uptime */}
-          <div 
-            className="flex items-center gap-1 cursor-help"
-            onMouseEnter={(e) => showTooltip(e, translate('stat_uptime'), translate('tooltip_uptime'))}
-            onMouseLeave={hideTooltip}
-          >
-            <Clock className="w-3.5 h-3.5 text-slate-500" />
-            <span>
-              {Math.floor(systemInfo.uptime / 3600)}h {Math.floor((systemInfo.uptime % 3600) / 60)}m
-            </span>
-          </div>
-
-          {/* CPU Load */}
-          <div 
-            className="flex items-center gap-2 whitespace-nowrap cursor-help"
-            onMouseEnter={(e) => showTooltip(e, translate('stat_cpu'), `${translate('tooltip_cpu')}\n\n${systemInfo.cpu.model}`)}
-            onMouseLeave={hideTooltip}
-          >
-            <Cpu className="w-3.5 h-3.5 text-slate-500" />
-            <span className="text-slate-500">CPU:</span>
-            <span className="text-slate-200 font-bold">
-              {systemInfo.cpu.cores} Cores
-            </span>
-          </div>
-
-          {/* RAM load progress bar */}
-          <div 
-            className="flex items-center gap-2 cursor-help"
-            onMouseEnter={(e) => showTooltip(e, translate('stat_ram'), `${translate('tooltip_ram')}\n\nTotal: ${systemInfo.memory.total.toFixed(1)} GB`)}
-            onMouseLeave={hideTooltip}
-          >
-            <Sliders className="w-3.5 h-3.5 text-slate-500" />
-            <span className="text-slate-500">RAM:</span>
-            <div className="w-14 h-1.5 bg-slate-900 border border-slate-800 rounded overflow-hidden">
-              <div 
-                className="h-full bg-[var(--neon-glow-color)] transition-all duration-1000"
-                style={{ width: `${systemInfo.memory.percent}%` }}
-              />
-            </div>
-            <span className="text-slate-200 font-bold w-9 text-right">
-              {Math.round(systemInfo.memory.percent)}%
-            </span>
-          </div>
-
-          {/* Disk load */}
-          <div 
-            className="flex items-center gap-2 cursor-help"
-            onMouseEnter={(e) => showTooltip(e, langCode === 'es' ? 'DISCOS' : 'DISKS', `${translate('tooltip_disk')}\n\n${disks.map((d: any) => `${d.drive} (Total: ${Math.round(d.total)}GB, Libre: ${Math.round(d.free)}GB)`).join('\n')}`)}
-            onMouseLeave={hideTooltip}
-          >
-            <HardDrive className="w-3.5 h-3.5 text-slate-500" />
-            <span className="text-slate-200 font-bold">
-              {disks[0] ? `${disks[0].drive} ${disks[0].percent}%` : '--'}
-            </span>
-          </div>
-
-
-        </div>
-      </footer>
+      <TelemetryBar
+        categoriesCount={categories.length - 1}
+        shortcutsCount={shortcuts.length}
+        totalLaunches={config.totalLaunches || 0}
+        systemInfo={systemInfo}
+        disks={disks}
+        langCode={langCode}
+        showTooltip={showTooltip}
+        hideTooltip={hideTooltip}
+      />
 
       {/* ── MODAL: PANEL DE CONFIGURACIÓN NEURAL ── */}
       <AnimatePresence>

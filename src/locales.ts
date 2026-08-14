@@ -261,6 +261,8 @@ export const translations = {
     vault_guide_p3_desc: "Click 'Sweep Desktop' to clean your desktop. It moves all files and folders physically to this Files area, skipping shortcuts (.lnk/.url) to keep the desktop clear.",
     vault_guide_p4_title: "4. PATH MANAGEMENT",
     vault_guide_p4_desc: "Modify the files folder storage location or open it physically using the options at the bottom of this interface.",
+    favorite_badge: "Favorite",
+    vault_default_btn: "DEFAULT",
     
     // About & Updates
     tooltip_about: "ABOUT CYBERTRAY",
@@ -275,6 +277,44 @@ export const translations = {
     update_available: "NEW SYSTEM FIRMWARE DETECTED: v{ver}",
     update_download_btn: "DOWNLOAD STABLE FIRMWARE",
     update_failed: "CONNECTION TIMEOUT - SERVERS OFFLINE",
+
+    // Residual UI strings
+    handle_activate: "ACTIVATE",
+    edit_launch_config: "Edit Launch Configuration",
+    modal_placeholder_name: "e.g. Hacker Terminal",
+    modal_placeholder_args: "e.g. --no-sandbox --window-size=800,600",
+    modal_admin_hint: "Requires Windows UAC approval on launch.",
+    modal_cat_create_title: "CREATE NEW CATEGORY",
+    modal_cat_create_label: "CATEGORY ALIAS NAME",
+    modal_cat_create_placeholder: "e.g. CYBER SECURITY",
+    modal_cat_color_label: "THEME PRESET COLOR",
+    modal_cat_create_btn: "CREATE",
+    modal_cat_rename_title: "RENAME CATEGORY",
+    modal_cat_rename_label: "NEW CATEGORY ALIAS NAME",
+    modal_cat_rename_placeholder: "e.g. NEW CATEGORY NAME",
+    modal_btn_cancel_short: "CANCEL",
+    modal_btn_save_short: "SAVE",
+    menu_rename_category: "Rename",
+    menu_delete_category: "Delete",
+    sweep_complete_title: "Sweep complete",
+    sweep_clean_title: "Clean Desktop",
+    sweep_error_title: "Error",
+    sweep_error_desc: "Failed to perform desktop sweep",
+    group_launch_title: "Group Launch",
+    group_launch_desc: "Are you sure you want to batch launch all {count} shortcuts in this category?",
+    terminate_process_title: "Terminate Process",
+    backup_exported_title: "Backup Exported",
+    process_matrix_desc: "Active network telemetry monitoring and subprocess termination.",
+    process_count_label: "PROCESSES:",
+    process_col_name: "PROCESS / PATH",
+    process_col_memory: "MEMORY",
+    process_col_action: "ACTION",
+    process_scanning: "SCANNING MATRIX...",
+    process_offline_title: "PROCESS MATRIX OFFLINE",
+    process_offline_desc: "Initialize real-time task telemetry scan.",
+    process_init_telemetry: "INITIALIZE TELEMETRY",
+    process_none_found: "No active processes found.",
+    process_system_kernel: "System / Kernel Process",
   },
   es: {
     // Top Bar & Toolbar
@@ -538,6 +578,8 @@ export const translations = {
     vault_guide_p3_desc: "Haz clic en 'Barrer Escritorio' para limpiar. Esto traslada todos los archivos y carpetas del escritorio al área de Archivos, omitiendo accesos directos para mantener el orden.",
     vault_guide_p4_title: "4. GESTIÓN DE RUTA",
     vault_guide_p4_desc: "Modifica la ubicación de almacenamiento físico de los Archivos o abre su carpeta usando las opciones en la parte inferior de esta interfaz.",
+    favorite_badge: "Favorito",
+    vault_default_btn: "POR DEFECTO",
     
     // About & Updates
     tooltip_about: "ACERCA DE CYBERTRAY",
@@ -552,6 +594,44 @@ export const translations = {
     update_available: "NUEVO FIRMWARE DETECTADO: v{ver}",
     update_download_btn: "DESCARGAR FIRMWARE ESTABLE",
     update_failed: "TIEMPO DE ESPERA AGOTADO - SERVIDORES SIN CONEXIÓN",
+
+    // Strings residuales de UI
+    handle_activate: "ACTIVAR",
+    edit_launch_config: "Editar configuración de lanzamiento",
+    modal_placeholder_name: "Ej. Terminal Hacker",
+    modal_placeholder_args: "Ej. --no-sandbox --window-size=800,600",
+    modal_admin_hint: "Requiere aprobación UAC de Windows al iniciar.",
+    modal_cat_create_title: "CREAR NUEVA CATEGORÍA",
+    modal_cat_create_label: "ALIAS DE LA CATEGORÍA",
+    modal_cat_create_placeholder: "Ej. CYBER SECURITY",
+    modal_cat_color_label: "COLOR DE TEMA",
+    modal_cat_create_btn: "CREAR",
+    modal_cat_rename_title: "RENOMBRAR CATEGORÍA",
+    modal_cat_rename_label: "NUEVO ALIAS DE CATEGORÍA",
+    modal_cat_rename_placeholder: "Ej. NUEVO NOMBRE",
+    modal_btn_cancel_short: "CANCELAR",
+    modal_btn_save_short: "GUARDAR",
+    menu_rename_category: "Renombrar",
+    menu_delete_category: "Eliminar",
+    sweep_complete_title: "Barrer completado",
+    sweep_clean_title: "Escritorio limpio",
+    sweep_error_title: "Error",
+    sweep_error_desc: "No se pudo realizar el barrido del escritorio",
+    group_launch_title: "Lanzamiento en grupo",
+    group_launch_desc: "¿Estás seguro de lanzar los {count} accesos directos de esta categoría en lote?",
+    terminate_process_title: "Terminar proceso",
+    backup_exported_title: "Respaldo exportado",
+    process_matrix_desc: "Monitoreo de telemetría activa de la red y terminación de subprocesos.",
+    process_count_label: "PROCESOS:",
+    process_col_name: "PROCESO / RUTA",
+    process_col_memory: "RAM",
+    process_col_action: "ACCIÓN",
+    process_scanning: "ESCANEANDO MATRIZ...",
+    process_offline_title: "MATRIZ DE PROCESOS DESCONECTADA",
+    process_offline_desc: "Inicie el escaneo de telemetría de tareas en tiempo real.",
+    process_init_telemetry: "INICIAR TELEMETRÍA",
+    process_none_found: "No se encontraron procesos activos.",
+    process_system_kernel: "Proceso de sistema / kernel",
   }
 };
 
@@ -561,6 +641,9 @@ let currentLang: 'en' | 'es' = 'en';
 
 export function setLocale(lang: 'en' | 'es') {
   currentLang = lang;
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = lang;
+  }
 }
 
 export function getLocale(): 'en' | 'es' {
