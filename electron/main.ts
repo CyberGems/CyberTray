@@ -315,7 +315,21 @@ let uacResumeTimer: NodeJS.Timeout | null = null;
 let shelfAnimationTimer: NodeJS.Timeout | null = null;
 
 // --- Monitores e Identificación ---
+/** Special monitorId: open the shelf on the display under the cursor (hotkey / hotspot / tray). */
+const MONITOR_FOLLOW_CURSOR = 'follow-cursor';
+
+function getCursorDisplay(): Electron.Display {
+  return screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+}
+
+function isFollowCursorMonitorMode(): boolean {
+  return config.monitorId === MONITOR_FOLLOW_CURSOR;
+}
+
 function getTargetDisplay(): Electron.Display {
+  if (isFollowCursorMonitorMode()) {
+    return getCursorDisplay();
+  }
   const displays = screen.getAllDisplays();
   // 1. Intentar match exacto por ID
   if (config.monitorId) {
@@ -633,6 +647,7 @@ function showShelf() {
   // Compute final bounds WITHOUT moving the window yet (avoid Chrome repaints)
   const display = getTargetDisplay();
   const shelfBounds = getShelfBounds(display);
+  const handleBounds = getHandleBounds(display);
 
   // Update constraints and flags only; do NOT call setBounds yet
   const workArea = display.workArea;
@@ -641,8 +656,9 @@ function showShelf() {
   shelfWindow.setAlwaysOnTop(config.alwaysOnTop);
   shelfWindow.setSkipTaskbar(!config.showTaskbarIcon);
 
-  // Ocultar suavemente el Cyber-Handle al abrir la bandeja para evitar ruido visual
+  // Park the handle on the activation display so it reappears there after hide
   if (handleWindow && !handleWindow.isDestroyed()) {
+    handleWindow.setBounds(handleBounds);
     handleWindow.hide();
   }
 
@@ -1129,6 +1145,11 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle('set-monitor', async (_, monitorId) => {
+    if (monitorId === MONITOR_FOLLOW_CURSOR) {
+      saveConfig({ monitorId: MONITOR_FOLLOW_CURSOR, monitorBounds: undefined });
+      alignWindows();
+      return;
+    }
     const displays = screen.getAllDisplays();
     const target = displays.find(d => d.id.toString() === monitorId);
     const monitorBounds = target ? { x: target.bounds.x, y: target.bounds.y, width: target.bounds.width, height: target.bounds.height } : undefined;
@@ -1428,6 +1449,7 @@ function registerIpcHandlers() {
         dock_top: 'Dock to Top',
         dock_bottom: 'Dock to Bottom',
         monitor: 'Monitor',
+        follow_cursor: 'Follow cursor',
         settings: 'Settings...',
         exit: 'Exit'
       },
@@ -1440,6 +1462,7 @@ function registerIpcHandlers() {
         dock_top: 'Acoplar arriba',
         dock_bottom: 'Acoplar abajo',
         monitor: 'Monitor',
+        follow_cursor: 'Seguir cursor',
         settings: 'Configuración...',
         exit: 'Salir'
       }
@@ -1452,19 +1475,32 @@ function registerIpcHandlers() {
     // Submenú dinámico de monitores: refleja el monitor objetivo actual y permite cambiarlo desde el handle
     const allDisplays = screen.getAllDisplays();
     const primaryDisplayId = screen.getPrimaryDisplay().id;
-    const currentTargetId = getTargetDisplay().id;
-    const monitorSubmenu: Electron.MenuItemConstructorOptions[] = allDisplays.map((d, idx) => ({
-      label: `${d.label || `${t.monitor} ${idx + 1}`} — ${d.bounds.width}×${d.bounds.height}${d.id === primaryDisplayId ? ' ★' : ''}`,
-      type: 'radio',
-      checked: d.id === currentTargetId,
-      click: () => {
-        saveConfig({
-          monitorId: d.id.toString(),
-          monitorBounds: { x: d.bounds.x, y: d.bounds.y, width: d.bounds.width, height: d.bounds.height },
-        });
-        alignWindows();
+    const followCursor = isFollowCursorMonitorMode();
+    const currentTargetId = followCursor ? null : getTargetDisplay().id;
+    const monitorSubmenu: Electron.MenuItemConstructorOptions[] = [
+      {
+        label: t.follow_cursor,
+        type: 'radio',
+        checked: followCursor,
+        click: () => {
+          saveConfig({ monitorId: MONITOR_FOLLOW_CURSOR, monitorBounds: undefined });
+          alignWindows();
+        },
       },
-    }));
+      { type: 'separator' },
+      ...allDisplays.map((d, idx) => ({
+        label: `${d.label || `${t.monitor} ${idx + 1}`} — ${d.bounds.width}×${d.bounds.height}${d.id === primaryDisplayId ? ' ★' : ''}`,
+        type: 'radio' as const,
+        checked: !followCursor && d.id === currentTargetId,
+        click: () => {
+          saveConfig({
+            monitorId: d.id.toString(),
+            monitorBounds: { x: d.bounds.x, y: d.bounds.y, width: d.bounds.width, height: d.bounds.height },
+          });
+          alignWindows();
+        },
+      })),
+    ];
 
     const menu = Menu.buildFromTemplate([
       {
