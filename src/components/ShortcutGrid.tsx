@@ -176,7 +176,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                     </div>
 
                     <div className="min-w-0 flex-1 text-left">
-                      <h4 className="font-montserrat font-bold text-white text-[12px] truncate tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1">
+                      <h4 className="font-ui font-bold text-white text-[12px] truncate tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1">
                         <span className="truncate">{item.name}</span>
                       </h4>
                       <p className={`font-mono text-[9px] truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`} title={item.path}>
@@ -206,7 +206,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                       <span className="text-[10px] text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]" title={translate('favorite_badge')}>★</span>
                     )}
                     {item.isAdmin && (
-                      <span className="text-[7.5px] font-montserrat font-bold bg-amber-500/10 border border-amber-500/30 text-amber-500 px-1 py-0.2 rounded" title={translate('shortcut_run_admin')}>
+                      <span className="text-[7.5px] font-ui font-bold bg-amber-500/10 border border-amber-500/30 text-amber-500 px-1 py-0.2 rounded" title={translate('shortcut_run_admin')}>
                         {translate('shortcut_admin_tag')}
                       </span>
                     )}
@@ -282,7 +282,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
 
                   <div className={`min-w-0 ${isSmallGrid ? 'w-full text-center flex flex-col items-center' : 'flex-1 text-left'}`}>
                     <h4
-                      className="font-montserrat font-bold text-white truncate tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1"
+                      className="font-ui font-bold text-white truncate tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1"
                       style={{
                         fontSize: `${Math.max(9, Math.min(14, config.iconSize * 0.22))}px`,
                         justifyContent: isSmallGrid ? 'center' : 'flex-start',
@@ -322,7 +322,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                           );
                         })()}
                         {item.isAdmin && !isSmallGrid && (
-                          <span className="text-[7.5px] font-montserrat font-bold bg-amber-500/10 border border-amber-500/30 text-amber-500 px-1 py-0.2 rounded" title={translate('shortcut_run_admin')}>
+                          <span className="text-[7.5px] font-ui font-bold bg-amber-500/10 border border-amber-500/30 text-amber-500 px-1 py-0.2 rounded" title={translate('shortcut_run_admin')}>
                             {translate('shortcut_admin_tag')}
                           </span>
                         )}

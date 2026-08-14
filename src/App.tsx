@@ -2100,7 +2100,7 @@ export default function App() {
               >
                 <Star className="w-3.5 h-3.5" fill={(activeCategory === 'favorites' || dragOverCategoryId === 'favorites') ? 'currentColor' : 'none'} />
                 <span>{langCode === 'es' ? 'FAV' : 'FAV'}</span>
-                <span className={`px-1 py-0.2 text-[9px] rounded border font-mono transition-colors ${
+                <span className={`px-1 py-0.2 text-[9px] rounded border font-digits tabular-nums transition-colors ${
                   activeCategory === 'favorites'
                     ? 'bg-slate-950/80 border-amber-500/40 text-amber-400'
                     : 'bg-slate-950/40 border-slate-900 text-slate-500'
@@ -2122,7 +2122,7 @@ export default function App() {
             >
               <Shield className="w-3.5 h-3.5" />
               <span>{translate('tab_vault')}</span>
-              <span className={`px-1 py-0.2 text-[9px] rounded border font-mono transition-colors ${
+              <span className={`px-1 py-0.2 text-[9px] rounded border font-digits tabular-nums transition-colors ${
                 activeCategory === 'vault'
                   ? 'bg-slate-950/80 border-purple-500/40 text-purple-400'
                   : 'bg-slate-950/40 border-slate-900 text-slate-500'
@@ -2146,7 +2146,7 @@ export default function App() {
                 {translate('cat_all')}
               </span>
               <span
-                className={`px-1 py-0.2 text-[9px] rounded border font-mono transition-colors ${
+                className={`px-1 py-0.2 text-[9px] rounded border font-digits tabular-nums transition-colors ${
                   activeCategory === 'all'
                     ? 'bg-slate-950/80 border-slate-800 text-slate-400'
                     : 'bg-slate-950/40 border-slate-900 text-slate-500'
@@ -2205,7 +2205,7 @@ export default function App() {
                     {cat.id === 'all' ? translate('cat_all') : cat.name}
                   </span>
                   <span
-                    className={`px-1 py-0.2 text-[9px] rounded border font-mono transition-colors ${
+                    className={`px-1 py-0.2 text-[9px] rounded border font-digits tabular-nums transition-colors ${
                       isActive
                         ? isAll
                           ? 'bg-slate-950/80 border-slate-800 text-slate-400'

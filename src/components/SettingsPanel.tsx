@@ -132,7 +132,7 @@ export default function SettingsPanel({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 border-b border-slate-800 pb-3.5 mb-4.5">
                     <Sliders className="w-4 h-4 text-purple-400" />
-                    <span className="font-montserrat font-bold text-xs text-white tracking-widest">{translate('settings_title')}</span>
+                    <span className="font-ui font-bold text-xs text-white tracking-widest">{translate('settings_title')}</span>
                   </div>
                   
                   <button
@@ -204,7 +204,7 @@ export default function SettingsPanel({
                     
                     {/* Idioma */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('general_language')}</h4>
+                      <h4 className="font-ui font-bold text-white text-xs tracking-widest">{translate('general_language')}</h4>
                       <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('general_language_desc')}</p>
                       <div className="flex gap-2">
                         <button 
@@ -226,7 +226,7 @@ export default function SettingsPanel({
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl grid grid-cols-2 gap-4">
                       
                       <div>
-                        <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('general_dock_position')}</h4>
+                        <h4 className="font-ui font-bold text-white text-xs tracking-widest">{translate('general_dock_position')}</h4>
                         <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('general_dock_position_desc')}</p>
                         <div className="flex gap-2">
                           <button
@@ -245,7 +245,7 @@ export default function SettingsPanel({
                       </div>
 
                       <div>
-                        <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('general_handle_position')}</h4>
+                        <h4 className="font-ui font-bold text-white text-xs tracking-widest">{translate('general_handle_position')}</h4>
                         <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('general_handle_position_desc')}</p>
                         <div className="flex gap-2">
                           {['left', 'center', 'right'].map((pos) => (
@@ -264,7 +264,7 @@ export default function SettingsPanel({
 
                     {/* Monitor de Despliegue */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('general_monitor')}</h4>
+                      <h4 className="font-ui font-bold text-white text-xs tracking-widest">{translate('general_monitor')}</h4>
                       <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('general_monitor_desc')}</p>
                       
                       <div className="space-y-1.5">
@@ -294,7 +294,7 @@ export default function SettingsPanel({
 
                     {/* Atajo de Activación Global */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('general_shortcut')}</h4>
+                      <h4 className="font-ui font-bold text-white text-xs tracking-widest">{translate('general_shortcut')}</h4>
                       <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('general_shortcut_desc')}</p>
                       
                       <div className="flex gap-3">
@@ -325,7 +325,7 @@ export default function SettingsPanel({
                       {/* Mostrar manigueta */}
                       <div className="flex items-center justify-between">
                         <div>
-                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_handle_visible')}</h5>
+                          <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('general_handle_visible')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('general_handle_visible_desc')}</p>
                         </div>
                         <button
@@ -339,7 +339,7 @@ export default function SettingsPanel({
                       {/* Hover Trigger Setting */}
                       <div className="flex items-center justify-between border-t border-slate-900 pt-3">
                         <div>
-                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_hover_trigger')}</h5>
+                          <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('general_hover_trigger')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('general_hover_trigger_desc')}</p>
                         </div>
                         <button
@@ -354,7 +354,7 @@ export default function SettingsPanel({
                       {config.hoverTriggerEnabled && (
                         <div className="border-t border-slate-900 pt-3">
                           <div className="flex justify-between items-center mb-1">
-                            <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_hover_delay')}</h5>
+                            <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('general_hover_delay')}</h5>
                             <span className="text-[var(--neon-glow-color)] font-bold">{config.hoverTriggerDelay || 300}ms</span>
                           </div>
                           <p className="text-[9.5px] text-slate-500 mb-2">{translate('general_hover_delay_desc')}</p>
@@ -373,7 +373,7 @@ export default function SettingsPanel({
                       {/* Ocultar al perder el foco */}
                       <div className="flex items-center justify-between border-t border-slate-900 pt-3">
                         <div>
-                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_hide_on_blur')}</h5>
+                          <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('general_hide_on_blur')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('general_hide_on_blur_desc')}</p>
                         </div>
                         <button
@@ -391,7 +391,7 @@ export default function SettingsPanel({
                       {/* Ocultar al clickear zona muerta */}
                       <div className="flex items-center justify-between border-t border-slate-900 pt-3">
                         <div>
-                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_hide_on_dead_zone')}</h5>
+                          <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('general_hide_on_dead_zone')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('general_hide_on_dead_zone_desc')}</p>
                         </div>
                         <button
@@ -408,7 +408,7 @@ export default function SettingsPanel({
                       {/* Mostrar en barra de tareas */}
                       <div className="flex items-center justify-between border-t border-slate-900 pt-3">
                         <div>
-                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_show_taskbar')}</h5>
+                          <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('general_show_taskbar')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('general_show_taskbar_desc')}</p>
                         </div>
                         <button
@@ -426,7 +426,7 @@ export default function SettingsPanel({
                       {/* Ejecutar al iniciar Windows */}
                       <div className="flex items-center justify-between border-t border-slate-900 pt-3">
                         <div>
-                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('sys_startup')}</h5>
+                          <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('sys_startup')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('sys_startup_desc')}</p>
                         </div>
                         <button
@@ -447,7 +447,7 @@ export default function SettingsPanel({
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_handle_auto_hide')}</h5>
+                          <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('general_handle_auto_hide')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('general_handle_auto_hide_desc')}</p>
                         </div>
                         <button
@@ -461,7 +461,7 @@ export default function SettingsPanel({
                       {config.handleAutoHide && (
                         <div className="border-t border-slate-900 pt-3">
                           <div className="flex justify-between items-center mb-1">
-                            <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_handle_auto_hide_delay')}</h5>
+                            <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('general_handle_auto_hide_delay')}</h5>
                             <span className="text-[var(--neon-glow-color)] font-bold">{config.handleAutoHideDelay || 5}s</span>
                           </div>
                           <p className="text-[9.5px] text-slate-500 mb-2">{translate('general_handle_auto_hide_delay_desc')}</p>
@@ -481,7 +481,7 @@ export default function SettingsPanel({
                     {/* Hotspot Corners */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
                       <div>
-                        <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('general_hotspots')}</h4>
+                      <h4 className="font-ui font-bold text-white text-xs tracking-widest">{translate('general_hotspots')}</h4>
                         <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('general_hotspots_desc')}</p>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
@@ -512,7 +512,7 @@ export default function SettingsPanel({
                       </div>
                       <div className="border-t border-slate-900 pt-3">
                         <div className="flex justify-between items-center mb-1">
-                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('general_hotspot_delay')}</h5>
+                          <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('general_hotspot_delay')}</h5>
                           <span className="text-[var(--neon-glow-color)] font-bold">{config.hotspotDelay || 300}ms</span>
                         </div>
                         <p className="text-[9.5px] text-slate-500 mb-2">{translate('general_hotspot_delay_desc')}</p>
@@ -536,8 +536,8 @@ export default function SettingsPanel({
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('settings_sounds_title')}</h4>
-                          <h5 className="font-montserrat font-bold text-slate-300 text-xs tracking-wider mt-2.5">{translate('settings_sound_launch_enable')}</h5>
+                          <h4 className="font-ui font-bold text-white text-xs tracking-widest">{translate('settings_sounds_title')}</h4>
+                          <h5 className="font-ui font-bold text-slate-300 text-xs tracking-wider mt-2.5">{translate('settings_sound_launch_enable')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('settings_sound_launch_enable_desc')}</p>
                         </div>
                         <button
@@ -550,7 +550,7 @@ export default function SettingsPanel({
 
                       {config.soundEnabled !== false && (
                         <div className="border-t border-slate-900 pt-3.5 space-y-2">
-                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('settings_sound_launch_path')}</h5>
+                          <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('settings_sound_launch_path')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('settings_sound_launch_path_desc')}</p>
                           
                           <div className="flex flex-col sm:flex-row gap-2 mt-2">
@@ -595,13 +595,13 @@ export default function SettingsPanel({
                     {/* Cyber-Vault Security Options */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
                       <div>
-                        <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('vault_settings_title')}</h4>
+                          <h4 className="font-ui font-bold text-white text-xs tracking-widest">{translate('vault_settings_title')}</h4>
                       </div>
 
                       {/* Enable PIN lock */}
                       <div className="flex items-center justify-between border-t border-slate-900 pt-3">
                         <div>
-                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('vault_settings_pin_enable')}</h5>
+                          <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('vault_settings_pin_enable')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('vault_settings_pin_enable_desc')}</p>
                         </div>
                         <button
@@ -754,7 +754,7 @@ export default function SettingsPanel({
                       {/* Set PIN Code */}
                       {config.vaultPinEnabled && (
                         <div className="border-t border-slate-900 pt-3 space-y-2">
-                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('vault_settings_pin_code')}</h5>
+                          <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('vault_settings_pin_code')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('vault_settings_pin_code_desc')}</p>
                           
                           {!showChangePinForm ? (
@@ -875,7 +875,7 @@ export default function SettingsPanel({
                       {/* Vault Lock Timeout */}
                       {config.vaultPinEnabled && (
                         <div className="border-t border-slate-900 pt-3 space-y-2">
-                          <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('vault_settings_timeout')}</h5>
+                          <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('vault_settings_timeout')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('vault_settings_timeout_desc')}</p>
                           <div className="flex flex-wrap gap-2">
                             {[
@@ -911,7 +911,7 @@ export default function SettingsPanel({
                     
                     {/* Presets de Color */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('app_theme_presets')}</h4>
+                      <h4 className="font-ui font-bold text-white text-xs tracking-widest">{translate('app_theme_presets')}</h4>
                       <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('app_theme_presets_desc')}</p>
                       
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -936,7 +936,7 @@ export default function SettingsPanel({
 
                     {/* Selector de Tipo de Fondo */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('app_bg_type')}</h4>
+                      <h4 className="font-ui font-bold text-white text-xs tracking-widest">{translate('app_bg_type')}</h4>
                       <div className="grid grid-cols-3 gap-2 mt-3">
                         {[
                           { id: 'solid', name: translate('app_bg_type_solid') },
@@ -962,7 +962,7 @@ export default function SettingsPanel({
                     {config.bgType === 'solid' && (
                       <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-3">
                         <div>
-                          <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('app_bg_solid_color')}</h4>
+                          <h4 className="font-ui font-bold text-white text-xs tracking-widest">{translate('app_bg_solid_color')}</h4>
                           <p className="text-[10px] text-slate-500 mt-1 mb-2.5">{translate('app_bg_solid_color_desc')}</p>
                         </div>
                         <div className="flex items-center gap-3">
@@ -992,7 +992,7 @@ export default function SettingsPanel({
                     {config.bgType === 'gradient' && (
                       <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-3">
                         <div>
-                          <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('app_bg_gradients')}</h4>
+                          <h4 className="font-ui font-bold text-white text-xs tracking-widest">{translate('app_bg_gradients')}</h4>
                           <p className="text-[10px] text-slate-500 mt-1 mb-2.5">{translate('app_bg_gradients_desc')}</p>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
@@ -1021,7 +1021,7 @@ export default function SettingsPanel({
                     {config.bgType === 'image' && (
                       <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
                         <div>
-                          <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('app_bg_preset_images')}</h4>
+                          <h4 className="font-ui font-bold text-white text-xs tracking-widest">{translate('app_bg_preset_images')}</h4>
                           <p className="text-[10px] text-slate-500 mt-1 mb-2.5">{translate('app_bg_preset_images_desc')}</p>
                         </div>
                         
@@ -1051,7 +1051,7 @@ export default function SettingsPanel({
 
                         {/* Custom Background Image selection */}
                         <div className="border-t border-slate-900 pt-3">
-                          <h5 className="font-montserrat font-bold text-white text-[10px] tracking-wider uppercase mb-1">{translate('app_bg_custom')}</h5>
+                          <h5 className="font-ui font-bold text-white text-[10px] tracking-wider uppercase mb-1">{translate('app_bg_custom')}</h5>
                           <p className="text-[9.5px] text-slate-500 mb-2">{translate('app_bg_custom_desc')}</p>
                           
                           <div className="flex gap-2">
@@ -1088,7 +1088,7 @@ export default function SettingsPanel({
                         {config.bgType === 'image' && (
                           <div>
                             <div className="flex justify-between items-center mb-1">
-                              <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('app_opacity')}</h5>
+                              <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('app_opacity')}</h5>
                               <span className="text-[var(--neon-glow-color)] font-bold">{config.opacity}%</span>
                             </div>
                             <p className="text-[9.5px] text-slate-500 mb-2">{translate('app_opacity_desc')}</p>
@@ -1105,7 +1105,7 @@ export default function SettingsPanel({
 
                         <div className={config.bgType === 'image' ? "border-t border-slate-900 pt-3" : ""}>
                           <div className="flex justify-between items-center mb-1">
-                            <h5 className="font-montserrat font-bold text-white text-xs tracking-wider">{translate('app_blur')}</h5>
+                            <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('app_blur')}</h5>
                             <span className="text-[var(--neon-glow-color)] font-bold">{config.blurLevel}px</span>
                           </div>
                           <p className="text-[9.5px] text-slate-500 mb-2">{translate('app_blur_desc')}</p>
@@ -1131,7 +1131,7 @@ export default function SettingsPanel({
                     
                     {/* Persistencia y backups */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-montserrat font-bold text-white text-xs tracking-widest">{translate('sys_backup')}</h4>
+                      <h4 className="font-ui font-bold text-white text-xs tracking-widest">{translate('sys_backup')}</h4>
                       <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('sys_backup_desc')}</p>
                       
                       <div className="flex gap-2 flex-wrap">
@@ -1164,7 +1164,7 @@ export default function SettingsPanel({
 
                     {/* Administrador de carpetas físicas indexadas */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-montserrat font-bold text-red-400 text-xs tracking-widest">DANGER ZONE / NÚCLEO FÍSICO</h4>
+                      <h4 className="font-ui font-bold text-red-400 text-xs tracking-widest">DANGER ZONE / NÚCLEO FÍSICO</h4>
                       <p className="text-[10px] text-slate-500 mt-1 mb-3">Vaciar completamente la memoria de accesos inyectados de CyberTray.</p>
                       
                       <button

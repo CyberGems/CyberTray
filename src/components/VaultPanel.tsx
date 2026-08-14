@@ -25,7 +25,7 @@ export default function VaultPanel({
       <div className="mt-8 pt-6 border-t border-purple-900/30 max-w-4xl space-y-4 animate-fade-in">
         <div className="bg-slate-950/40 p-4 border border-purple-950/50 rounded-xl space-y-3">
           <div className="space-y-1">
-            <h5 className="font-montserrat font-bold text-purple-300 text-sm tracking-wide uppercase flex items-center gap-2">
+            <h5 className="font-ui font-bold text-purple-300 text-sm tracking-wide uppercase flex items-center gap-2">
               <Shield className="w-4 h-4 text-purple-400" />
               {translate('vault_settings_path')}
             </h5>
@@ -89,39 +89,39 @@ export default function VaultPanel({
           >
             <div className="flex items-center gap-2">
               <Info className="w-4 h-4 text-purple-400" />
-              <span className="font-montserrat font-bold text-white text-sm tracking-wide uppercase">
+              <span className="font-ui font-bold text-white text-sm tracking-wide uppercase">
                 {translate('vault_guide_title')}
               </span>
             </div>
-            <span className="text-[11px] font-montserrat font-bold text-purple-400/80 hover:text-purple-300">
+            <span className="text-[11px] font-ui font-bold text-purple-400/80 hover:text-purple-300">
               {showVaultHelp ? translate('vault_guide_toggle_hide') : translate('vault_guide_toggle_show')}
             </span>
           </button>
 
           {showVaultHelp && (
             <div className="p-4 border-t border-purple-950/30 space-y-4 font-sans text-[11px] text-slate-400 select-text leading-relaxed">
-              <p className="text-[12px] text-slate-300 font-montserrat font-bold tracking-wide uppercase border-b border-purple-950/30 pb-2">
+            <p className="text-[12px] text-slate-300 font-ui font-bold tracking-wide uppercase border-b border-purple-950/30 pb-2">
                 {translate('vault_guide_intro')}
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5 bg-slate-950/30 p-3 rounded border border-purple-950/20">
-                  <h6 className="font-montserrat font-bold text-purple-300 text-[12px] tracking-wide">{translate('vault_guide_p1_title')}</h6>
+                  <h6 className="font-ui font-bold text-purple-300 text-[12px] tracking-wide">{translate('vault_guide_p1_title')}</h6>
                   <p>{translate('vault_guide_p1_desc')}</p>
                 </div>
 
                 <div className="space-y-1.5 bg-slate-950/30 p-3 rounded border border-purple-950/20">
-                  <h6 className="font-montserrat font-bold text-purple-300 text-[12px] tracking-wide">{translate('vault_guide_p2_title')}</h6>
+                  <h6 className="font-ui font-bold text-purple-300 text-[12px] tracking-wide">{translate('vault_guide_p2_title')}</h6>
                   <p>{translate('vault_guide_p2_desc')}</p>
                 </div>
 
                 <div className="space-y-1.5 bg-slate-950/30 p-3 rounded border border-purple-950/20">
-                  <h6 className="font-montserrat font-bold text-purple-300 text-[12px] tracking-wide">{translate('vault_guide_p3_title')}</h6>
+                  <h6 className="font-ui font-bold text-purple-300 text-[12px] tracking-wide">{translate('vault_guide_p3_title')}</h6>
                   <p>{translate('vault_guide_p3_desc')}</p>
                 </div>
 
                 <div className="space-y-1.5 bg-slate-950/30 p-3 rounded border border-purple-950/20">
-                  <h6 className="font-montserrat font-bold text-purple-300 text-[12px] tracking-wide">{translate('vault_guide_p4_title')}</h6>
+                  <h6 className="font-ui font-bold text-purple-300 text-[12px] tracking-wide">{translate('vault_guide_p4_title')}</h6>
                   <p>{translate('vault_guide_p4_desc')}</p>
                 </div>
               </div>

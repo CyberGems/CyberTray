@@ -88,7 +88,7 @@ export default function ShelfOverlays({
               exit={{ scale: 0.95, opacity: 0 }}
               className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-80 z-[60] bg-[#070b13]/95 border border-[var(--neon-glow-border)] shadow-2xl rounded-2xl p-5 font-mono text-xs text-left"
             >
-              <h3 className="font-montserrat font-bold text-white text-xs tracking-widest border-b border-slate-900 pb-3 mb-4">
+              <h3 className="font-ui font-bold text-white text-xs tracking-widest border-b border-slate-900 pb-3 mb-4">
                 {translate('modal_cat_create_title')}
               </h3>
 
@@ -202,7 +202,7 @@ export default function ShelfOverlays({
               exit={{ scale: 0.95, opacity: 0 }}
               className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-80 z-[60] bg-[#070b13]/95 border border-[var(--neon-glow-border)] shadow-2xl rounded-2xl p-5 font-mono text-xs text-left"
             >
-              <h3 className="font-montserrat font-bold text-white text-xs tracking-widest border-b border-slate-900 pb-3 mb-4">
+              <h3 className="font-ui font-bold text-white text-xs tracking-widest border-b border-slate-900 pb-3 mb-4">
                 {translate('modal_cat_rename_title')}
               </h3>
 
@@ -448,7 +448,7 @@ export default function ShelfOverlays({
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-montserrat font-bold text-[13px] text-white tracking-widest uppercase truncate">
+                  <h3 className="font-ui font-bold text-[13px] text-white tracking-widest uppercase truncate">
                     {confirmModal.title}
                   </h3>
                   <p className="text-xs text-slate-400 mt-2 font-mono leading-relaxed">

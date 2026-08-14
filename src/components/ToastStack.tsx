@@ -40,7 +40,7 @@ export default function ToastStack({ toasts, dockPosition, dismissToast }: Toast
               {t.type === 'error' && <AlertTriangle className="w-5 h-5 text-rose-400" />}
               {t.type === 'info' && <Info className="w-5 h-5 text-slate-300" />}
             </div>
-            <p className="flex-1 min-w-0 text-[12px] font-montserrat text-slate-100 leading-snug break-words">{t.message}</p>
+            <p className="flex-1 min-w-0 text-[12px] font-ui text-slate-100 leading-snug break-words">{t.message}</p>
             {t.actionLabel && (
               <button
                 onClick={(e) => { e.stopPropagation(); t.onAction?.(); dismissToast(t.id); }}

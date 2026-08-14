@@ -50,7 +50,7 @@ export default function AboutModal({
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-slate-900 pb-3 mb-4.5">
-                <h3 className="font-montserrat font-bold text-white text-sm tracking-widest uppercase">
+                <h3 className="font-ui font-bold text-white text-sm tracking-widest uppercase">
                   {translate('about_title')}
                 </h3>
                 <button
@@ -87,7 +87,7 @@ export default function AboutModal({
                 {/* Auto Update Check Toggle */}
                 <div className="w-full flex items-center justify-between bg-slate-950/40 p-3 border border-slate-900 rounded-xl text-left">
                   <div>
-                    <h5 className="font-montserrat font-bold text-white text-[11px] tracking-wider uppercase">{translate('about_auto_check')}</h5>
+                    <h5 className="font-ui font-bold text-white text-[11px] tracking-wider uppercase">{translate('about_auto_check')}</h5>
                     <p className="text-[9px] text-slate-500 mt-0.5 leading-normal">{translate('about_auto_check_desc')}</p>
                   </div>
                   <button

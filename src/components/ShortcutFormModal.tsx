@@ -61,7 +61,7 @@ export default function ShortcutFormModal({
             exit={{ scale: 0.95, opacity: 0 }}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] z-[60] bg-[#070b13]/95 border border-[var(--neon-glow-border)] shadow-2xl rounded-2xl p-6 font-mono text-xs text-left"
           >
-            <h3 className="font-montserrat font-bold text-white text-sm tracking-widest border-b border-slate-900 pb-3 mb-4.5">
+            <h3 className="font-ui font-bold text-white text-sm tracking-widest border-b border-slate-900 pb-3 mb-4.5">
               {shortcutModal.item ? translate('modal_title_edit') : translate('modal_title_add')}
             </h3>
 
@@ -142,7 +142,7 @@ export default function ShortcutFormModal({
 
               <div className="flex items-center justify-between bg-slate-950/40 p-3 border border-slate-900 rounded-xl">
                 <div>
-                  <h5 className="font-montserrat font-bold text-white text-[11px] tracking-wider uppercase">{translate('modal_label_admin')}</h5>
+                  <h5 className="font-ui font-bold text-white text-[11px] tracking-wider uppercase">{translate('modal_label_admin')}</h5>
                   <p className="text-[9px] text-slate-500 mt-0.5">{translate('modal_admin_hint')}</p>
                 </div>
                 <button

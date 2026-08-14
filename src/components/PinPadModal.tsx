@@ -51,7 +51,7 @@ export default function PinPadModal({
               </div>
               
               <div>
-                <h3 className="font-montserrat font-bold text-white text-xs tracking-widest">
+                <h3 className="font-ui font-bold text-white text-xs tracking-widest">
                   {translate('vault_locked_title')}
                 </h3>
                 <p className="text-[9px] text-slate-500 mt-1 uppercase tracking-wider">

@@ -3,8 +3,12 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-  --font-cyber: "Orbitron", sans-serif;
-  --font-montserrat: "Montserrat", sans-serif;
+  /* UI chrome / labels — same role as CyberLauncher */
+  --font-cyber: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  /* Compatibility alias for migrated component classes */
+  --font-ui: var(--font-cyber);
+  /* Digits only: counters and telemetry values */
+  --font-digits: "Orbitron", sans-serif;
 }
 
 @layer base {

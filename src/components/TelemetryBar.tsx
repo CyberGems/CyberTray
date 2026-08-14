@@ -32,17 +32,17 @@ export default function TelemetryBar({
       <div className="flex items-center gap-4.5">
         <div className="flex items-center gap-1.5">
           <span className="text-slate-600">{translate('stat_total_categories')}:</span>
-          <span className="text-purple-400 font-bold">{categoriesCount}</span>
+          <span className="text-purple-400 font-digits font-bold tabular-nums">{categoriesCount}</span>
         </div>
 
         <div className="flex items-center gap-1.5">
           <span className="text-slate-600">{translate('stat_total_shortcuts')}:</span>
-          <span className="text-[var(--neon-glow-color)] font-bold">{shortcutsCount}</span>
+          <span className="text-[var(--neon-glow-color)] font-digits font-bold tabular-nums">{shortcutsCount}</span>
         </div>
 
         <div className="flex items-center gap-1.5">
           <span className="text-slate-600">{translate('stat_total_launches')}:</span>
-          <span className="text-pink-400 font-bold">{totalLaunches}</span>
+          <span className="text-pink-400 font-digits font-bold tabular-nums">{totalLaunches}</span>
         </div>
       </div>
 
@@ -53,7 +53,7 @@ export default function TelemetryBar({
           onMouseLeave={hideTooltip}
         >
           <Clock className="w-3.5 h-3.5 text-slate-500" />
-          <span>
+          <span className="font-digits tabular-nums">
             {Math.floor(systemInfo.uptime / 3600)}h {Math.floor((systemInfo.uptime % 3600) / 60)}m
           </span>
         </div>
@@ -65,7 +65,7 @@ export default function TelemetryBar({
         >
           <Cpu className="w-3.5 h-3.5 text-slate-500" />
           <span className="text-slate-500">CPU:</span>
-          <span className="text-slate-200 font-bold">
+          <span className="text-slate-200 font-digits font-bold tabular-nums">
             {systemInfo.cpu.cores} Cores
           </span>
         </div>
@@ -83,7 +83,7 @@ export default function TelemetryBar({
               style={{ width: `${systemInfo.memory.percent}%` }}
             />
           </div>
-          <span className="text-slate-200 font-bold w-9 text-right">
+          <span className="text-slate-200 font-digits font-bold tabular-nums w-9 text-right">
             {Math.round(systemInfo.memory.percent)}%
           </span>
         </div>
@@ -94,7 +94,7 @@ export default function TelemetryBar({
           onMouseLeave={hideTooltip}
         >
           <HardDrive className="w-3.5 h-3.5 text-slate-500" />
-          <span className="text-slate-200 font-bold">
+          <span className="text-slate-200 font-digits font-bold tabular-nums">
             {disks[0] ? `${disks[0].drive} ${disks[0].percent}%` : '--'}
           </span>
         </div>

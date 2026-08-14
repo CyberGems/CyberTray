@@ -64,7 +64,7 @@ export default function ProcessMatrixModal({
           >
             <div className="flex items-center justify-between border-b border-slate-900 pb-3 mb-3 shrink-0">
               <div>
-                <h3 className="font-montserrat font-bold text-white text-sm tracking-widest">{translate('tab_process_matrix')}</h3>
+                <h3 className="font-ui font-bold text-white text-sm tracking-widest">{translate('tab_process_matrix')}</h3>
                 <p className="text-[10px] text-slate-500 mt-1">
                   {translate('process_matrix_desc')}
                 </p>
