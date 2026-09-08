@@ -25,16 +25,69 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
 
       - name: Compile and Package Electron App
-        run: npm run build:electron
+        # --publish never: packaging only. Artifact upload is handled below.
+        # electron-builder otherwise auto-publishes on tags and fails without GH_TOKEN.
+        run: npm run build && npx electron-builder --win --publish never
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Upload Build Artifacts to Actions Run
         uses: actions/upload-artifact@v4
         with:
           name: CyberTray-Windows-Installer
-          path: release/*.exe
+          path: |
+            release/*.exe
+            release/*.blockmap
+            release/latest.yml
           if-no-files-found: error
+
+      - name: Fill release notes from template
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $versionNum = $tag.TrimStart("v")
+          $installer = Get-ChildItem -Path "release" -Filter "CyberTray-Setup-*.exe" |
+            Where-Object { $_.Name -notlike "*.blockmap*" } |
+            Select-Object -First 1
+          $installerHash = if ($installer) {
+            (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLower()
+          } else {
+            "pending"
+          }
+
+          Write-Host "Installer: $($installer.FullName) [SHA256: $installerHash]"
+
+          $template = [System.IO.File]::ReadAllText(".github/release-template.md", [System.Text.Encoding]::UTF8)
+          $notes = $template.
+            Replace("{{VERSION_NUM}}", $versionNum).
+            Replace("{{VERSION}}", $tag).
+            Replace("{{INSTALLER_HASH}}", $installerHash)
+          $utf8 = New-Object System.Text.UTF8Encoding $false
+          [System.IO.File]::WriteAllText("FINAL_RELEASE_NOTES.md", $notes, $utf8)
+
+      - name: Create GitHub Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name: CyberTray ${{ github.ref_name }}
+          files: |
+            release/*.exe
+            release/*.blockmap
+            release/latest.yml
+          draft: true
+          body_path: FINAL_RELEASE_NOTES.md
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish checksums in release notes
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "${{ github.ref_name }}" --notes-file FINAL_RELEASE_NOTES.md
+          Write-Host "Updated release body with installer checksums."

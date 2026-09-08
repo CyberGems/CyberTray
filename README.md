@@ -96,7 +96,7 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 
 ### 💾 Data Management
 - **Backup & Restore** — Export/import configuration as JSON (with embedded icons)
-- **Auto-Updates** — Check for updates on boot via GitHub Releases API
+- **In-app Updates** — Check, download, and install from About via GitHub Releases (`electron-updater`). Auto-check on boot notifies you; install is always confirmed.
 - **Bilingual UI** — Full English and Spanish interface
 
 ---
@@ -192,6 +192,10 @@ CyberTray is a system tray application launcher for Windows. It provides an anim
 ### How do I show/hide CyberTray?
 
 Click the system tray icon or use the global hotkey (`Alt+T` by default). You can also configure hot corners to trigger it by dwelling your cursor in a screen corner.
+
+### How do updates work?
+
+CyberTray can check GitHub Releases on boot and notify you when a new version is available. From About you can download the update in-app and install it with a restart. Automatic install is off — you always confirm.
 
 ### How does the Cyber-Vault work?
 

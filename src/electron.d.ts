@@ -48,6 +48,18 @@ declare global {
       onShellExit: (callback: (data: { id: string; exitCode: number }) => void) => () => void;
       onAlwaysOnTopBlurAttempt: (callback: () => void) => () => void;
       onOpenSettings: (callback: () => void) => () => void;
+      onOpenAbout: (callback: (opts?: { checkUpdates?: boolean }) => void) => () => void;
+      getAppVersions: () => Promise<{
+        app: string; electron: string; chrome: string; node: string;
+        platform: string; arch: string; osRelease: string; osType: string;
+      }>;
+      getUpdateStatus: () => Promise<any>;
+      checkForUpdates: () => Promise<{ ok: boolean; version?: string; error?: string }>;
+      downloadUpdate: () => Promise<{ ok: boolean; error?: string }>;
+      installUpdate: () => Promise<void>;
+      setAutoUpdate: (enabled: boolean) => Promise<{ success: boolean; enabled: boolean }>;
+      openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
+      onUpdateStatus: (callback: (status: any) => void) => () => void;
       toggleShelf: () => Promise<void>;
       setDragActive: (active: boolean) => Promise<void>;
       onShelfStateChange: (callback: (visible: boolean) => void) => () => void;

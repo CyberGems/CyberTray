@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { translate, TranslationKey, setLocale, getLocale } from './locales';
+import { translate, setLocale } from './locales';
 import { motion, AnimatePresence } from 'motion/react';
 import ProcessMatrixModal from './components/ProcessMatrixModal';
 import ShortcutFormModal from './components/ShortcutFormModal';
@@ -9,7 +9,7 @@ import TelemetryBar from './components/TelemetryBar';
 import ToastStack from './components/ToastStack';
 import SettingsPanel from './components/SettingsPanel';
 import PinPadModal from './components/PinPadModal';
-import AboutModal from './components/AboutModal';
+import AboutModal, { UpdateStatus, peekReleaseNotes } from './components/AboutModal';
 import ShelfOverlays from './components/ShelfOverlays';
 import FolderTree from './components/FolderTree';
 import {
@@ -22,12 +22,11 @@ import {
   getChildFolders,
   getDescendantFolderIds,
   getFolderPath,
-  compareSemver,
 } from './lib/appUtils';
 import {
   Search, Grid, List as ListIcon, Plus, Clock, ArrowUpDown, Settings,
   Minus, X, LayoutGrid, Palette, Key, Trash2, Shield, Info,
-  Minimize2, Power, Pin, Play, Edit,
+  Minimize2, Power, Pin, Play, Edit, ArrowDown,
   Monitor, ExternalLink, Sliders, ChevronDown, RefreshCw, Upload, Check, Trash,
   Activity, MemoryStick, Star, Lock, Cpu, FolderOpen,
   CheckSquare, FlipHorizontal2
@@ -82,6 +81,18 @@ declare global {
       onShellExit: (callback: (data: { id: string; exitCode: number }) => void) => () => void;
       onAlwaysOnTopBlurAttempt: (callback: () => void) => () => void;
       onOpenSettings: (callback: () => void) => () => void;
+      onOpenAbout: (callback: (opts?: { checkUpdates?: boolean }) => void) => () => void;
+      getAppVersions: () => Promise<{
+        app: string; electron: string; chrome: string; node: string;
+        platform: string; arch: string; osRelease: string; osType: string;
+      }>;
+      getUpdateStatus: () => Promise<any>;
+      checkForUpdates: () => Promise<{ ok: boolean; version?: string; error?: string }>;
+      downloadUpdate: () => Promise<{ ok: boolean; error?: string }>;
+      installUpdate: () => Promise<void>;
+      setAutoUpdate: (enabled: boolean) => Promise<{ success: boolean; enabled: boolean }>;
+      openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
+      onUpdateStatus: (callback: (status: any) => void) => () => void;
       toggleShelf: () => Promise<void>;
       setDragActive: (active: boolean) => Promise<void>;
       onShelfStateChange: (callback: (visible: boolean) => void) => () => void;
@@ -98,8 +109,6 @@ declare global {
 let globalAudioCtx: AudioContext | null = null;
 
 export default function App() {
-  const currentVer = "1.5.2";
-  
   // Configuración de la App
   const [config, setConfig] = useState<any>({
     dockPosition: 'top',
@@ -124,6 +133,7 @@ export default function App() {
     soundEnabled: true,
     soundPath: '',
     folderSchemaVersion: FOLDER_SCHEMA_VERSION,
+    autoUpdate: true,
   });
 
 
@@ -146,10 +156,9 @@ export default function App() {
 
   // About & Updates States
   const [showAboutModal, setShowAboutModal] = useState<boolean>(false);
-  const [updateCheckState, setUpdateCheckState] = useState<{
-    status: 'idle' | 'scanning' | 'up-to-date' | 'update-available' | 'failed';
-    latestVersion?: string;
-  }>({ status: 'idle' });
+  const [aboutAutoCheckSeq, setAboutAutoCheckSeq] = useState(0);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ state: 'idle' });
+  const updateNotifSeenRef = useRef<string>('');
 
   useEffect(() => {
     localStorage.setItem('cybertray_view_mode', viewMode);
@@ -321,7 +330,18 @@ export default function App() {
 
   // ── Sistema de toasts (avisos de acciones del sistema) ──
   type ToastType = 'success' | 'error' | 'info';
-  type Toast = { id: number; type: ToastType; message: string; actionLabel?: string; onAction?: () => void; duration: number };
+  type Toast = {
+    id: number;
+    type: ToastType;
+    message: string;
+    actionLabel?: string;
+    onAction?: () => void;
+    duration: number;
+    detail?: string;
+    onBodyClick?: () => void;
+    secondaryActionLabel?: string;
+    onSecondaryAction?: () => void;
+  };
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastSeq = useRef<number>(0);
   const toastTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
@@ -335,12 +355,31 @@ export default function App() {
   const pushToast = (
     type: ToastType,
     message: string,
-    opts?: { actionLabel?: string; onAction?: () => void; duration?: number }
+    opts?: {
+      actionLabel?: string;
+      onAction?: () => void;
+      duration?: number;
+      detail?: string;
+      onBodyClick?: () => void;
+      secondaryActionLabel?: string;
+      onSecondaryAction?: () => void;
+    }
   ) => {
     const id = ++toastSeq.current;
-    const duration = opts?.duration ?? (opts?.onAction ? 6000 : 3000);
+    const duration = opts?.duration ?? (opts?.onAction || opts?.onBodyClick ? 8000 : 3000);
     // Mantener como máximo 3 visibles para no saturar el panel.
-    setToasts(prev => [...prev.slice(-2), { id, type, message, actionLabel: opts?.actionLabel, onAction: opts?.onAction, duration }]);
+    setToasts(prev => [...prev.slice(-2), {
+      id,
+      type,
+      message,
+      actionLabel: opts?.actionLabel,
+      onAction: opts?.onAction,
+      duration,
+      detail: opts?.detail,
+      onBodyClick: opts?.onBodyClick,
+      secondaryActionLabel: opts?.secondaryActionLabel,
+      onSecondaryAction: opts?.onSecondaryAction,
+    }]);
     toastTimers.current[id] = setTimeout(() => dismissToast(id), duration);
   };
 
@@ -458,31 +497,6 @@ export default function App() {
   const [monitors, setMonitors] = useState<any[]>([]);
   const [langCode, setLangCode] = useState<'en' | 'es'>('en');
 
-  const checkForUpdates = async (manual = true) => {
-    setUpdateCheckState({ status: 'scanning' });
-    try {
-      const response = await fetch('https://api.github.com/repos/CyberGems/CyberTray/releases/latest');
-      if (!response.ok) {
-        throw new Error('Server response not OK');
-      }
-      const data = await response.json();
-      const latestTag = data.tag_name;
-      if (!latestTag) {
-        throw new Error('No tag found');
-      }
-      const cleanLatest = String(latestTag).replace(/^v/i, '');
-
-      if (compareSemver(cleanLatest, currentVer) > 0) {
-        setUpdateCheckState({ status: 'update-available', latestVersion: latestTag });
-      } else {
-        setUpdateCheckState({ status: 'up-to-date', latestVersion: latestTag });
-      }
-    } catch (err) {
-      console.error('Update check failed:', err);
-      setUpdateCheckState({ status: 'failed' });
-    }
-  };
-
   // Carga Inicial
   useEffect(() => {
     // Cargar Configuración Central y Atajos
@@ -491,9 +505,13 @@ export default function App() {
         // Cargar config general de Electron
         const loadedConfig = await window.electronAPI!.loadConfig();
         if (loadedConfig) {
+          const resolvedAutoUpdate = typeof loadedConfig.autoUpdate === 'boolean'
+            ? loadedConfig.autoUpdate
+            : loadedConfig.autoCheckUpdates !== false;
           const configWithFolderSchema = {
             ...loadedConfig,
             folderSchemaVersion: loadedConfig.folderSchemaVersion || FOLDER_SCHEMA_VERSION,
+            autoUpdate: resolvedAutoUpdate,
           };
           setConfig(configWithFolderSchema);
           setIsPinned(loadedConfig.alwaysOnTop !== undefined ? loadedConfig.alwaysOnTop : true);
@@ -512,9 +530,6 @@ export default function App() {
               categoriesList: sanitizedCategories,
               shortcutsList: sanitizedShortcuts,
             }, { broadcastReload: false });
-          }
-          if (loadedConfig.autoCheckUpdates !== false) {
-            checkForUpdates(false);
           }
         }
 
@@ -646,6 +661,68 @@ export default function App() {
       });
       return () => unsub();
     }
+  }, []);
+
+  useEffect(() => {
+    if (!isElectron || !window.electronAPI?.onOpenAbout) return;
+    const unsub = window.electronAPI.onOpenAbout((opts) => {
+      setShowAboutModal(true);
+      if (opts?.checkUpdates) {
+        setAboutAutoCheckSeq((n) => n + 1);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    if (!isElectron || !window.electronAPI?.onUpdateStatus) return;
+
+    const applyStatus = (status: UpdateStatus) => {
+      setUpdateStatus(status);
+      if (status.state !== 'available' && status.state !== 'downloaded') return;
+
+      const key = `${status.state}:${status.version}`;
+      const seen = updateNotifSeenRef.current || localStorage.getItem('update_notif_seen') || '';
+      const detail = status.releaseNotes ? peekReleaseNotes(status.releaseNotes) : undefined;
+      if (seen === key) return;
+
+      updateNotifSeenRef.current = key;
+      localStorage.setItem('update_notif_seen', key);
+      pushToast(
+        'info',
+        status.state === 'available'
+          ? translate('about_notif_available', { version: status.version })
+          : translate('about_notif_downloaded', { version: status.version }),
+        {
+          duration: 8000,
+          detail,
+          onBodyClick: () => setShowAboutModal(true),
+          secondaryActionLabel: status.releaseUrl ? translate('about_view_release') : undefined,
+          onSecondaryAction: status.releaseUrl
+            ? () => {
+                if (window.electronAPI?.openExternal) {
+                  window.electronAPI.openExternal(status.releaseUrl!);
+                }
+              }
+            : undefined,
+          actionLabel: status.state === 'available'
+            ? translate('about_download_btn')
+            : translate('about_install_btn'),
+          onAction: () => {
+            if (status.state === 'available') {
+              void window.electronAPI?.downloadUpdate?.();
+              setShowAboutModal(true);
+            } else {
+              window.electronAPI?.installUpdate?.();
+            }
+          },
+        }
+      );
+    };
+
+    window.electronAPI.getUpdateStatus?.().then((s) => { if (s) applyStatus(s); }).catch(() => {});
+    const off = window.electronAPI.onUpdateStatus(applyStatus);
+    return off;
   }, []);
 
   useEffect(() => {
@@ -1682,6 +1759,13 @@ export default function App() {
     settingsSavedTimerRef.current = setTimeout(() => setSettingsSaved(false), 2000);
   };
 
+  const handleAutoUpdateChange = (enabled: boolean) => {
+    handleUpdateConfigSetting('autoUpdate', enabled);
+    if (isElectron) {
+      window.electronAPI?.setAutoUpdate?.(enabled);
+    }
+  };
+
   const handleBrowseBgImage = async () => {
     if (!isElectron) return;
     const path = await window.electronAPI!.selectImage();
@@ -2139,7 +2223,7 @@ export default function App() {
         </div>
 
           {/* Window Controls */}
-          <div className="flex items-center gap-1.5 flex-shrink-0 w-44 justify-end">
+          <div className="flex items-center gap-1.5 flex-shrink-0 min-w-44 justify-end">
             {/* Pin Toggle */}
             <button
               onClick={handleTogglePin}
@@ -2160,6 +2244,24 @@ export default function App() {
                     : 'rotate-45'
               }`} />
             </button>
+
+            {/* Update badge */}
+            {config.autoUpdate !== false && (updateStatus.state === 'available' || updateStatus.state === 'downloaded' || updateStatus.state === 'downloading') && (
+              <button
+                type="button"
+                onClick={() => { setShowAboutModal(true); playCyberBeep(); }}
+                className="h-8 w-8 rounded-full border border-[var(--neon-glow-border)] bg-[#1D2636] text-[var(--neon-glow-color)] shadow-[0_0_12px_var(--neon-glow-color-raw)] hover:shadow-[0_0_16px_var(--neon-glow-color)] flex items-center justify-center transition-all cursor-pointer"
+                title={
+                  updateStatus.state === 'downloaded'
+                    ? translate('about_status_downloaded', { version: updateStatus.version || '' })
+                    : updateStatus.state === 'downloading'
+                    ? translate('about_status_downloading', { percent: String(updateStatus.percent || 0) })
+                    : translate('about_status_available', { version: (updateStatus as { version?: string }).version || '' })
+                }
+              >
+                <ArrowDown className={`w-4 h-4 ${updateStatus.state === 'downloading' ? 'animate-bounce' : ''}`} />
+              </button>
+            )}
 
             {/* About Toggle */}
             <button
@@ -2688,12 +2790,10 @@ export default function App() {
       <AboutModal
         showAboutModal={showAboutModal}
         setShowAboutModal={setShowAboutModal}
-        currentVer={currentVer}
-        config={config}
-        handleUpdateConfigSetting={handleUpdateConfigSetting}
+        autoUpdate={config.autoUpdate !== false}
+        onAutoUpdateChange={handleAutoUpdateChange}
         playCyberBeep={playCyberBeep}
-        updateCheckState={updateCheckState}
-        checkForUpdates={checkForUpdates}
+        autoCheckSeq={aboutAutoCheckSeq}
       />
 
       {/* Root-Level Global Tooltip */}

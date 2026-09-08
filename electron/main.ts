@@ -5,6 +5,7 @@ import { exec, execSync, execFile } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import crypto from 'node:crypto';
+import { initUpdater } from './updater';
 
 // Registrar el protocolo antes de que la app esté lista
 protocol.registerSchemesAsPrivileged([
@@ -67,6 +68,7 @@ interface CyberTrayConfig {
   categoriesList?: any[];
   folderSchemaVersion?: number;
   totalLaunches?: number;
+  autoUpdate?: boolean;
   autoCheckUpdates?: boolean;
 }
 
@@ -96,7 +98,7 @@ const DEFAULT_CONFIG: CyberTrayConfig = {
   vaultLockTimeout: 0,
   folderSchemaVersion: 2,
   totalLaunches: 0,
-  autoCheckUpdates: true,
+  autoUpdate: true,
 };
 
 let config: CyberTrayConfig = { ...DEFAULT_CONFIG };
@@ -220,12 +222,14 @@ function migrateConfigIconsToDisk() {
 const TRAY_TRANSLATIONS = {
   en: {
     show: 'Show CyberTray',
+    check_updates: 'Check for Update...',
     pos_top: 'Position: Top',
     pos_bottom: 'Position: Bottom',
     exit: 'Exit'
   },
   es: {
     show: 'Mostrar CyberTray',
+    check_updates: 'Buscar actualizaciones...',
     pos_top: 'Posición: Superior',
     pos_bottom: 'Posición: Inferior',
     exit: 'Salir'
@@ -581,6 +585,15 @@ function toggleShelf() {
   }
 }
 
+function triggerOpenAbout(checkUpdates = false) {
+  showShelf();
+  setTimeout(() => {
+    if (shelfWindow && !shelfWindow.isDestroyed()) {
+      shelfWindow.webContents.send('open-about', { checkUpdates });
+    }
+  }, 300);
+}
+
 function alignWindows() {
   const display = getTargetDisplay();
   const shelfBounds = getShelfBounds(display);
@@ -629,6 +642,10 @@ function createTray() {
     {
       label: t.show,
       click: () => toggleShelf(),
+    },
+    {
+      label: t.check_updates,
+      click: () => triggerOpenAbout(true),
     },
     { type: 'separator' },
     {
@@ -1627,6 +1644,14 @@ app.whenReady().then(() => {
   registerGlobalShortcutKey(config.shortcut);
   startHotspotPolling();
   startUACGuard();
+
+  let bootAutoUpdate = true;
+  if (typeof config.autoUpdate === 'boolean') {
+    bootAutoUpdate = config.autoUpdate;
+  } else if (typeof config.autoCheckUpdates === 'boolean') {
+    bootAutoUpdate = config.autoCheckUpdates;
+  }
+  initUpdater({ autoUpdate: bootAutoUpdate });
 
   // Re-alinear ventanas cuando cambian los monitores (conexión / desconexión / cambio de resolución).
   // Soluciona que, tras reiniciar Windows, el monitor objetivo aún no esté disponible al arrancar

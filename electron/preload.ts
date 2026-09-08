@@ -105,6 +105,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('open-settings', handler);
     return () => { ipcRenderer.removeListener('open-settings', handler); };
   },
+  onOpenAbout: (callback: (opts?: { checkUpdates?: boolean }) => void) => {
+    const handler = (_event: any, opts?: { checkUpdates?: boolean }) => callback(opts);
+    ipcRenderer.on('open-about', handler);
+    return () => { ipcRenderer.removeListener('open-about', handler); };
+  },
+
+  // --- App versions / updates ---
+  getAppVersions: () => ipcRenderer.invoke('app:get-versions'),
+  getUpdateStatus: () => ipcRenderer.invoke('update:get-status'),
+  checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  downloadUpdate: () => ipcRenderer.invoke('update:download'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  setAutoUpdate: (enabled: boolean) => ipcRenderer.invoke('set-auto-update', enabled),
+  openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
+  onUpdateStatus: (callback: (status: any) => void) => {
+    const handler = (_event: any, status: any) => callback(status);
+    ipcRenderer.on('update:status', handler);
+    return () => { ipcRenderer.removeListener('update:status', handler); };
+  },
 
   // --- CyberTray Specific IPC channels ---
   toggleShelf: () => ipcRenderer.invoke('toggle-shelf'),

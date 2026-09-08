@@ -8,6 +8,10 @@ export interface ToastItem {
   duration: number;
   actionLabel?: string;
   onAction?: () => void;
+  detail?: string;
+  onBodyClick?: () => void;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
 }
 
 interface ToastStackProps {
@@ -26,29 +30,55 @@ export default function ToastStack({ toasts, dockPosition, dismissToast }: Toast
       {toasts.map(t => (
         <div
           key={t.id}
-          className="pointer-events-auto relative overflow-hidden rounded-xl border bg-[#0c111c]/95 backdrop-blur-md shadow-[0_4px_24px_rgba(0,0,0,0.55)] animate-toast-in"
+          className={`pointer-events-auto relative overflow-hidden rounded-xl border bg-[#0c111c]/95 backdrop-blur-md shadow-[0_4px_24px_rgba(0,0,0,0.55)] animate-toast-in ${
+            t.onBodyClick ? 'cursor-pointer hover:brightness-110' : ''
+          }`}
           style={{
             borderColor:
               t.type === 'error' ? 'rgba(244,63,94,0.5)'
               : t.type === 'success' ? 'var(--neon-glow-border)'
               : 'rgba(148,163,184,0.35)',
           }}
+          onClick={() => {
+            if (!t.onBodyClick) return;
+            t.onBodyClick();
+            dismissToast(t.id);
+          }}
         >
-          <div className="flex items-center gap-3 px-3.5 py-2.5">
-            <div className="shrink-0">
+          <div className={`flex gap-3 px-3.5 py-2.5 ${t.detail ? 'items-start' : 'items-center'}`}>
+            <div className={`shrink-0 ${t.detail ? 'mt-0.5' : ''}`}>
               {t.type === 'success' && <CheckCircle2 className="w-5 h-5 text-[var(--neon-glow-color)]" />}
               {t.type === 'error' && <AlertTriangle className="w-5 h-5 text-rose-400" />}
               {t.type === 'info' && <Info className="w-5 h-5 text-slate-300" />}
             </div>
-            <p className="flex-1 min-w-0 text-[12px] font-ui text-slate-100 leading-snug break-words">{t.message}</p>
-            {t.actionLabel && (
-              <button
-                onClick={(e) => { e.stopPropagation(); t.onAction?.(); dismissToast(t.id); }}
-                className="shrink-0 text-[10px] font-cyber font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border border-[var(--neon-glow-border)] text-[var(--neon-glow-color)] hover:bg-[var(--neon-glow-color-raw)]/10 transition-colors cursor-pointer"
-              >
-                {t.actionLabel}
-              </button>
-            )}
+            <div className="flex-1 min-w-0 flex flex-col gap-1">
+              <p className="text-[12px] font-ui text-slate-100 leading-snug break-words">{t.message}</p>
+              {t.detail && (
+                <p className="text-[11px] text-slate-400 leading-snug whitespace-pre-wrap line-clamp-3">
+                  {t.detail}
+                </p>
+              )}
+              {(t.actionLabel || t.secondaryActionLabel) && (
+                <div className="flex items-center gap-2 pt-0.5">
+                  {t.secondaryActionLabel && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); t.onSecondaryAction?.(); }}
+                      className="shrink-0 text-[10px] font-cyber font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border border-slate-700 text-slate-300 hover:bg-white/5 transition-colors cursor-pointer"
+                    >
+                      {t.secondaryActionLabel}
+                    </button>
+                  )}
+                  {t.actionLabel && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); t.onAction?.(); dismissToast(t.id); }}
+                      className="shrink-0 text-[10px] font-cyber font-bold uppercase tracking-wider px-2.5 py-1 rounded-md border border-[var(--neon-glow-border)] text-[var(--neon-glow-color)] hover:bg-[var(--neon-glow-color-raw)]/10 transition-colors cursor-pointer"
+                    >
+                      {t.actionLabel}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
             <button
               onClick={(e) => { e.stopPropagation(); dismissToast(t.id); }}
               className="shrink-0 text-slate-500 hover:text-white transition-colors cursor-pointer"
