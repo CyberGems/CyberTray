@@ -131,7 +131,7 @@ export const translations = {
     settings_sound_launch_browse: "CHOOSE AUDIO FILE",
     settings_sound_launch_preview: "PREVIEW",
     settings_sound_launch_reset: "RESET TO DEFAULT CHIME",
-    settings_sound_default_label: "Default (cybertraylaunch.mp3)",
+    settings_sound_default_label: "Default",
 
     // Categories
     cat_all: "ALL",
@@ -212,7 +212,7 @@ export const translations = {
     vault_sweep_success: "Sweep complete! {count} files secured.",
     vault_sweep_empty: "Desktop is already clean! No files found to sweep.",
     vault_real_path: "Real Path: {path}",
-    vault_settings_title: "CYBER-FILES SECURITY",
+    vault_settings_title: "FILE SECURITY",
     vault_settings_pin_enable: "PIN PROTECTION LOCK",
     vault_settings_pin_enable_desc: "Require password PIN verification when opening the Files tab.",
     vault_settings_pin_code: "SET SECURITY PIN",
@@ -486,7 +486,7 @@ export const translations = {
     settings_sound_launch_browse: "SELECCIONAR AUDIO",
     settings_sound_launch_preview: "ESCUCHAR",
     settings_sound_launch_reset: "RESTAURAR POR DEFECTO",
-    settings_sound_default_label: "Por Defecto (cybertraylaunch.mp3)",
+    settings_sound_default_label: "Por defecto",
 
     // Categories
     cat_all: "TODOS",
@@ -567,7 +567,7 @@ export const translations = {
     vault_sweep_success: "¡Limpieza completada! {count} archivos asegurados.",
     vault_sweep_empty: "¡El escritorio ya está limpio! No se hallaron archivos.",
     vault_real_path: "Ruta Real: {path}",
-    vault_settings_title: "SEGURIDAD DE ARCHIVOS (CYBER-FILES)",
+    vault_settings_title: "SEGURIDAD DE ARCHIVOS",
     vault_settings_pin_enable: "BLOQUEO CON PIN DE SEGURIDAD",
     vault_settings_pin_enable_desc: "Requerir verificación de contraseña PIN al ingresar a la pestaña de Archivos.",
     vault_settings_pin_code: "ESTABLECER CÓDIGO PIN",

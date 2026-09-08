@@ -107,6 +107,7 @@ declare global {
 }
 
 let globalAudioCtx: AudioContext | null = null;
+const DEFAULT_LAUNCH_SOUND = '/sounds/launch-thud.wav';
 
 export default function App() {
   // Configuración de la App
@@ -446,7 +447,7 @@ export default function App() {
     const soundPath = config.soundPath || '';
     if (soundEnabled) {
       try {
-        let url = '/sounds/cybertraylaunch.mp3';
+        let url = DEFAULT_LAUNCH_SOUND;
         if (soundPath) {
           url = soundPath.startsWith('http') || soundPath.startsWith('data:')
             ? soundPath
@@ -1914,7 +1915,7 @@ export default function App() {
         return;
       }
       const soundPath = String(configRef.current?.soundPath || '');
-      let url = '/sounds/cybertraylaunch.mp3';
+      let url = DEFAULT_LAUNCH_SOUND;
       if (soundPath) {
         url = soundPath.startsWith('http') || soundPath.startsWith('data:')
           ? soundPath
