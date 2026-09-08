@@ -37,8 +37,8 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 | Need | Solution |
 |---|---|
 | Quick access to apps & files | Animated shelf with search, categories, and drag-and-drop import |
-| Save taskbar space | System tray icon + auto-hiding handle bar |
-| Launch from anywhere | Global hotkey (`Alt+T`), hot corners, hover trigger |
+| Save taskbar space | System tray icon + auto-hiding shelf |
+| Launch from anywhere | Global hotkey (`Alt+T`) and hot corners |
 | Monitor your system | Real-time RAM, CPU, disk, and VRAM telemetry |
 | Manage running processes | Process viewer with kill functionality |
 | Secure sensitive files | PIN-protected vault with desktop sweep |
@@ -57,14 +57,6 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 - **Multi-Selection** — Bulk delete with selection mode (`Ctrl+A`, `Escape`)
 - **Real-Time Search** — Instant filtering across all shortcuts
 - **Sort Options** — Alphabetical, most used, recently added
-
-### 🎯 Cyber-Handle (Activator Bar)
-- **Always-on-top bar** docked to screen edge
-- **Click to toggle** shelf visibility
-- **Drag to reposition** horizontally
-- **Auto-hide** after configurable inactivity delay
-- **Hover trigger** option to auto-show on mouse enter
-- **Context menu** for quick settings access
 
 ### 🔲 Hotspots (Screen Corners)
 - **Corner activation** — Trigger CyberTray by dwelling cursor in any screen corner
@@ -115,7 +107,7 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 - **Framework:** Electron 42 + React 19 + TypeScript
 - **Bundler:** Vite 6
 - **Styling:** CSS custom properties with glassmorphism effects
-- **Architecture:** Dual-window (shelf + handle) with system tray integration
+- **Architecture:** Single shelf window with system tray integration
 
 ```
 CyberTray/
@@ -129,7 +121,6 @@ CyberTray/
 │   ├── locales.ts        i18n (English / Spanish)
 │   ├── lib/appUtils.ts   Utility functions
 │   ├── components/
-│   │   ├── HandleBar.tsx         Cyber-Handle activator bar
 │   │   ├── ShortcutGrid.tsx      Main shortcut display grid
 │   │   ├── ShortcutFormModal.tsx Add/edit shortcut dialog
 │   │   ├── SettingsPanel.tsx     Configuration modal
@@ -145,12 +136,11 @@ CyberTray/
 └── vite.config.ts        Vite configuration
 ```
 
-### Dual-Window Architecture
+### Window Architecture
 
 | Window | Purpose | Behavior |
 |---|---|---|
 | **Shelf** | Main shortcut panel | Resizable, always-on-top, slide animation |
-| **Handle** | Activator bar | Non-focusable, mouse-pass-through, auto-hide |
 
 Communication between frontend and backend uses Electron IPC via `contextBridge`. Hotspot polling runs at 200ms intervals. UAC guard monitors for `consent.exe` to auto-hide during secure desktop sessions.
 
@@ -201,11 +191,7 @@ CyberTray is a system tray application launcher for Windows. It provides an anim
 
 ### How do I show/hide CyberTray?
 
-Click the system tray icon, use the global hotkey (`Alt+T` by default), or click the Cyber-Handle bar. You can also configure hot corners to trigger it by dwelling your cursor in a screen corner.
-
-### What is the Cyber-Handle?
-
-The Cyber-Handle is a small, always-on-top bar docked to your screen edge. Click it to toggle the shelf, drag it to reposition horizontally, or right-click for quick settings access. It can auto-hide after inactivity.
+Click the system tray icon or use the global hotkey (`Alt+T` by default). You can also configure hot corners to trigger it by dwelling your cursor in a screen corner.
 
 ### How does the Cyber-Vault work?
 

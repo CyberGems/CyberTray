@@ -32,12 +32,10 @@ if (!gotTheLock) {
 }
 
 let shelfWindow: BrowserWindow | null = null;
-let handleWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 let isDragActive = false;
 let isDialogOpen = false;
-let dragInterval: NodeJS.Timeout | null = null;
 
 // ── CONFIGURACIÓN PREDETERMINADA ──
 interface CyberTrayConfig {
@@ -45,19 +43,13 @@ interface CyberTrayConfig {
   monitorId: string;
   shortcut: string;
   hideOnBlur: boolean;
-  handlePosition: 'left' | 'center' | 'right';
-  handleVisible: boolean;
   hotspotCorners: string[];
   hotspotDelay: number;
   alwaysOnTop: boolean;
   iconSize: number;
   showTaskbarIcon: boolean;
   autoLaunch: boolean;
-  hoverTriggerEnabled: boolean;
-  hoverTriggerDelay: number;
   hideOnDeadZoneClick: boolean;
-  handleAutoHide: boolean;
-  handleAutoHideDelay: number;
   bgType: 'solid' | 'gradient' | 'image';
   bgSolidColor: string;
   bgGradient: string;
@@ -67,7 +59,6 @@ interface CyberTrayConfig {
   soundEnabled?: boolean;
   soundPath?: string;
   monitorBounds?: { x: number; y: number; width: number; height: number };
-  handleOffsetPercent?: number;
   vaultPath?: string;
   vaultPinEnabled?: boolean;
   vaultPin?: string;
@@ -85,19 +76,13 @@ const DEFAULT_CONFIG: CyberTrayConfig = {
   shortcut: 'Alt+T', // Atajo CyberTray por defecto
   hideOnBlur: true,
   language: 'en',
-  handlePosition: 'center',
-  handleVisible: true,
   hotspotCorners: [],
   hotspotDelay: 300,
   alwaysOnTop: true,
   iconSize: 52, // 52px por defecto
   showTaskbarIcon: false,
   autoLaunch: false,
-  hoverTriggerEnabled: false,
-  hoverTriggerDelay: 300,
   hideOnDeadZoneClick: false,
-  handleAutoHide: false,
-  handleAutoHideDelay: 5,
   bgType: 'solid',
   bgSolidColor: '#070b13',
   bgGradient: 'preset-1',
@@ -105,7 +90,6 @@ const DEFAULT_CONFIG: CyberTrayConfig = {
   bgCustomPath: '',
   soundEnabled: true,
   soundPath: '',
-  handleOffsetPercent: 50,
   vaultPath: '',
   vaultPinEnabled: false,
   vaultPin: '1234',
@@ -236,14 +220,12 @@ function migrateConfigIconsToDisk() {
 const TRAY_TRANSLATIONS = {
   en: {
     show: 'Show CyberTray',
-    show_handle: 'Show Cyber-Handle',
     pos_top: 'Position: Top',
     pos_bottom: 'Position: Bottom',
     exit: 'Exit'
   },
   es: {
     show: 'Mostrar CyberTray',
-    show_handle: 'Mostrar Cyber-Handle',
     pos_top: 'Posición: Superior',
     pos_bottom: 'Posición: Inferior',
     exit: 'Salir'
@@ -274,21 +256,15 @@ function saveConfig(
       };
     }
     config = { ...config, ...newConfig };
-    if (newConfig.handleOffsetPercent === null || newConfig.handleOffsetPercent === undefined) {
-      delete (config as any).handleOffsetPercent;
-    }
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
 
-    // Quiet saves (e.g. usageCount ticks) skip reload IPC to both windows
+    // Quiet saves (e.g. usageCount ticks) skip reload IPC
     if (options?.broadcastReload === false) {
       return;
     }
 
     if (shelfWindow && !shelfWindow.isDestroyed()) {
       shelfWindow.webContents.send('reload-config');
-    }
-    if (handleWindow && !handleWindow.isDestroyed()) {
-      handleWindow.webContents.send('reload-config');
     }
     createTray();
     startHotspotPolling();
@@ -383,31 +359,6 @@ function getShelfBounds(display: Electron.Display, customHeight?: number): Elect
   return { x, y, width, height };
 }
 
-function getHandleBounds(display: Electron.Display): Electron.Rectangle {
-  const workArea = display.workArea;
-  const handleWidth = 200;
-  const windowHeight = 80;
-  
-  let offsetPercent = config.handleOffsetPercent !== undefined ? config.handleOffsetPercent : 50;
-  if (config.handleOffsetPercent === undefined) {
-    if (config.handlePosition === 'left') {
-      offsetPercent = 0;
-    } else if (config.handlePosition === 'right') {
-      offsetPercent = 100;
-    }
-  }
-
-  let x = workArea.x + Math.round((workArea.width - handleWidth) * (offsetPercent / 100));
-  x = Math.max(workArea.x + 10, Math.min(workArea.x + workArea.width - handleWidth - 10, x));
-  
-  let y = workArea.y;
-  if (config.dockPosition === 'bottom') {
-    y = workArea.y + workArea.height - windowHeight;
-  }
-  
-  return { x, y, width: handleWidth, height: windowHeight };
-}
-
 // --- Iconos de la Aplicación ---
 function getAppIconPath(): string {
   const iconDir = VITE_DEV_SERVER_URL ? path.join(__dirname, '../public') : path.join(__dirname, '../dist');
@@ -430,9 +381,8 @@ const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
 function createWindows() {
   const targetDisplay = getTargetDisplay();
   const shelfBounds = getShelfBounds(targetDisplay);
-  const handleBounds = getHandleBounds(targetDisplay);
-  
-  // 1. Ventana Principal: CyberTray Shelf
+
+  // Ventana Principal: CyberTray Shelf
   shelfWindow = new BrowserWindow({
     width: shelfBounds.width,
     height: shelfBounds.height,
@@ -500,43 +450,6 @@ function createWindows() {
   } else {
     shelfWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
-
-  // 2. Ventana Secundaria: Cyber-Handle (Manigueta)
-  handleWindow = new BrowserWindow({
-    width: handleBounds.width,
-    height: handleBounds.height,
-    x: handleBounds.x,
-    y: handleBounds.y,
-    frame: false,
-    transparent: true,
-    alwaysOnTop: true,
-    resizable: false,
-    skipTaskbar: true,
-    focusable: false, // Evita transferencias de foco lentas al pasar o hacer clic
-    show: false,
-    icon: getAppIcon(),
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
-      nodeIntegration: false,
-      contextIsolation: true,
-      backgroundThrottling: true,
-    },
-    autoHideMenuBar: true,
-  });
-
-  handleWindow.setIgnoreMouseEvents(true, { forward: true });
-
-  if (VITE_DEV_SERVER_URL) {
-    handleWindow.loadURL(`${VITE_DEV_SERVER_URL}?mode=handle`);
-  } else {
-    handleWindow.loadFile(path.join(__dirname, '../dist/index.html'), { query: { mode: 'handle' } });
-  }
-
-  handleWindow.once('ready-to-show', () => {
-    if (config.handleVisible) {
-      handleWindow?.show();
-    }
-  });
 
   shelfWindow.on('close', (e) => {
     if (!isQuitting) {
@@ -625,11 +538,6 @@ function animateShelfHide(targetBounds: Electron.Rectangle, duration = 180) {
       shelfWindow.hide();
       shelfWindow.setBounds(targetBounds);
       shelfWindow.webContents.send('shelf-state-change', false);
-
-      // Volver a mostrar el Cyber-Handle al ocultar la bandeja
-      if (config.handleVisible && handleWindow && !handleWindow.isDestroyed()) {
-        handleWindow.show();
-      }
     }
   }, 16);
 }
@@ -637,19 +545,13 @@ function animateShelfHide(targetBounds: Electron.Rectangle, duration = 180) {
 function showShelf() {
   if (!shelfWindow || shelfWindow.isDestroyed()) return;
 
-  // Play sound from the always-awake handleWindow if visible, otherwise fall back to shelfWindow
   if (config.soundEnabled !== false) {
-    if (config.handleVisible && handleWindow && !handleWindow.isDestroyed() && handleWindow.isVisible()) {
-      handleWindow.webContents.send('play-launch-sound');
-    } else {
-      shelfWindow.webContents.send('play-launch-sound');
-    }
+    shelfWindow.webContents.send('play-launch-sound');
   }
 
   // Compute final bounds WITHOUT moving the window yet (avoid Chrome repaints)
   const display = getTargetDisplay();
   const shelfBounds = getShelfBounds(display);
-  const handleBounds = getHandleBounds(display);
 
   // Update constraints and flags only; do NOT call setBounds yet
   const workArea = display.workArea;
@@ -657,12 +559,6 @@ function showShelf() {
   shelfWindow.setMaximumSize(workArea.width, Math.round(workArea.height * 0.95));
   shelfWindow.setAlwaysOnTop(config.alwaysOnTop);
   shelfWindow.setSkipTaskbar(!config.showTaskbarIcon);
-
-  // Park the handle on the activation display so it reappears there after hide
-  if (handleWindow && !handleWindow.isDestroyed()) {
-    handleWindow.setBounds(handleBounds);
-    handleWindow.hide();
-  }
 
   animateShelfShow(shelfBounds);
 }
@@ -685,12 +581,10 @@ function toggleShelf() {
   }
 }
 
-// Alinear posiciones de Shelf y Handle según monitor y dockPosition
 function alignWindows() {
   const display = getTargetDisplay();
   const shelfBounds = getShelfBounds(display);
-  const handleBounds = getHandleBounds(display);
-  
+
   if (shelfWindow && !shelfWindow.isDestroyed()) {
     const workArea = display.workArea;
     shelfWindow.setMinimumSize(workArea.width, 200);
@@ -703,15 +597,6 @@ function alignWindows() {
     });
     shelfWindow.setAlwaysOnTop(config.alwaysOnTop);
     shelfWindow.setSkipTaskbar(!config.showTaskbarIcon);
-  }
-  
-  if (handleWindow && !handleWindow.isDestroyed()) {
-    handleWindow.setBounds(handleBounds);
-    if (config.handleVisible && (!shelfWindow || !shelfWindow.isVisible())) {
-      handleWindow.show();
-    } else {
-      handleWindow.hide();
-    }
   }
 }
 
@@ -745,22 +630,13 @@ function createTray() {
       label: t.show,
       click: () => toggleShelf(),
     },
-    {
-      label: t.show_handle,
-      type: 'checkbox',
-      checked: config.handleVisible !== false,
-      click: (menuItem) => {
-        saveConfig({ handleVisible: menuItem.checked });
-        alignWindows();
-      }
-    },
     { type: 'separator' },
     {
       label: t.pos_top,
       type: 'radio',
       checked: config.dockPosition === 'top',
       click: () => {
-        saveConfig({ dockPosition: 'top', handleOffsetPercent: null });
+        saveConfig({ dockPosition: 'top' });
         alignWindows();
       }
     },
@@ -769,7 +645,7 @@ function createTray() {
       type: 'radio',
       checked: config.dockPosition === 'bottom',
       click: () => {
-        saveConfig({ dockPosition: 'bottom', handleOffsetPercent: null });
+        saveConfig({ dockPosition: 'bottom' });
         alignWindows();
       }
     },
@@ -1037,13 +913,6 @@ function fetchVramInfoInBackground() {
 
 // ── IPC INTERACTIVE COMMS BINDERS ──
 function registerIpcHandlers() {
-  ipcMain.handle('set-ignore-mouse-events', (event, ignore, options) => {
-    const win = BrowserWindow.fromWebContents(event.sender);
-    if (win && !win.isDestroyed()) {
-      win.setIgnoreMouseEvents(ignore, options);
-    }
-  });
-
   ipcMain.handle('launch-app', async (_, appPath, isAdmin, args, cwd) => {
     try {
       const hasArgs = typeof args === 'string' && args.trim().length > 0;
@@ -1424,7 +1293,6 @@ function registerIpcHandlers() {
 
   ipcMain.handle('open-dev-tools', async () => {
     shelfWindow?.webContents.openDevTools({ mode: 'detach' });
-    handleWindow?.webContents.openDevTools({ mode: 'detach' });
     return { success: true };
   });
 
@@ -1438,160 +1306,6 @@ function registerIpcHandlers() {
       { label: 'Seleccionar todo', role: 'selectAll' }
     ]);
     menu.popup({ window: shelfWindow!, x, y });
-  });
-
-  ipcMain.handle('show-handle-context-menu', async () => {
-    const HANDLE_CONTEXT_MENU_TRANSLATIONS = {
-      en: {
-        hide: 'Hide Cyber-Handle',
-        position: 'Position',
-        left: 'Left',
-        center: 'Center',
-        right: 'Right',
-        dock_top: 'Dock to Top',
-        dock_bottom: 'Dock to Bottom',
-        monitor: 'Monitor',
-        follow_cursor: 'Follow cursor',
-        settings: 'Settings...',
-        exit: 'Exit'
-      },
-      es: {
-        hide: 'Ocultar Cyber-Handle',
-        position: 'Posición',
-        left: 'Izquierda',
-        center: 'Centro',
-        right: 'Derecha',
-        dock_top: 'Acoplar arriba',
-        dock_bottom: 'Acoplar abajo',
-        monitor: 'Monitor',
-        follow_cursor: 'Seguir cursor',
-        settings: 'Configuración...',
-        exit: 'Salir'
-      }
-    };
-
-    const lang = config.language === 'es' ? 'es' : 'en';
-    const t = HANDLE_CONTEXT_MENU_TRANSLATIONS[lang];
-    const hasCustomOffset = config.handleOffsetPercent !== undefined && config.handleOffsetPercent !== null;
-
-    // Submenú dinámico de monitores: refleja el monitor objetivo actual y permite cambiarlo desde el handle
-    const allDisplays = screen.getAllDisplays();
-    const primaryDisplayId = screen.getPrimaryDisplay().id;
-    const followCursor = isFollowCursorMonitorMode();
-    const currentTargetId = followCursor ? null : getTargetDisplay().id;
-    const monitorSubmenu: Electron.MenuItemConstructorOptions[] = [
-      {
-        label: t.follow_cursor,
-        type: 'radio',
-        checked: followCursor,
-        click: () => {
-          saveConfig({ monitorId: MONITOR_FOLLOW_CURSOR, monitorBounds: undefined });
-          alignWindows();
-        },
-      },
-      { type: 'separator' },
-      ...allDisplays.map((d, idx) => ({
-        label: `${d.label || `${t.monitor} ${idx + 1}`} — ${d.bounds.width}×${d.bounds.height}${d.id === primaryDisplayId ? ' ★' : ''}`,
-        type: 'radio' as const,
-        checked: !followCursor && d.id === currentTargetId,
-        click: () => {
-          saveConfig({
-            monitorId: d.id.toString(),
-            monitorBounds: { x: d.bounds.x, y: d.bounds.y, width: d.bounds.width, height: d.bounds.height },
-          });
-          alignWindows();
-        },
-      })),
-    ];
-
-    const menu = Menu.buildFromTemplate([
-      {
-        label: t.hide,
-        click: () => {
-          saveConfig({ handleVisible: false });
-          alignWindows();
-        }
-      },
-      {
-        label: t.position,
-        type: 'submenu',
-        submenu: [
-          {
-            label: t.left,
-            type: 'radio',
-            checked: !hasCustomOffset && config.handlePosition === 'left',
-            click: () => {
-              saveConfig({ handlePosition: 'left', handleOffsetPercent: null });
-              alignWindows();
-            }
-          },
-          {
-            label: t.center,
-            type: 'radio',
-            checked: !hasCustomOffset && config.handlePosition === 'center',
-            click: () => {
-              saveConfig({ handlePosition: 'center', handleOffsetPercent: null });
-              alignWindows();
-            }
-          },
-          {
-            label: t.right,
-            type: 'radio',
-            checked: !hasCustomOffset && config.handlePosition === 'right',
-            click: () => {
-              saveConfig({ handlePosition: 'right', handleOffsetPercent: null });
-              alignWindows();
-            }
-          },
-          { type: 'separator' },
-          {
-            label: t.dock_top,
-            type: 'radio',
-            checked: config.dockPosition === 'top',
-            click: () => {
-              saveConfig({ dockPosition: 'top', handleOffsetPercent: null });
-              alignWindows();
-            }
-          },
-          {
-            label: t.dock_bottom,
-            type: 'radio',
-            checked: config.dockPosition === 'bottom',
-            click: () => {
-              saveConfig({ dockPosition: 'bottom', handleOffsetPercent: null });
-              alignWindows();
-            }
-          }
-        ]
-      },
-      {
-        label: t.monitor,
-        type: 'submenu',
-        submenu: monitorSubmenu
-      },
-      { type: 'separator' },
-      {
-        label: t.settings,
-        click: () => {
-          showShelf();
-          setTimeout(() => {
-            if (shelfWindow && !shelfWindow.isDestroyed()) {
-              shelfWindow.webContents.send('open-settings');
-            }
-          }, 300);
-        }
-      },
-      { type: 'separator' },
-      {
-        label: t.exit,
-        click: () => {
-          isQuitting = true;
-          app.quit();
-        }
-      }
-    ]);
-
-    menu.popup({ window: handleWindow || undefined });
   });
 
   ipcMain.handle('export-config', async (_, jsonData) => {
@@ -1682,60 +1396,6 @@ function registerIpcHandlers() {
           hideShelf();
         }
       }, 200);
-    }
-  });
-
-  ipcMain.handle('track-handle-drag-start', async () => {
-    if (!handleWindow || handleWindow.isDestroyed()) return;
-
-    if (dragInterval) clearInterval(dragInterval);
-
-    const cursor = screen.getCursorScreenPoint();
-    const winBounds = handleWindow.getBounds();
-    const offsetX = cursor.x - winBounds.x;
-
-    const display = getTargetDisplay();
-    const workArea = display.workArea;
-    const handleWidth = 200;
-
-    dragInterval = setInterval(() => {
-      if (!handleWindow || handleWindow.isDestroyed()) {
-        if (dragInterval) {
-          clearInterval(dragInterval);
-          dragInterval = null;
-        }
-        return;
-      }
-
-      const currentCursor = screen.getCursorScreenPoint();
-      let newX = currentCursor.x - offsetX;
-      newX = Math.max(workArea.x + 10, Math.min(workArea.x + workArea.width - handleWidth - 10, newX));
-
-      handleWindow.setBounds({
-        x: newX,
-        y: winBounds.y,
-        width: winBounds.width,
-        height: winBounds.height
-      });
-    }, 10);
-  });
-
-  ipcMain.handle('track-handle-drag-stop', async () => {
-    if (dragInterval) {
-      clearInterval(dragInterval);
-      dragInterval = null;
-    }
-
-    if (handleWindow && !handleWindow.isDestroyed()) {
-      const finalX = handleWindow.getBounds().x;
-      const display = getTargetDisplay();
-      const workArea = display.workArea;
-      const handleWidth = 200;
-
-      let offsetPercent = ((finalX - workArea.x) / (workArea.width - handleWidth)) * 100;
-      offsetPercent = Math.max(0, Math.min(100, offsetPercent));
-
-      saveConfig({ handleOffsetPercent: offsetPercent });
     }
   });
 

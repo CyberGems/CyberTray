@@ -42,7 +42,6 @@ declare global {
       openDataFolder: () => Promise<void>;
       onReloadConfig: (callback: () => void) => () => void;
       showTextContextMenu: (x: number, y: number) => Promise<void>;
-      showHandleContextMenu: () => Promise<void>;
       setAlwaysOnTop: (enabled: boolean) => Promise<{ success: boolean }>;
       runShellCommand: (command: string) => Promise<{ success: boolean; cmdId?: string; error?: string }>;
       onShellOutput: (callback: (data: { id: string; type: 'stdout' | 'stderr'; text: string }) => void) => () => void;
@@ -51,9 +50,6 @@ declare global {
       onOpenSettings: (callback: () => void) => () => void;
       toggleShelf: () => Promise<void>;
       setDragActive: (active: boolean) => Promise<void>;
-      trackHandleDragStart: () => Promise<void>;
-      trackHandleDragStop: () => Promise<void>;
-      setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) => Promise<void>;
       onShelfStateChange: (callback: (visible: boolean) => void) => () => void;
       onPlayLaunchSound: (callback: () => void) => () => void;
       runDesktopSweep: () => Promise<{ success: boolean; count?: number; error?: string }>;

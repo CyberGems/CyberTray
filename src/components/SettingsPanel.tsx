@@ -222,44 +222,24 @@ export default function SettingsPanel({
                       </div>
                     </div>
 
-                    {/* Dock Position & Handle Position */}
-                    <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl grid grid-cols-2 gap-4">
-                      
-                      <div>
-                        <h4 className="font-ui font-bold text-white text-xs tracking-widest">{translate('general_dock_position')}</h4>
-                        <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('general_dock_position_desc')}</p>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleUpdateConfigSetting({ dockPosition: 'top', handleOffsetPercent: null })}
-                            className={`flex-1 py-1.5 border rounded-lg text-xs font-cyber font-bold cursor-pointer ${config.dockPosition === 'top' ? 'border-[var(--neon-glow-color)] text-[var(--neon-glow-color)]' : 'border-slate-800 text-slate-400 hover:border-slate-700'}`}
-                          >
-                            TOP
-                          </button>
-                          <button
-                            onClick={() => handleUpdateConfigSetting({ dockPosition: 'bottom', handleOffsetPercent: null })}
-                            className={`flex-1 py-1.5 border rounded-lg text-xs font-cyber font-bold cursor-pointer ${config.dockPosition === 'bottom' ? 'border-[var(--neon-glow-color)] text-[var(--neon-glow-color)]' : 'border-slate-800 text-slate-400 hover:border-slate-700'}`}
-                          >
-                            BOTTOM
-                          </button>
-                        </div>
+                    {/* Dock Position */}
+                    <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
+                      <h4 className="font-ui font-bold text-white text-xs tracking-widest">{translate('general_dock_position')}</h4>
+                      <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('general_dock_position_desc')}</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleUpdateConfigSetting({ dockPosition: 'top' })}
+                          className={`flex-1 py-1.5 border rounded-lg text-xs font-cyber font-bold cursor-pointer ${config.dockPosition === 'top' ? 'border-[var(--neon-glow-color)] text-[var(--neon-glow-color)]' : 'border-slate-800 text-slate-400 hover:border-slate-700'}`}
+                        >
+                          TOP
+                        </button>
+                        <button
+                          onClick={() => handleUpdateConfigSetting({ dockPosition: 'bottom' })}
+                          className={`flex-1 py-1.5 border rounded-lg text-xs font-cyber font-bold cursor-pointer ${config.dockPosition === 'bottom' ? 'border-[var(--neon-glow-color)] text-[var(--neon-glow-color)]' : 'border-slate-800 text-slate-400 hover:border-slate-700'}`}
+                        >
+                          BOTTOM
+                        </button>
                       </div>
-
-                      <div>
-                        <h4 className="font-ui font-bold text-white text-xs tracking-widest">{translate('general_handle_position')}</h4>
-                        <p className="text-[10px] text-slate-500 mt-1 mb-3">{translate('general_handle_position_desc')}</p>
-                        <div className="flex gap-2">
-                          {['left', 'center', 'right'].map((pos) => (
-                            <button
-                              key={pos}
-                              onClick={() => handleUpdateConfigSetting({ handlePosition: pos, handleOffsetPercent: null })}
-                              className={`flex-1 py-1.5 border rounded-lg text-[10px] font-cyber font-bold uppercase cursor-pointer ${config.handlePosition === pos ? 'border-[var(--neon-glow-color)] text-[var(--neon-glow-color)]' : 'border-slate-800 text-slate-400 hover:border-slate-700'}`}
-                            >
-                              {pos}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
                     </div>
 
                     {/* Monitor de Despliegue */}
@@ -322,56 +302,8 @@ export default function SettingsPanel({
                     {/* Toggles Rápidos */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
                       
-                      {/* Mostrar manigueta */}
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('general_handle_visible')}</h5>
-                          <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('general_handle_visible_desc')}</p>
-                        </div>
-                        <button
-                          onClick={() => handleUpdateConfigSetting('handleVisible', !config.handleVisible)}
-                          className={`w-12 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${config.handleVisible ? 'bg-[var(--neon-glow-color)]' : 'bg-slate-800'}`}
-                        >
-                          <div className={`w-5 h-5 bg-slate-950 rounded-full transition-transform ${config.handleVisible ? 'translate-x-6' : 'translate-x-0'}`} />
-                        </button>
-                      </div>
-
-                      {/* Hover Trigger Setting */}
-                      <div className="flex items-center justify-between border-t border-slate-900 pt-3">
-                        <div>
-                          <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('general_hover_trigger')}</h5>
-                          <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('general_hover_trigger_desc')}</p>
-                        </div>
-                        <button
-                          onClick={() => handleUpdateConfigSetting('hoverTriggerEnabled', !config.hoverTriggerEnabled)}
-                          className={`w-12 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${config.hoverTriggerEnabled ? 'bg-[var(--neon-glow-color)]' : 'bg-slate-800'}`}
-                        >
-                          <div className={`w-5 h-5 bg-slate-950 rounded-full transition-transform ${config.hoverTriggerEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
-                        </button>
-                      </div>
-
-                      {/* Hover Trigger Delay Slider */}
-                      {config.hoverTriggerEnabled && (
-                        <div className="border-t border-slate-900 pt-3">
-                          <div className="flex justify-between items-center mb-1">
-                            <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('general_hover_delay')}</h5>
-                            <span className="text-[var(--neon-glow-color)] font-bold">{config.hoverTriggerDelay || 300}ms</span>
-                          </div>
-                          <p className="text-[9.5px] text-slate-500 mb-2">{translate('general_hover_delay_desc')}</p>
-                          <input
-                            type="range"
-                            min="100"
-                            max="2000"
-                            step="50"
-                            value={config.hoverTriggerDelay || 300}
-                            onChange={(e) => handleUpdateConfigSetting('hoverTriggerDelay', parseInt(e.target.value))}
-                            className="w-full accent-[var(--neon-glow-color)] h-1 bg-slate-900 rounded-lg cursor-pointer"
-                          />
-                        </div>
-                      )}
-
                       {/* Ocultar al perder el foco */}
-                      <div className="flex items-center justify-between border-t border-slate-900 pt-3">
+                      <div className="flex items-center justify-between">
                         <div>
                           <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('general_hide_on_blur')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('general_hide_on_blur_desc')}</p>
@@ -441,41 +373,6 @@ export default function SettingsPanel({
                         </button>
                       </div>
 
-                    </div>
-
-                    {/* Auto-hide Activation Bar */}
-                    <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('general_handle_auto_hide')}</h5>
-                          <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('general_handle_auto_hide_desc')}</p>
-                        </div>
-                        <button
-                          onClick={() => handleUpdateConfigSetting('handleAutoHide', !config.handleAutoHide)}
-                          className={`w-12 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${config.handleAutoHide ? 'bg-[var(--neon-glow-color)]' : 'bg-slate-800'}`}
-                        >
-                          <div className={`w-5 h-5 bg-slate-950 rounded-full transition-transform ${config.handleAutoHide ? 'translate-x-6' : 'translate-x-0'}`} />
-                        </button>
-                      </div>
-
-                      {config.handleAutoHide && (
-                        <div className="border-t border-slate-900 pt-3">
-                          <div className="flex justify-between items-center mb-1">
-                            <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('general_handle_auto_hide_delay')}</h5>
-                            <span className="text-[var(--neon-glow-color)] font-bold">{config.handleAutoHideDelay || 5}s</span>
-                          </div>
-                          <p className="text-[9.5px] text-slate-500 mb-2">{translate('general_handle_auto_hide_delay_desc')}</p>
-                          <input
-                            type="range"
-                            min="1"
-                            max="30"
-                            step="1"
-                            value={config.handleAutoHideDelay || 5}
-                            onChange={(e) => handleUpdateConfigSetting('handleAutoHideDelay', parseInt(e.target.value))}
-                            className="w-full accent-[var(--neon-glow-color)] h-1 bg-slate-900 rounded-lg cursor-pointer"
-                          />
-                        </div>
-                      )}
                     </div>
 
                     {/* Hotspot Corners */}

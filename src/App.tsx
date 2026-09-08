@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import ProcessMatrixModal from './components/ProcessMatrixModal';
 import ShortcutFormModal from './components/ShortcutFormModal';
 import CyberTrayLogo from './components/CyberTrayLogo';
-import HandleBar from './components/HandleBar';
 import ShortcutGrid from './components/ShortcutGrid';
 import TelemetryBar from './components/TelemetryBar';
 import ToastStack from './components/ToastStack';
@@ -76,7 +75,6 @@ declare global {
       openDataFolder: () => Promise<void>;
       onReloadConfig: (callback: () => void) => () => void;
       showTextContextMenu: (x: number, y: number) => Promise<void>;
-      showHandleContextMenu: () => Promise<void>;
       setAlwaysOnTop: (enabled: boolean) => Promise<{ success: boolean }>;
       registerAppShortcuts: (shortcuts: Array<{ id: number; path: string; shortcut: string; isAdmin: boolean }>) => Promise<{ success: boolean }>;
       runShellCommand: (command: string) => Promise<{ success: boolean; cmdId?: string; error?: string }>;
@@ -86,9 +84,6 @@ declare global {
       onOpenSettings: (callback: () => void) => () => void;
       toggleShelf: () => Promise<void>;
       setDragActive: (active: boolean) => Promise<void>;
-      trackHandleDragStart: () => Promise<void>;
-      trackHandleDragStop: () => Promise<void>;
-      setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) => Promise<void>;
       onShelfStateChange: (callback: (visible: boolean) => void) => () => void;
       onPlayLaunchSound: (callback: () => void) => () => void;
       runDesktopSweep: () => Promise<{ success: boolean; count?: number; error?: string }>;
@@ -104,8 +99,6 @@ let globalAudioCtx: AudioContext | null = null;
 
 export default function App() {
   const currentVer = "1.5.2";
-  // Modo de Ventana (Mode Detection)
-  const [mode, setMode] = useState<'shelf' | 'handle'>('shelf');
   
   // Configuración de la App
   const [config, setConfig] = useState<any>({
@@ -113,8 +106,6 @@ export default function App() {
     monitorId: '',
     shortcut: 'Alt+T',
     hideOnBlur: true,
-    handlePosition: 'center',
-    handleVisible: true,
     hotspotCorners: [],
     hotspotDelay: 300,
     alwaysOnTop: true,
@@ -124,11 +115,7 @@ export default function App() {
     theme: 'cyan',
     blurLevel: 20,
     opacity: 85,
-    hoverTriggerEnabled: false,
-    hoverTriggerDelay: 300,
     hideOnDeadZoneClick: false,
-    handleAutoHide: false,
-    handleAutoHideDelay: 5,
     bgType: 'solid',
     bgSolidColor: '#070b13',
     bgGradient: 'preset-1',
@@ -151,9 +138,6 @@ export default function App() {
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [settingsTab, setSettingsTab] = useState<'general' | 'appearance' | 'shortcuts'>('general');
   const [iconSortOrder, setIconSortOrder] = useState<'alpha' | 'recent' | 'added'>('alpha');
-  const [handleHovered, setHandleHovered] = useState<boolean>(false);
-  const [isHandleFadedOut, setIsHandleFadedOut] = useState<boolean>(false);
-  const autoHideTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [settingsSaved, setSettingsSaved] = useState<boolean>(false);
   const settingsSavedTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [showProcessMatrixModal, setShowProcessMatrixModal] = useState<boolean>(false);
@@ -334,9 +318,6 @@ export default function App() {
 
   const [dragOverCategoryId, setDragOverCategoryId] = useState<string | null>(null);
   const [draggingCategoryId, setDraggingCategoryId] = useState<string | null>(null);
-  const [isDraggingHandle, setIsDraggingHandle] = useState<boolean>(false);
-  const handleDragStartPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const handleHasDraggedPastThreshold = useRef<boolean>(false);
 
   // ── Sistema de toasts (avisos de acciones del sistema) ──
   type ToastType = 'success' | 'error' | 'info';
@@ -382,7 +363,6 @@ export default function App() {
 
   // Refs
   const categoryTabsRef = useRef<HTMLDivElement>(null);
-  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
   const configRef = useRef<any>(config);
   const usagePersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingUsageRef = useRef<{ shortcuts: any[]; totalLaunches: number } | null>(null);
@@ -505,15 +485,6 @@ export default function App() {
 
   // Carga Inicial
   useEffect(() => {
-    // Detectar modo
-    const params = new URLSearchParams(window.location.search);
-    const m = params.get('mode');
-    if (m === 'handle') {
-      setMode('handle');
-    } else {
-      setMode('shelf');
-    }
-
     // Cargar Configuración Central y Atajos
     const fetchConfig = async () => {
       if (isElectron) {
@@ -574,13 +545,13 @@ export default function App() {
 
   // Listen to shelf visibility change to suspend/resume process monitoring
   useEffect(() => {
-    if (isElectron && mode === 'shelf') {
+    if (isElectron) {
       const unsub = window.electronAPI!.onShelfStateChange((visible) => {
         setIsShelfVisible(visible);
       });
       return () => unsub();
     }
-  }, [mode]);
+  }, []);
 
   const [isScanningProcesses, setIsScanningProcesses] = useState<boolean>(false);
 
@@ -625,35 +596,6 @@ export default function App() {
       return unsub;
     }
   }, []);
-
-  // Auto-hide handle timer logic
-  const clearAutoHideTimer = useCallback(() => {
-    if (autoHideTimerRef.current) {
-      clearTimeout(autoHideTimerRef.current);
-      autoHideTimerRef.current = null;
-    }
-  }, []);
-
-  const startAutoHideTimer = useCallback(() => {
-    clearAutoHideTimer();
-    if (mode === 'handle' && config.handleAutoHide) {
-      const delayMs = (config.handleAutoHideDelay || 5) * 1000;
-      autoHideTimerRef.current = setTimeout(() => {
-        setIsHandleFadedOut(true);
-      }, delayMs);
-    }
-  }, [mode, config.handleAutoHide, config.handleAutoHideDelay, clearAutoHideTimer]);
-
-  useEffect(() => {
-    if (mode === 'handle') {
-      if (config.handleAutoHide) {
-        startAutoHideTimer();
-      } else {
-        setIsHandleFadedOut(false);
-      }
-    }
-    return () => clearAutoHideTimer();
-  }, [mode, config.handleAutoHide, config.handleAutoHideDelay, startAutoHideTimer, clearAutoHideTimer]);
 
   // Helper to get active process info for a shortcut
   const getShortcutProcess = useCallback((item: any) => {
@@ -707,7 +649,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (mode === 'handle' || !isShelfVisible) return;
+    if (!isShelfVisible) return;
 
     const fetchLightTelemetry = async () => {
       if (isElectron) {
@@ -748,34 +690,7 @@ export default function App() {
       clearInterval(lightInterval);
       clearInterval(heavyInterval);
     };
-  }, [mode, isShelfVisible]);
-
-  // Limpieza del temporizador de hover al desmontar
-  useEffect(() => {
-    return () => {
-      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    };
-  }, []);
-
-  // Solución robusta para mouseleave fuera de la pantalla en la manigueta
-  useEffect(() => {
-    if (mode !== 'handle') return;
-
-    const handleGlobalMouseLeave = (e: MouseEvent) => {
-      // Si el cursor sale del documento/ventana
-      if (!e.relatedTarget || e.relatedTarget === document.documentElement) {
-        if (isElectron) {
-          window.electronAPI!.setIgnoreMouseEvents(true, { forward: true });
-        }
-        setHandleHovered(false);
-      }
-    };
-
-    document.addEventListener('mouseleave', handleGlobalMouseLeave);
-    return () => {
-      document.removeEventListener('mouseleave', handleGlobalMouseLeave);
-    };
-  }, [mode]);
+  }, [isShelfVisible]);
 
   // Sincronizar tempBgPath cuando cambie en la configuración
   useEffect(() => {
@@ -1677,73 +1592,6 @@ export default function App() {
     playCyberBeep();
   };
 
-  // Hover triggers para la manigueta
-  const handleMouseEnter = () => {
-    if (config.hoverTriggerEnabled) {
-      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-      hoverTimerRef.current = setTimeout(() => {
-        if (isElectron) {
-          window.electronAPI!.toggleShelf();
-        }
-      }, config.hoverTriggerDelay || 300);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    if (hoverTimerRef.current) {
-      clearTimeout(hoverTimerRef.current);
-      hoverTimerRef.current = null;
-    }
-  };
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
-    if (e.button !== 0) return; // Only left-click / main pointer button
-    e.currentTarget.setPointerCapture(e.pointerId);
-    handleDragStartPos.current = { x: e.screenX, y: e.screenY };
-    handleHasDraggedPastThreshold.current = false;
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
-    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
-
-    if (!handleHasDraggedPastThreshold.current) {
-      const deltaX = e.screenX - handleDragStartPos.current.x;
-      const deltaY = e.screenY - handleDragStartPos.current.y;
-      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-      
-      if (distance >= 5) {
-        handleHasDraggedPastThreshold.current = true;
-        setIsDraggingHandle(true);
-        if (hoverTimerRef.current) {
-          clearTimeout(hoverTimerRef.current);
-          hoverTimerRef.current = null;
-        }
-        if (isElectron) {
-          window.electronAPI!.trackHandleDragStart();
-        }
-      }
-    }
-  };
-
-  const handlePointerUp = async (e: React.PointerEvent<HTMLButtonElement>) => {
-    if (e.button !== 0) return;
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    }
-
-    if (handleHasDraggedPastThreshold.current) {
-      if (isElectron) {
-        await window.electronAPI!.trackHandleDragStop();
-      }
-      setIsDraggingHandle(false);
-      handleHasDraggedPastThreshold.current = false;
-    } else {
-      if (isElectron) {
-        window.electronAPI!.toggleShelf();
-      }
-    }
-  };
-
   // Menú contextual para accesos directos
   const handleShortcutContextMenu = (e: React.MouseEvent, item: any) => {
     e.preventDefault();
@@ -2035,34 +1883,6 @@ export default function App() {
 
   const getFilteredShortcuts = () => filteredShortcutsList;
 
-  // =====================================
-  // ── MODO HANDLE (MANIGUETA CIBERNÉTICA) ──
-  // =====================================
-  if (mode === 'handle') {
-    return (
-      <HandleBar
-        theme={config.theme}
-        dockPosition={config.dockPosition}
-        isHandleFadedOut={isHandleFadedOut}
-        handleHovered={handleHovered}
-        isDraggingHandle={isDraggingHandle}
-        handleAutoHide={!!config.handleAutoHide}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onMouseEnterHandle={handleMouseEnter}
-        onMouseLeaveHandle={handleMouseLeave}
-        clearAutoHideTimer={clearAutoHideTimer}
-        startAutoHideTimer={startAutoHideTimer}
-        setIsHandleFadedOut={setIsHandleFadedOut}
-        setHandleHovered={setHandleHovered}
-      />
-    );
-  }
-
-  // =====================================
-  // ── MODO SHELF (ESTANTE COMPLETO) ──
-  // =====================================
   // Variables defensivas contra configuraciones anteriores (fallback defaults)
   const bgType = config.bgType || 'solid';
   const bgSolidColor = config.bgSolidColor || '#070b13';
@@ -2076,7 +1896,7 @@ export default function App() {
     ? getChildFolders(categories, null)
     : getChildFolders(categories, activeCategory);
 
-  if (mode === 'shelf' && !isShelfVisible) {
+  if (!isShelfVisible) {
     return <div className={`theme-${config.theme} w-full h-screen bg-transparent`} />;
   }
 

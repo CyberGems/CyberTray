@@ -60,7 +60,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // --- Native Text Context Menu ---
   showTextContextMenu: (x: number, y: number) => ipcRenderer.invoke('show-text-context-menu', { x, y }),
-  showHandleContextMenu: () => ipcRenderer.invoke('show-handle-context-menu'),
 
   // --- Export/Import Centralized Config ---
   exportConfig: (jsonData: string) => ipcRenderer.invoke('export-config', jsonData),
@@ -110,10 +109,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // --- CyberTray Specific IPC channels ---
   toggleShelf: () => ipcRenderer.invoke('toggle-shelf'),
   setDragActive: (active: boolean) => ipcRenderer.invoke('set-drag-active', active),
-  trackHandleDragStart: () => ipcRenderer.invoke('track-handle-drag-start'),
-  trackHandleDragStop: () => ipcRenderer.invoke('track-handle-drag-stop'),
-  setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) =>
-    ipcRenderer.invoke('set-ignore-mouse-events', ignore, options),
   onShelfStateChange: (callback: (visible: boolean) => void) => {
     const handler = (_event: any, visible: boolean) => callback(visible);
     ipcRenderer.on('shelf-state-change', handler);

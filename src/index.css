@@ -181,30 +181,6 @@
   text-shadow: 0 0 4px var(--neon-glow-color-raw);
 }
 
-/* Botón de la manigueta interactiva siempre centrado o flotante */
-.cyber-handle-bar {
-  background: rgba(4, 7, 13, 0.9);
-  border: 1px solid var(--neon-glow-border);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.8), 0 0 4px var(--neon-glow-color-raw);
-  transition: all 0.1s ease-out;
-  overflow: hidden;
-  transform: translateZ(0); /* Forzar aceleración por hardware para el clipping */
-  isolation: isolate; /* Crear contexto de apilamiento */
-}
-
-.cyber-handle-bar:hover {
-  border-color: var(--neon-glow-color);
-  box-shadow: 0 0 15px rgba(0, 0, 0, 0.9), 0 0 8px var(--neon-glow-color);
-  background: rgba(7, 12, 22, 0.95);
-}
-
-.cyber-handle-bar::before {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0; height: 1px;
-  background: linear-gradient(90deg, transparent, var(--neon-glow-color), transparent);
-}
-
 /* ── MARQUEE ANIMATIONS FOR SEARCH PLACEHOLDER ── */
 @keyframes marquee-loop {
   0% {
