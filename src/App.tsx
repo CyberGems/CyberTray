@@ -26,10 +26,10 @@ import {
 import {
   Search, Grid, List as ListIcon, Plus, Clock, ArrowUpDown, Settings,
   Minus, X, LayoutGrid, Palette, Key, Trash2, Shield, Info,
-  Minimize2, Power, Pin, Play, Edit, ArrowDown,
+  Power, Pin, Play, Edit, ArrowDown, Shrink, MoreHorizontal,
   Monitor, ExternalLink, Sliders, ChevronDown, RefreshCw, Upload, Check, Trash,
   Activity, MemoryStick, Star, Lock, Cpu, FolderOpen,
-  CheckSquare, FlipHorizontal2
+  CheckSquare, FlipHorizontal2, Heart, BookOpen, HelpCircle, Tag, Globe
 } from 'lucide-react';
 
 declare global {
@@ -160,6 +160,8 @@ export default function App() {
   const [aboutAutoCheckSeq, setAboutAutoCheckSeq] = useState(0);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ state: 'idle' });
   const updateNotifSeenRef = useRef<string>('');
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     localStorage.setItem('cybertray_view_mode', viewMode);
@@ -410,6 +412,24 @@ export default function App() {
   const launchAudioRef = useRef<HTMLAudioElement | null>(null);
   const folderAudioRef = useRef<HTMLAudioElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isMoreMenuOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setIsMoreMenuOpen(false);
+      }
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMoreMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [isMoreMenuOpen]);
 
   useEffect(() => {
     configRef.current = config;
@@ -1701,7 +1721,7 @@ export default function App() {
     }
 
     // Check if any overlays/menus/settings are currently open
-    if (showSettings || shortcutModal.open || newCatModal || renameCatModal.open || categoryMenu?.visible) {
+    if (showSettings || shortcutModal.open || newCatModal || renameCatModal.open || categoryMenu?.visible || isMoreMenuOpen) {
       return;
     }
 
@@ -2246,16 +2266,33 @@ export default function App() {
         </div>
 
           {/* Window Controls */}
-          <div className="flex items-center gap-1.5 flex-shrink-0 min-w-44 justify-end">
-            {/* Pin Toggle */}
+          <div className="ml-auto flex items-center gap-1 flex-shrink-0">
+            {config.autoUpdate !== false && (updateStatus.state === 'available' || updateStatus.state === 'downloaded' || updateStatus.state === 'downloading') && (
+              <button
+                type="button"
+                onClick={() => { setShowAboutModal(true); playCyberBeep(); }}
+                className="relative flex items-center justify-center w-7 h-7 rounded-full bg-[#1D2636] hover:bg-[#253246] border border-[#2D3A4E] hover:border-[#3B4E6E] text-[#6C9BFF] shadow-[0_0_12px_rgba(108,155,255,0.2)] hover:shadow-[0_0_16px_rgba(108,155,255,0.45)] transition-all cursor-pointer"
+                title={
+                  updateStatus.state === 'downloaded'
+                    ? translate('about_status_downloaded', { version: updateStatus.version || '' })
+                    : updateStatus.state === 'downloading'
+                    ? translate('about_status_downloading', { percent: String(updateStatus.percent || 0) })
+                    : translate('about_status_available', { version: (updateStatus as { version?: string }).version || '' })
+                }
+              >
+                <ArrowDown className={`w-4 h-4 text-[#6C9BFF] ${updateStatus.state === 'downloading' ? 'animate-bounce' : ''}`} />
+              </button>
+            )}
+
             <button
+              type="button"
               onClick={handleTogglePin}
-              className={`h-8 w-8 rounded-lg border flex items-center justify-center transition-all cursor-pointer ${
+              className={`flex items-center justify-center w-7 h-7 rounded-md transition-all group cursor-pointer ${
                 isPinFlashing
-                  ? 'bg-red-500/30 text-red-400 border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.7)] animate-bounce'
+                  ? 'bg-red-500/30 text-red-400 border border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.7)] animate-bounce'
                   : isPinned
-                    ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30 shadow-[0_0_8px_rgba(34,211,238,0.4)]'
-                    : 'border-slate-800 text-slate-500 hover:text-white hover:bg-white/5'
+                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-[0_0_8px_rgba(34,211,238,0.4)]'
+                    : 'hover:bg-white/10 text-slate-400 hover:text-white'
               }`}
               title={isPinned ? translate('tooltip_pin_on') : translate('tooltip_pin_off')}
             >
@@ -2268,57 +2305,144 @@ export default function App() {
               }`} />
             </button>
 
-            {/* Update badge */}
-            {config.autoUpdate !== false && (updateStatus.state === 'available' || updateStatus.state === 'downloaded' || updateStatus.state === 'downloading') && (
-              <button
-                type="button"
-                onClick={() => { setShowAboutModal(true); playCyberBeep(); }}
-                className="h-8 w-8 rounded-full border border-[var(--neon-glow-border)] bg-[#1D2636] text-[var(--neon-glow-color)] shadow-[0_0_12px_var(--neon-glow-color-raw)] hover:shadow-[0_0_16px_var(--neon-glow-color)] flex items-center justify-center transition-all cursor-pointer"
-                title={
-                  updateStatus.state === 'downloaded'
-                    ? translate('about_status_downloaded', { version: updateStatus.version || '' })
-                    : updateStatus.state === 'downloading'
-                    ? translate('about_status_downloading', { percent: String(updateStatus.percent || 0) })
-                    : translate('about_status_available', { version: (updateStatus as { version?: string }).version || '' })
-                }
-              >
-                <ArrowDown className={`w-4 h-4 ${updateStatus.state === 'downloading' ? 'animate-bounce' : ''}`} />
-              </button>
-            )}
-
-            {/* About Toggle */}
             <button
-              onClick={() => { setShowAboutModal(true); playCyberBeep(); }}
-              className={`h-8 w-8 rounded-lg border flex items-center justify-center transition-all cursor-pointer ${
-                showAboutModal
-                  ? 'border-blue-500 text-blue-400 bg-slate-900'
-                  : 'border-slate-800 text-slate-500 hover:text-white'
-              }`}
-              title={translate('tooltip_about')}
-            >
-              <Info className="w-3.5 h-3.5" />
-            </button>
-
-            {/* Config Toggle */}
-            <button
+              type="button"
               onClick={() => { setShowSettings(!showSettings); playCyberBeep(); }}
-              className={`h-8 w-8 rounded-lg border flex items-center justify-center transition-all cursor-pointer ${
-                showSettings
-                  ? 'border-purple-500 text-purple-400 bg-slate-900'
-                  : 'border-slate-800 text-slate-500 hover:text-white'
+              className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors group cursor-pointer ${
+                showSettings ? 'bg-white/15 text-white' : 'hover:bg-white/10 text-slate-400 hover:text-white'
               }`}
               title={translate('tooltip_settings')}
             >
               <Settings className="w-3.5 h-3.5" />
             </button>
 
-            {/* Minimize / Hide */}
+            <div className="relative" ref={moreMenuRef}>
+              <button
+                type="button"
+                onClick={() => { setIsMoreMenuOpen(prev => !prev); playCyberBeep(); }}
+                aria-haspopup="true"
+                aria-expanded={isMoreMenuOpen}
+                className={`relative flex items-center justify-center w-7 h-7 rounded-md transition-colors group cursor-pointer ${
+                  isMoreMenuOpen ? 'bg-white/15 text-white' : 'hover:bg-white/10 text-slate-400 hover:text-white'
+                }`}
+                title={translate('tooltip_more')}
+              >
+                <MoreHorizontal className="w-3.5 h-3.5" />
+                {(updateStatus.state === 'available' || updateStatus.state === 'downloaded') && (
+                  <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)] animate-pulse" />
+                )}
+              </button>
+
+              <AnimatePresence>
+                {isMoreMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    transition={{ duration: 0.12 }}
+                    className="absolute right-0 top-full mt-1.5 z-50 w-[224px] p-1.5 rounded-xl bg-[#0c121e]/95 backdrop-blur-xl border border-white/10 shadow-[0_12px_32px_rgba(0,0,0,0.8),0_0_15px_rgba(34,211,238,0.1)] flex flex-col gap-0.5 select-none"
+                    role="menu"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMoreMenuOpen(false);
+                        if (window.electronAPI?.openExternal) {
+                          window.electronAPI.openExternal('https://github.com/CyberGems/CyberTray#%EF%B8%8F-donate');
+                        }
+                      }}
+                      className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-200 hover:text-white hover:bg-cyan-500/10 transition-colors text-left cursor-pointer"
+                    >
+                      <Heart className="w-3.5 h-3.5 text-[#00D8F1] fill-[#00D8F1]/20 group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_rgba(0,216,241,0.8)] transition-transform shrink-0" />
+                      <span className="font-semibold text-[#00D8F1]">{translate('more_menu_donate')}</span>
+                    </button>
+
+                    <div className="h-px bg-white/10 my-1 mx-1.5" />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMoreMenuOpen(false);
+                        window.electronAPI?.openExternal?.('https://github.com/CyberGems/CyberTray/wiki');
+                      }}
+                      className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
+                    >
+                      <BookOpen className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors shrink-0" />
+                      <span>{translate('more_menu_docs')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMoreMenuOpen(false);
+                        window.electronAPI?.openExternal?.('https://github.com/CyberGems/CyberTray/issues');
+                      }}
+                      className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors shrink-0" />
+                      <span>{translate('more_menu_faq')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMoreMenuOpen(false);
+                        window.electronAPI?.openExternal?.('https://github.com/CyberGems/CyberTray/releases');
+                      }}
+                      className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
+                    >
+                      <Tag className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors shrink-0" />
+                      <span>{translate('more_menu_changelog')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMoreMenuOpen(false);
+                        window.electronAPI?.openExternal?.('https://cybergems.org');
+                      }}
+                      className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
+                    >
+                      <Globe className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors shrink-0" />
+                      <span>{translate('more_menu_website')}</span>
+                    </button>
+
+                    <div className="h-px bg-white/10 my-1 mx-1.5" />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMoreMenuOpen(false);
+                        setShowAboutModal(true);
+                        playCyberBeep();
+                      }}
+                      className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
+                    >
+                      <Info className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors shrink-0" />
+                      <span className="flex-1">{translate('more_menu_about')}</span>
+                      {(updateStatus.state === 'available' || updateStatus.state === 'downloaded') && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]" />
+                      )}
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <div className="w-[1px] h-3.5 bg-white/10 mx-0.5" />
+
             <button
-              onClick={() => isElectron && window.electronAPI!.windowHideToTray()}
-              className="h-8 w-8 rounded-lg border border-slate-800 hover:border-red-500/50 text-slate-500 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-all cursor-pointer"
+              type="button"
+              onClick={() => {
+                if (isPinned) {
+                  playPinBlockSound();
+                  setIsPinFlashing(true);
+                  setTimeout(() => setIsPinFlashing(false), 1200);
+                  return;
+                }
+                if (isElectron) window.electronAPI!.windowHideToTray();
+              }}
+              className="flex items-center justify-center w-7 h-7 hover:bg-white/10 rounded-md transition-colors group cursor-pointer"
               title={translate('tooltip_minimize')}
             >
-              <Minimize2 className="w-3.5 h-3.5" />
+              <Shrink className="w-3.5 h-3.5 text-slate-400 group-hover:text-white" />
             </button>
           </div>
         </div>
