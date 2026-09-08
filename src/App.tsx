@@ -1906,6 +1906,28 @@ export default function App() {
     }
   };
 
+  const playLaunchSound = () => {
+    try {
+      if (launchAudioRef.current) {
+        launchAudioRef.current.currentTime = 0;
+        void launchAudioRef.current.play();
+        return;
+      }
+      const soundPath = String(configRef.current?.soundPath || '');
+      let url = '/sounds/cybertraylaunch.mp3';
+      if (soundPath) {
+        url = soundPath.startsWith('http') || soundPath.startsWith('data:')
+          ? soundPath
+          : `local-resource:///${soundPath.replace(/\\/g, '/')}`;
+      }
+      const audio = new Audio(url);
+      audio.volume = 0.25;
+      void audio.play();
+    } catch (err) {
+      console.log('Launch audio preview error:', err);
+    }
+  };
+
   // Sonido sutil de bloqueo para PIN (low-pitch thud, no annoying)
   const playPinBlockSound = () => {
     try {
@@ -2672,6 +2694,7 @@ export default function App() {
         handleExportBackup={handleExportBackup}
         handleImportBackup={handleImportBackup}
         playFolderSound={playFolderSound}
+        playLaunchSound={playLaunchSound}
         playCyberBeep={playCyberBeep}
         playPinBlockSound={playPinBlockSound}
         showAlert={showAlert}

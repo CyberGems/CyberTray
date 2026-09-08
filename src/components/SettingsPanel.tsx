@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sliders, Upload } from 'lucide-react';
+import { Sliders, Upload, Volume2 } from 'lucide-react';
 import { translate } from '../locales';
 import { isElectron, INITIAL_CATEGORIES } from '../lib/appUtils';
 
@@ -23,6 +23,7 @@ export interface SettingsPanelProps {
   handleExportBackup: () => void;
   handleImportBackup: () => void;
   playFolderSound: () => void;
+  playLaunchSound: () => void;
   playCyberBeep: () => void;
   playPinBlockSound: () => void;
   showAlert: (title: string, message: string, onConfirm?: () => void) => void;
@@ -75,6 +76,7 @@ export default function SettingsPanel({
   handleExportBackup,
   handleImportBackup,
   playFolderSound,
+  playLaunchSound,
   playCyberBeep,
   playPinBlockSound,
   showAlert,
@@ -450,14 +452,22 @@ export default function SettingsPanel({
                           <h5 className="font-ui font-bold text-white text-xs tracking-wider">{translate('settings_sound_launch_path')}</h5>
                           <p className="text-[9.5px] text-slate-500 mt-0.5">{translate('settings_sound_launch_path_desc')}</p>
                           
-                          <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                          <div className="flex flex-col gap-2 mt-2">
                             <input
                               type="text"
                               readOnly
                               value={config.soundPath ? config.soundPath : translate('settings_sound_default_label')}
-                              className="flex-1 bg-slate-950 border border-slate-900 text-slate-300 font-mono text-[10px] rounded-lg px-3 py-1.5 focus:outline-none truncate"
+                              className="w-full bg-slate-950 border border-slate-900 text-slate-300 font-mono text-[10px] rounded-lg px-3 py-1.5 focus:outline-none truncate"
                             />
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={playLaunchSound}
+                                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-[var(--neon-glow-border)] text-[var(--neon-glow-color)] rounded-lg text-[10px] font-bold transition-all cursor-pointer uppercase font-cyber flex items-center gap-1.5"
+                              >
+                                <Volume2 className="w-3 h-3" />
+                                {translate('settings_sound_launch_preview')}
+                              </button>
                               <button
                                 onClick={async () => {
                                   if (isElectron) {

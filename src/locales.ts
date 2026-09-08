@@ -129,8 +129,9 @@ export const translations = {
     settings_sound_launch_path: "CUSTOM LAUNCH AUDIO TARGET",
     settings_sound_launch_path_desc: "Select a custom local MP3/WAV file for the launch chime.",
     settings_sound_launch_browse: "CHOOSE AUDIO FILE",
+    settings_sound_launch_preview: "PREVIEW",
     settings_sound_launch_reset: "RESET TO DEFAULT CHIME",
-    settings_sound_default_label: "Default (CyberTrayActivation)",
+    settings_sound_default_label: "Default (cybertraylaunch.mp3)",
 
     // Categories
     cat_all: "ALL",
@@ -483,8 +484,9 @@ export const translations = {
     settings_sound_launch_path: "AUDIO DE LANZAMIENTO PERSONALIZADO",
     settings_sound_launch_path_desc: "Selecciona un archivo local MP3/WAV para el tono de lanzamiento.",
     settings_sound_launch_browse: "SELECCIONAR AUDIO",
+    settings_sound_launch_preview: "ESCUCHAR",
     settings_sound_launch_reset: "RESTAURAR POR DEFECTO",
-    settings_sound_default_label: "Por Defecto (CyberTrayActivation.mp3)",
+    settings_sound_default_label: "Por Defecto (cybertraylaunch.mp3)",
 
     // Categories
     cat_all: "TODOS",
