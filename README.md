@@ -1,6 +1,10 @@
 <h1 align="center">CyberTray — System Tray Launcher</h1>
 
 <p align="center">
+  <img src="public/icon.png" width="128" height="128" alt="CyberTray icon / icono de CyberTray" />
+</p>
+
+<p align="center">
   <strong>A cyberpunk-themed shortcut launcher and dock</strong> — animated shelf that slides out from your screen edge, with system monitoring, process management, and a secure file vault.
 </p>
 
@@ -15,7 +19,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-Windows-0078D4.svg?logo=windows&logoColor=white" alt="Platform" />
-  <img src="https://img.shields.io/badge/version-1.5.1-00F0FF.svg" alt="Version" />
+  <img src="https://img.shields.io/badge/version-1.5.2-00F0FF.svg" alt="Version" />
   <img src="https://img.shields.io/badge/Electron-42-512BD4.svg?logo=electron&logoColor=white" alt="Electron" />
   <a href="https://github.com/CyberGems/CyberTray/wiki"><img src="https://img.shields.io/badge/%F0%9F%93%96_Wiki-Documentation-222222?style=flat-square&logo=github&logoColor=white" alt="Wiki" /></a>
 </p>

@@ -103,7 +103,7 @@ declare global {
 let globalAudioCtx: AudioContext | null = null;
 
 export default function App() {
-  const currentVer = "1.5.1";
+  const currentVer = "1.5.2";
   // Modo de Ventana (Mode Detection)
   const [mode, setMode] = useState<'shelf' | 'handle'>('shelf');
   
