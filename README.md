@@ -171,6 +171,15 @@ npm run build:electron
 
 The installer will be in the `release/` directory.
 
+### 🛡️ Windows SmartScreen
+
+Windows may show a SmartScreen warning the first time you run the CyberTray installer — this is expected until Windows builds enough reputation for the file.
+
+To continue:
+
+1. Click **More info**.
+2. Click **Run anyway**.
+
 ---
 
 ## ⌨️ Keyboard Shortcuts
