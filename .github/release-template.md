@@ -1,6 +1,6 @@
 ## 🚀 CyberTray {{VERSION}} — Release Notes
 
-Welcome to the official **CyberTray {{VERSION}}** release! CyberTray is a cyberpunk-themed Windows system tray launcher and dock for organizing and opening apps, files, and URLs.
+Welcome to the official **CyberTray {{VERSION}}** release! CyberTray is a Windows system tray launcher and dock for organizing and opening apps, files, and URLs.
 
 ---
 

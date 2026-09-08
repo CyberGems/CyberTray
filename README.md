@@ -5,7 +5,7 @@
 <h1 align="center">CyberTray — System Tray Launcher</h1>
 
 <p align="center">
-  <strong>A cyberpunk-themed shortcut launcher and dock</strong> — animated shelf that slides out from your screen edge, with system monitoring, process management, and a secure file vault.
+  <strong>A shortcut launcher and dock</strong> — animated shelf that slides out from your screen edge, with system monitoring, process management, and a secure file vault.
 </p>
 
 <p align="center">
@@ -24,7 +24,7 @@
   <a href="https://github.com/CyberGems/CyberTray/wiki"><img src="https://img.shields.io/badge/%F0%9F%93%96_Wiki-Documentation-222222?style=flat-square&logo=github&logoColor=white" alt="Wiki" /></a>
 </p>
 
-A cyberpunk-themed **system tray shortcut launcher and dock** for Windows. CyberTray provides a sleek, animated shelf that slides out from the top or bottom of the screen, allowing you to organize, search, and launch applications, files, and URLs — all wrapped in a stunning neon glassmorphic interface.
+A **system tray shortcut launcher and dock** for Windows. CyberTray provides a sleek, animated shelf that slides out from the top or bottom of the screen, allowing you to organize, search, and launch applications, files, and URLs — all wrapped in a stunning neon glassmorphic interface.
 
 *Free and open source — no ads, no tracking, and no data collection. Just enjoy it.*
 

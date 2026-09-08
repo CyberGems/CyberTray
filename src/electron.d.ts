@@ -49,6 +49,9 @@ declare global {
       onAlwaysOnTopBlurAttempt: (callback: () => void) => () => void;
       onOpenSettings: (callback: () => void) => () => void;
       onOpenAbout: (callback: (opts?: { checkUpdates?: boolean }) => void) => () => void;
+      onOpenAddShortcut: (callback: () => void) => () => void;
+      onShortcutLaunched: (callback: (payload: { path: string; name: string }) => void) => () => void;
+      setTrayRecents: (items: Array<{ name: string; path: string; isAdmin?: boolean; iconPath?: string; arguments?: string; cwd?: string }>) => Promise<{ success: boolean }>;
       getAppVersions: () => Promise<{
         app: string; electron: string; chrome: string; node: string;
         platform: string; arch: string; osRelease: string; osType: string;

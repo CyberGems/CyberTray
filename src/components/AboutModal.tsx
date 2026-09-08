@@ -208,11 +208,8 @@ export default function AboutModal({
 
                 <div>
                   <h4 className="font-cyber font-bold text-lg text-white tracking-widest" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                    CyberTray
+                    CyberTray{appVersion ? ` v${appVersion}` : ''}
                   </h4>
-                  <p className="text-[10px] text-slate-500 mt-0.5 tracking-wider font-semibold">
-                    NEURAL DOCK STATION
-                  </p>
                 </div>
 
                 <p className="text-[11px] text-slate-400 leading-relaxed">

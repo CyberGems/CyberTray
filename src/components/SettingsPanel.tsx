@@ -213,7 +213,7 @@ export default function SettingsPanel({
                           onClick={() => handleChangeLanguage('en')}
                           className={`px-4 py-1.5 border rounded-lg transition-all text-xs font-cyber font-bold cursor-pointer ${langCode === 'en' ? 'border-[var(--neon-glow-color)] text-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10' : 'border-slate-800 text-slate-400 hover:border-slate-700'}`}
                         >
-                          ENGLISH (DEFAULT)
+                          ENGLISH
                         </button>
                         <button 
                           onClick={() => handleChangeLanguage('es')}

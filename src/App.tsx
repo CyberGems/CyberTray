@@ -82,6 +82,9 @@ declare global {
       onAlwaysOnTopBlurAttempt: (callback: () => void) => () => void;
       onOpenSettings: (callback: () => void) => () => void;
       onOpenAbout: (callback: (opts?: { checkUpdates?: boolean }) => void) => () => void;
+      onOpenAddShortcut: (callback: () => void) => () => void;
+      onShortcutLaunched: (callback: (payload: { path: string; name: string }) => void) => () => void;
+      setTrayRecents: (items: Array<{ name: string; path: string; isAdmin?: boolean; iconPath?: string; arguments?: string; cwd?: string }>) => Promise<{ success: boolean }>;
       getAppVersions: () => Promise<{
         app: string; electron: string; chrome: string; node: string;
         platform: string; arch: string; osRelease: string; osType: string;
@@ -685,6 +688,56 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!isElectron || !window.electronAPI?.onOpenAddShortcut) return;
+    const unsub = window.electronAPI.onOpenAddShortcut(() => {
+      setFormName('');
+      setFormPath('');
+      setFormArgs('');
+      setFormDelay(0);
+      setFormCategory('utils');
+      setFormAdmin(false);
+      setFormHotkey('');
+      setFormIconPath('');
+      setShortcutModal({ open: true });
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    if (!isElectron || !window.electronAPI?.onShortcutLaunched) return;
+    const unsub = window.electronAPI.onShortcutLaunched((payload) => {
+      const now = Date.now();
+      const updated = shortcutsRef.current.map(s =>
+        s.path === payload.path ? { ...s, usageCount: (s.usageCount || 0) + 1, lastLaunchAt: now } : s
+      );
+      setShortcuts(updated);
+      shortcutsRef.current = updated;
+      const nextTotal = (configRef.current?.totalLaunches || 0) + 1;
+      configRef.current = { ...configRef.current, totalLaunches: nextTotal };
+      setConfig(configRef.current);
+      scheduleUsagePersist(updated, nextTotal);
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    if (!isElectron || !window.electronAPI?.setTrayRecents) return;
+    const recents = [...shortcuts]
+      .filter(s => s.lastLaunchAt)
+      .sort((a, b) => (b.lastLaunchAt || 0) - (a.lastLaunchAt || 0))
+      .slice(0, 10)
+      .map(s => ({
+        name: String(s.name || ''),
+        path: String(s.path || ''),
+        isAdmin: !!s.isAdmin,
+        iconPath: typeof s.iconPath === 'string' ? s.iconPath : '',
+        arguments: typeof s.arguments === 'string' ? s.arguments : '',
+        cwd: typeof s.cwd === 'string' ? s.cwd : '',
+      }));
+    void window.electronAPI.setTrayRecents(recents);
+  }, [shortcuts]);
+
+  useEffect(() => {
     if (!isElectron || !window.electronAPI?.onOpenAbout) return;
     const unsub = window.electronAPI.onOpenAbout((opts) => {
       setShowAboutModal(true);
@@ -1264,7 +1317,7 @@ export default function App() {
     // Incrementar contador de uso
     const updated = shortcuts.map(s => {
       if (s.id === item.id) {
-        return { ...s, usageCount: (s.usageCount || 0) + 1 };
+        return { ...s, usageCount: (s.usageCount || 0) + 1, lastLaunchAt: Date.now() };
       }
       return s;
     });

@@ -56,7 +56,7 @@ export const translations = {
 
     // Sidebar Config Tabs
     tab_general: "GENERAL SYSTEM",
-    tab_appearance: "INTERFACE CORE",
+    tab_appearance: "APPEARANCE",
     tab_shortcuts: "LAUNCH SPECS",
     tab_process_matrix: "PROCESS MATRIX",
     process_kill_confirm: "Are you sure you want to terminate this process? This might cause unsaved data loss",
@@ -278,7 +278,7 @@ export const translations = {
     about_title: "ABOUT SYSTEM",
     about_version: "CYBER SHELF VERSION",
     about_developer: "DEVELOPER ARCHITECT",
-    about_desc: "A cyberpunk-themed system tray shortcut launcher and dock for Windows. Organize, search, and launch apps, files, and URLs from an animated shelf.",
+    about_desc: "A system tray shortcut launcher and dock for Windows. Organize, search, and launch apps, files, and URLs from an animated shelf.",
     about_maintenance: "MAINTENANCE",
     about_auto_updates: "AUTOMATIC UPDATES",
     about_auto_updates_desc: "Notify when new versions are available without installing automatically.",
@@ -418,7 +418,7 @@ export const translations = {
 
     // Sidebar Config Tabs
     tab_general: "SISTEMA GENERAL",
-    tab_appearance: "NÚCLEO DE INTERFAZ",
+    tab_appearance: "APARIENCIA",
     tab_shortcuts: "ESPECIFICACIONES",
     tab_process_matrix: "MATRIZ DE PROCESOS",
     process_kill_confirm: "¿Estás seguro de terminar este proceso? Esto podría causar pérdida de datos no guardados.",
@@ -472,7 +472,7 @@ export const translations = {
     app_bg_apply: "APLICAR",
     app_bg_browse: "EXAMINAR",
     app_theme_presets: "COLOR DE BRILLO NEÓN",
-    app_theme_presets_desc: "Elige la facción de iluminación táctica cyberpunk.",
+    app_theme_presets_desc: "Elige la facción de iluminación táctica.",
     preset_cyan: "Netrunner Cian",
     preset_purple: "Púrpura Sintético",
     preset_amber: "Ámbar Sandevistan",
@@ -640,7 +640,7 @@ export const translations = {
     about_title: "INFORMACIÓN DEL SISTEMA",
     about_version: "VERSIÓN DE LA BANDEJA",
     about_developer: "DESARROLLADOR / ARQUITECTO",
-    about_desc: "Un lanzador y dock de bandeja del sistema con estética cyberpunk para Windows. Organiza, busca y lanza apps, archivos y URLs desde un estante animado.",
+    about_desc: "Un lanzador y dock de bandeja del sistema para Windows. Organiza, busca y lanza apps, archivos y URLs desde un estante animado.",
     about_maintenance: "MANTENIMIENTO",
     about_auto_updates: "ACTUALIZACIONES AUTOMÁTICAS",
     about_auto_updates_desc: "Notificar cuando haya nuevas versiones disponibles, sin instalar automáticamente.",

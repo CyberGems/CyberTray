@@ -110,6 +110,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('open-about', handler);
     return () => { ipcRenderer.removeListener('open-about', handler); };
   },
+  onOpenAddShortcut: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('open-add-shortcut', handler);
+    return () => { ipcRenderer.removeListener('open-add-shortcut', handler); };
+  },
+  onShortcutLaunched: (callback: (payload: { path: string; name: string }) => void) => {
+    const handler = (_event: any, payload: { path: string; name: string }) => callback(payload);
+    ipcRenderer.on('shortcut-launched', handler);
+    return () => { ipcRenderer.removeListener('shortcut-launched', handler); };
+  },
+  setTrayRecents: (items: Array<{ name: string; path: string; isAdmin?: boolean; iconPath?: string; arguments?: string; cwd?: string }>) =>
+    ipcRenderer.invoke('tray:set-recents', items),
 
   // --- App versions / updates ---
   getAppVersions: () => ipcRenderer.invoke('app:get-versions'),

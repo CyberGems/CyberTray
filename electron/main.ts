@@ -221,20 +221,332 @@ function migrateConfigIconsToDisk() {
 
 const TRAY_TRANSLATIONS = {
   en: {
-    show: 'Show CyberTray',
-    check_updates: 'Check for Update...',
-    pos_top: 'Position: Top',
-    pos_bottom: 'Position: Bottom',
-    exit: 'Exit'
+    showHide: 'Show / Hide',
+    newShortcut: 'New shortcut...',
+    settings: 'Settings...',
+    help: 'Help',
+    faq: 'Frequently Asked Questions',
+    changelog: 'Changelog',
+    homepage: 'Website',
+    donate: 'Donate',
+    about: 'About...',
+    checkUpdates: 'Check for Update...',
+    mostRecent: 'Most recent',
+    noRecents: 'No recent shortcuts',
+    quit: 'Exit',
   },
   es: {
-    show: 'Mostrar CyberTray',
-    check_updates: 'Buscar actualizaciones...',
-    pos_top: 'Posición: Superior',
-    pos_bottom: 'Posición: Inferior',
-    exit: 'Salir'
-  }
+    showHide: 'Mostrar / Ocultar',
+    newShortcut: 'Nuevo acceso...',
+    settings: 'Configuración...',
+    help: 'Ayuda',
+    faq: 'Preguntas frecuentes',
+    changelog: 'Changelog',
+    homepage: 'Sitio web',
+    donate: 'Donar',
+    about: 'Acerca de...',
+    checkUpdates: 'Buscar actualizaciones...',
+    mostRecent: 'Más recientes',
+    noRecents: 'Ningún acceso reciente',
+    quit: 'Salir',
+  },
+} as const;
+
+type TrayRecentItem = {
+  name: string;
+  path: string;
+  isAdmin?: boolean;
+  iconPath?: string;
+  arguments?: string;
+  cwd?: string;
 };
+
+let trayRecents: TrayRecentItem[] = [];
+let lastTrayRecentsKey = '';
+const recentIconCache = new Map<string, Electron.NativeImage>();
+
+function getMenuIconsDir(): string {
+  return VITE_DEV_SERVER_URL
+    ? path.join(__dirname, '../public/menu-icons')
+    : path.join(__dirname, '../dist/menu-icons');
+}
+
+function loadMenuIcon(name: string): Electron.NativeImage | undefined {
+  const iconPath = path.join(getMenuIconsDir(), name);
+  if (!fs.existsSync(iconPath)) return undefined;
+  const img = nativeImage.createFromPath(iconPath);
+  if (img.isEmpty()) return undefined;
+  return img;
+}
+
+function loadRecentIcon(iconPath?: string): Electron.NativeImage | undefined {
+  if (!iconPath) return undefined;
+
+  let sourceKey = iconPath;
+  let image: Electron.NativeImage;
+
+  if (/^data:image\//i.test(iconPath)) {
+    const cached = recentIconCache.get(sourceKey);
+    if (cached) return cached;
+    image = nativeImage.createFromDataURL(iconPath);
+  } else if (/^local-resource:\/\//i.test(iconPath)) {
+    let filePath = iconPath
+      .replace(/^local-resource:\/\//i, '')
+      .split(/[?#]/, 1)[0];
+    try {
+      filePath = decodeURIComponent(filePath);
+    } catch {
+      return undefined;
+    }
+    if (/^\/[A-Za-z]:[\\/]/.test(filePath)) filePath = filePath.slice(1);
+    filePath = filePath.replace(/\//g, path.sep);
+    const cacheVersion = iconPath.match(/[?#].*$/)?.[0] || '';
+    sourceKey = `${filePath}${cacheVersion}`;
+    const cached = recentIconCache.get(sourceKey);
+    if (cached) return cached;
+    if (!fs.existsSync(filePath)) return undefined;
+    image = nativeImage.createFromPath(filePath);
+  } else {
+    if (!path.isAbsolute(iconPath) || !fs.existsSync(iconPath)) return undefined;
+    sourceKey = iconPath;
+    const cached = recentIconCache.get(sourceKey);
+    if (cached) return cached;
+    image = nativeImage.createFromPath(iconPath);
+  }
+
+  if (image.isEmpty()) return undefined;
+  const sized = image.resize({ width: 16, height: 16 });
+  if (sized.isEmpty()) return undefined;
+  recentIconCache.set(sourceKey, sized);
+  return sized;
+}
+
+function setTrayRecents(items: unknown[]): void {
+  const next: TrayRecentItem[] = [];
+  for (const raw of items) {
+    if (!raw || typeof raw !== 'object') continue;
+    const item = raw as Record<string, unknown>;
+    const itemPath = typeof item.path === 'string' ? item.path.trim() : '';
+    const name = typeof item.name === 'string' ? item.name.trim() : '';
+    const iconPath = typeof item.iconPath === 'string' ? item.iconPath.trim() : '';
+    const args = typeof item.arguments === 'string' ? item.arguments : '';
+    const cwd = typeof item.cwd === 'string' ? item.cwd : '';
+    if (!itemPath || !name) continue;
+    next.push({
+      name: name.slice(0, 80),
+      path: itemPath,
+      isAdmin: !!item.isAdmin,
+      ...(iconPath ? { iconPath } : {}),
+      ...(args ? { arguments: args } : {}),
+      ...(cwd ? { cwd } : {}),
+    });
+    if (next.length >= 10) break;
+  }
+  const key = JSON.stringify(next);
+  if (key === lastTrayRecentsKey) return;
+  lastTrayRecentsKey = key;
+  trayRecents = next;
+  rebuildTrayMenu();
+}
+
+function getBrandMenuIcon(): Electron.NativeImage | undefined {
+  const iconPath = getAppIconPath();
+  if (!fs.existsSync(iconPath)) return undefined;
+  const sized = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+  return sized.isEmpty() ? undefined : sized;
+}
+
+async function launchAppInternal(
+  appPath: string,
+  isAdmin?: boolean,
+  args?: string,
+  cwd?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const hasArgs = typeof args === 'string' && args.trim().length > 0;
+    if (process.platform === 'win32' && (isAdmin || hasArgs || (cwd && cwd.trim()))) {
+      const esc = (s: string) => String(s).replace(/'/g, "''");
+      let command = `Start-Process -FilePath '${esc(appPath)}'`;
+      if (hasArgs) command += ` -ArgumentList '${esc(args)}'`;
+      if (cwd && cwd.trim()) command += ` -WorkingDirectory '${esc(cwd)}'`;
+      if (isAdmin) command += ` -Verb RunAs`;
+      exec(`powershell -NoProfile -Command "${command}"`, { windowsHide: true });
+    } else {
+      shell.openPath(appPath);
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || err };
+  }
+}
+
+function launchShortcutFromTray(item: TrayRecentItem): void {
+  void (async () => {
+    try {
+      await launchAppInternal(item.path, item.isAdmin, item.arguments, item.cwd);
+      trayRecents = [item, ...trayRecents.filter(r => r.path !== item.path)].slice(0, 10);
+      lastTrayRecentsKey = JSON.stringify(trayRecents);
+      rebuildTrayMenu();
+      if (shelfWindow && !shelfWindow.isDestroyed()) {
+        shelfWindow.webContents.send('shortcut-launched', { path: item.path, name: item.name });
+      }
+    } catch (err) {
+      console.warn('[TRAY] Recent launch failed:', err);
+    }
+  })();
+}
+
+function getTrayMenuTemplate(): Electron.MenuItemConstructorOptions[] {
+  const lang = (config as any).language === 'es' ? 'es' : 'en';
+  const t = TRAY_TRANSLATIONS[lang];
+  const version = app.getVersion();
+  const isVisible = !!(shelfWindow && !shelfWindow.isDestroyed() && shelfWindow.isVisible());
+  const parts = t.showHide.split(' / ');
+  const dynamicLabel = isVisible ? (parts[1] || t.showHide) : (parts[0] || t.showHide);
+  const iconBrand = getBrandMenuIcon();
+  const iconShow = loadMenuIcon('show-hide.png');
+  const iconAdd = loadMenuIcon('add.png');
+  const iconSettings = loadMenuIcon('settings.png');
+  const iconHelp = loadMenuIcon('help.png');
+  const iconFaq = loadMenuIcon('faq.png');
+  const iconChangelog = loadMenuIcon('changelog.png');
+  const iconHome = loadMenuIcon('homepage.png');
+  const iconDonate = loadMenuIcon('donate.png');
+  const iconAbout = loadMenuIcon('about.png');
+  const iconRecent = loadMenuIcon('recent.png');
+  const iconUpdate = loadMenuIcon('update.png');
+  const iconQuit = loadMenuIcon('quit.png');
+
+  return [
+    {
+      label: `CyberTray v${version}`,
+      ...(iconBrand ? { icon: iconBrand } : {}),
+      click: () => triggerOpenAbout(false),
+    },
+    { type: 'separator' },
+    {
+      label: dynamicLabel,
+      ...(iconShow ? { icon: iconShow } : {}),
+      accelerator: config.shortcut || undefined,
+      click: () => toggleShelf(),
+    },
+    {
+      label: t.newShortcut,
+      ...(iconAdd ? { icon: iconAdd } : {}),
+      click: () => {
+        showShelf();
+        setTimeout(() => {
+          if (shelfWindow && !shelfWindow.isDestroyed()) {
+            shelfWindow.webContents.send('open-add-shortcut');
+          }
+        }, 300);
+      },
+    },
+    {
+      label: t.settings,
+      ...(iconSettings ? { icon: iconSettings } : {}),
+      click: () => {
+        showShelf();
+        setTimeout(() => {
+          if (shelfWindow && !shelfWindow.isDestroyed()) {
+            shelfWindow.webContents.send('open-settings');
+          }
+        }, 300);
+      },
+    },
+    {
+      label: t.mostRecent,
+      ...(iconRecent ? { icon: iconRecent } : {}),
+      submenu: trayRecents.length > 0
+        ? trayRecents.map((item, index) => {
+            const itemIcon = loadRecentIcon(item.iconPath) || iconRecent;
+            return {
+              label: `${index + 1}. ${item.name}`,
+              ...(itemIcon ? { icon: itemIcon } : {}),
+              click: () => launchShortcutFromTray(item),
+            };
+          })
+        : [{ label: t.noRecents, enabled: false }],
+    },
+    {
+      label: t.help,
+      ...(iconHelp ? { icon: iconHelp } : {}),
+      submenu: [
+        {
+          label: t.help,
+          ...(iconHelp ? { icon: iconHelp } : {}),
+          click: () => { void shell.openExternal('https://github.com/CyberGems/CyberTray/wiki'); },
+        },
+        {
+          label: t.faq,
+          ...(iconFaq ? { icon: iconFaq } : {}),
+          click: () => { void shell.openExternal('https://github.com/CyberGems/CyberTray/issues'); },
+        },
+        {
+          label: t.changelog,
+          ...(iconChangelog ? { icon: iconChangelog } : {}),
+          click: () => { void shell.openExternal('https://github.com/CyberGems/CyberTray/releases'); },
+        },
+        {
+          label: t.homepage,
+          ...(iconHome ? { icon: iconHome } : {}),
+          click: () => { void shell.openExternal('https://cybergems.org'); },
+        },
+        {
+          label: t.donate,
+          ...(iconDonate ? { icon: iconDonate } : {}),
+          click: () => { void shell.openExternal('https://github.com/CyberGems/CyberTray#%EF%B8%8F-donate'); },
+        },
+        { type: 'separator' },
+        {
+          label: t.about,
+          ...(iconAbout ? { icon: iconAbout } : {}),
+          click: () => triggerOpenAbout(false),
+        },
+        {
+          label: t.checkUpdates,
+          ...(iconUpdate ? { icon: iconUpdate } : {}),
+          click: () => triggerOpenAbout(true),
+        },
+      ],
+    },
+    { type: 'separator' },
+    {
+      label: t.quit,
+      ...(iconQuit ? { icon: iconQuit } : {}),
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ];
+}
+
+function rebuildTrayMenu(): void {
+  if (!tray) return;
+  const version = app.getVersion();
+  tray.setToolTip(`CyberTray v${version}`);
+  tray.setContextMenu(Menu.buildFromTemplate(getTrayMenuTemplate()));
+}
+
+// ── SYSTEM TRAY (Bandeja del sistema) ──
+function createTray() {
+  const iconPath = getAppIconPath();
+  let trayIcon = nativeImage.createEmpty();
+  if (fs.existsSync(iconPath)) {
+    trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+  }
+
+  if (!tray) {
+    tray = new Tray(trayIcon);
+    tray.setToolTip(`CyberTray v${app.getVersion()}`);
+    tray.on('click', () => toggleShelf());
+  } else {
+    tray.setImage(trayIcon);
+  }
+
+  rebuildTrayMenu();
+}
 
 // --- Carga y Guardado de Configuración ---
 function loadConfig() {
@@ -613,72 +925,6 @@ function alignWindows() {
   }
 }
 
-// ── SYSTEM TRAY (Bandeja del sistema) ──
-function createTray() {
-  const lang = (config as any).language === 'es' ? 'es' : 'en';
-  const t = TRAY_TRANSLATIONS[lang];
-
-  const iconPath = getAppIconPath();
-  
-  let trayIcon = nativeImage.createEmpty();
-  if (fs.existsSync(iconPath)) {
-    trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
-  }
-
-  if (!tray) {
-    tray = new Tray(trayIcon);
-    tray.setToolTip('CyberTray');
-    tray.on('click', () => toggleShelf());
-  } else {
-    tray.setImage(trayIcon);
-  }
-
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: `CyberTray v${app.getVersion()}`,
-      enabled: false,
-    },
-    { type: 'separator' },
-    {
-      label: t.show,
-      click: () => toggleShelf(),
-    },
-    {
-      label: t.check_updates,
-      click: () => triggerOpenAbout(true),
-    },
-    { type: 'separator' },
-    {
-      label: t.pos_top,
-      type: 'radio',
-      checked: config.dockPosition === 'top',
-      click: () => {
-        saveConfig({ dockPosition: 'top' });
-        alignWindows();
-      }
-    },
-    {
-      label: t.pos_bottom,
-      type: 'radio',
-      checked: config.dockPosition === 'bottom',
-      click: () => {
-        saveConfig({ dockPosition: 'bottom' });
-        alignWindows();
-      }
-    },
-    { type: 'separator' },
-    {
-      label: t.exit,
-      click: () => {
-        isQuitting = true;
-        app.quit();
-      },
-    },
-  ]);
-
-  tray.setContextMenu(contextMenu);
-}
-
 // ── REGISTRO DE ATAJO GLOBAL ──
 function registerGlobalShortcutKey(shortcut: string) {
   globalShortcut.unregisterAll();
@@ -931,24 +1177,12 @@ function fetchVramInfoInBackground() {
 // ── IPC INTERACTIVE COMMS BINDERS ──
 function registerIpcHandlers() {
   ipcMain.handle('launch-app', async (_, appPath, isAdmin, args, cwd) => {
-    try {
-      const hasArgs = typeof args === 'string' && args.trim().length > 0;
-      // shell.openPath no admite argumentos; usamos Start-Process cuando hay que
-      // pasar parametros, fijar el directorio de trabajo o elevar (RunAs).
-      if (process.platform === 'win32' && (isAdmin || hasArgs || (cwd && cwd.trim()))) {
-        const esc = (s: string) => String(s).replace(/'/g, "''");
-        let command = `Start-Process -FilePath '${esc(appPath)}'`;
-        if (hasArgs) command += ` -ArgumentList '${esc(args)}'`;
-        if (cwd && cwd.trim()) command += ` -WorkingDirectory '${esc(cwd)}'`;
-        if (isAdmin) command += ` -Verb RunAs`;
-        exec(`powershell -NoProfile -Command "${command}"`, { windowsHide: true });
-      } else {
-        shell.openPath(appPath);
-      }
-      return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err?.message || err };
-    }
+    return launchAppInternal(appPath, isAdmin, args, cwd);
+  });
+
+  ipcMain.handle('tray:set-recents', (_event, items: unknown) => {
+    setTrayRecents(Array.isArray(items) ? items : []);
+    return { success: true };
   });
 
   ipcMain.handle('get-uwp-apps', async () => {
