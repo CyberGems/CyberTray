@@ -1,8 +1,8 @@
-<h1 align="center">CyberTray — System Tray Launcher</h1>
-
 <p align="center">
   <img src="public/icon.png" width="128" height="128" alt="CyberTray icon / icono de CyberTray" />
 </p>
+
+<h1 align="center">CyberTray — System Tray Launcher</h1>
 
 <p align="center">
   <strong>A cyberpunk-themed shortcut launcher and dock</strong> — animated shelf that slides out from your screen edge, with system monitoring, process management, and a secure file vault.
