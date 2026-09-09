@@ -174,199 +174,187 @@ export default function AboutModal({
   return (
     <AnimatePresence>
       {showAboutModal && (
-        <>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+          onClick={() => setShowAboutModal(false)}
+        >
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowAboutModal(false)}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs"
-          />
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(92vw,460px)] max-h-[90vh] z-[60] bg-[#070b13]/95 border border-[var(--neon-glow-border)] shadow-2xl rounded-2xl font-mono text-xs text-left flex flex-col overflow-hidden"
-            onClick={e => e.stopPropagation()}
+            initial={{ scale: 0.94, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.94, opacity: 0, y: 20 }}
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-[460px] bg-gradient-to-b from-[#0d1520] to-[#0a0f18] border border-[var(--neon-glow-border)] rounded-2xl shadow-[0_0_40px_rgba(6,182,212,0.12)] flex flex-col max-h-[90vh] overflow-hidden"
           >
-            <div className="flex items-center justify-between border-b border-slate-900 px-6 pt-5 pb-3 shrink-0">
-              <h3 className="font-ui font-bold text-white text-sm tracking-widest uppercase">
-                {t('about_title')}
-              </h3>
+            <div className="flex justify-end px-4 pt-4 shrink-0">
               <button
+                type="button"
                 onClick={() => setShowAboutModal(false)}
-                className="w-7 h-7 rounded-lg border border-slate-800 hover:border-red-500/50 text-slate-500 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-all cursor-pointer"
-                title={t('about_title')}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                aria-label={t('close_btn')}
+                title={t('close_btn')}
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="overflow-y-auto custom-scrollbar px-6 py-4">
-              <div className="flex flex-col items-center text-center space-y-4">
-                <CyberTrayLogo className="w-16 h-16" animated={false} />
+            <div className="overflow-y-auto custom-scrollbar px-7 pb-5 text-center">
+              <div className="relative w-[72px] h-[72px] mx-auto mb-4 flex items-center justify-center">
+                <CyberTrayLogo className="w-[72px] h-[72px] drop-shadow-[0_0_8px_rgba(34,211,238,0.28)]" animated={false} />
+              </div>
 
-                <div>
-                  <h4 className="font-cyber font-bold text-lg text-white tracking-widest" style={{ fontFamily: 'Orbitron, sans-serif' }}>
-                    CyberTray{appVersion ? ` v${appVersion}` : ''}
-                  </h4>
+              <h1 className="text-[26px] font-cyber font-bold tracking-wide text-white mb-1">
+                Cyber<span className="text-[var(--neon-glow-color)]">Tray</span>
+              </h1>
+              <div className="text-[11px] font-digits font-bold text-slate-500 uppercase tracking-[0.12em] mb-3.5">
+                {t('about_version', { version: appVersion || '…' })}
+              </div>
+
+              <p className="text-[13px] text-slate-400 leading-relaxed mb-6">
+                {t('about_desc')}
+              </p>
+
+              <div className="text-left">
+                <div className="text-[11px] font-cyber font-bold uppercase text-[var(--neon-glow-color)] mb-3 flex items-center gap-2 tracking-wider">
+                  <div className="h-px flex-1 bg-[var(--neon-glow-color-raw)]/20" />
+                  {t('about_maintenance')}
+                  <div className="h-px flex-1 bg-[var(--neon-glow-color-raw)]/20" />
                 </div>
 
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  {t('about_desc')}
-                </p>
+                <UpdateStatusLine status={status} />
 
-                <div className="w-full bg-slate-950/50 border border-slate-900 rounded-xl p-3.5 space-y-2.5 text-left text-[11px]">
-                  <div className="flex justify-between items-center border-b border-slate-900/60 pb-1.5">
-                    <span className="text-slate-400 font-cyber text-[10px] tracking-wider uppercase">{t('about_version')}</span>
-                    <span className="text-white font-bold font-mono">v{appVersion || '…'}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400 font-cyber text-[10px] tracking-wider uppercase">{t('about_developer')}</span>
-                    <span className="text-[var(--neon-glow-color)] font-bold font-cyber tracking-widest uppercase">CyberGems</span>
-                  </div>
-                </div>
+                {(status.state === 'available' || status.state === 'downloaded') && (
+                  <ReleaseNotesPanel status={status} currentVersion={appVersion} />
+                )}
 
-                <div className="w-full text-left">
-                  <div className="text-[10px] font-cyber font-bold uppercase text-[var(--neon-glow-color)] mb-3 flex items-center gap-2 tracking-widest">
-                    <div className="h-px flex-1 bg-[var(--neon-glow-color-raw)]/20" />
-                    {t('about_maintenance')}
-                    <div className="h-px flex-1 bg-[var(--neon-glow-color-raw)]/20" />
-                  </div>
-
-                  <UpdateStatusLine status={status} />
-
-                  {(status.state === 'available' || status.state === 'downloaded') && (
-                    <ReleaseNotesPanel status={status} currentVersion={appVersion} />
-                  )}
-
-                  <div className="grid grid-cols-1 gap-2">
-                    {status.state === 'available' ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openUrl(status.releaseUrl || githubReleaseUrl(status.version))}
-                          className="flex items-center justify-center gap-1.5 w-full py-2.5 px-2 rounded-xl text-[10px] font-cyber font-bold tracking-wide bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 transition-colors cursor-pointer"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                          {t('about_view_release')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleDownload}
-                          className="flex items-center justify-center gap-1.5 w-full py-2.5 px-2 rounded-xl text-[10px] font-cyber font-bold tracking-wide bg-[var(--neon-glow-color-raw)]/15 hover:bg-[var(--neon-glow-color-raw)]/25 text-[var(--neon-glow-color)] border border-[var(--neon-glow-border)] transition-colors cursor-pointer"
-                        >
-                          <Download className="w-3.5 h-3.5 shrink-0" />
-                          {t('about_download_btn')}
-                        </button>
-                      </div>
-                    ) : status.state === 'downloaded' ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openUrl(status.releaseUrl || githubReleaseUrl(status.version))}
-                          className="flex items-center justify-center gap-1.5 w-full py-2.5 px-2 rounded-xl text-[10px] font-cyber font-bold tracking-wide bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 transition-colors cursor-pointer"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                          {t('about_view_release')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleInstall}
-                          className="flex items-center justify-center gap-1.5 w-full py-2.5 px-2 rounded-xl text-[10px] font-cyber font-bold tracking-wide bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition-colors cursor-pointer"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                          {t('about_install_btn')}
-                        </button>
-                      </div>
-                    ) : (
+                <div className="grid grid-cols-1 gap-2">
+                  {status.state === 'available' ? (
+                    <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
-                        onClick={handleCheck}
-                        disabled={status.state === 'checking' || status.state === 'downloading'}
-                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[10px] font-cyber font-bold tracking-widest bg-slate-900 hover:bg-slate-800 text-white border border-slate-800 disabled:opacity-50 transition-colors cursor-pointer disabled:cursor-not-allowed"
+                        onClick={() => openUrl(status.releaseUrl || githubReleaseUrl(status.version))}
+                        className="flex items-center justify-center gap-1.5 w-full py-2.5 px-2 rounded-xl text-[11px] font-cyber font-bold tracking-wide bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 border border-white/10 transition-colors cursor-pointer"
                       >
-                        <RefreshCw className={`w-3.5 h-3.5 ${status.state === 'checking' ? 'animate-spin' : ''}`} />
-                        {t('about_check_updates')}
+                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                        {t('about_view_release')}
                       </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={handleCopyDiagnostics}
-                      disabled={!versions}
-                      className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-[10px] font-cyber font-bold tracking-widest border transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                        diagCopied
-                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                          : 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-800'
-                      }`}
-                    >
-                      {diagCopied ? <Check className="w-3.5 h-3.5" /> : <ClipboardCopy className="w-3.5 h-3.5" />}
-                      {diagCopied ? t('about_diagnostics_copied') : t('about_copy_diagnostics')}
-                    </button>
-
-                    <div className="flex items-center justify-between px-1 py-2 mt-1 gap-3">
-                      <div className="flex flex-col text-left">
-                        <span className="text-[11px] text-white font-ui font-bold tracking-wider uppercase">{t('about_auto_updates')}</span>
-                        <span className="text-[9.5px] text-slate-500 leading-snug mt-0.5">{t('about_auto_updates_desc')}</span>
-                      </div>
                       <button
                         type="button"
-                        onClick={() => { onAutoUpdateChange(!autoUpdate); playCyberBeep(); }}
-                        className={`w-11 h-5.5 rounded-full p-0.5 transition-colors cursor-pointer flex-shrink-0 ${
-                          autoUpdate ? 'bg-[var(--neon-glow-color-raw)]' : 'bg-slate-800'
-                        }`}
-                        aria-pressed={autoUpdate}
-                        aria-label={t('about_auto_updates')}
+                        onClick={handleDownload}
+                        className="flex items-center justify-center gap-1.5 w-full py-2.5 px-2 rounded-xl text-[11px] font-cyber font-bold tracking-wide bg-[var(--neon-glow-color-raw)]/15 hover:bg-[var(--neon-glow-color-raw)]/25 text-[var(--neon-glow-color)] border border-[var(--neon-glow-border)] transition-colors cursor-pointer"
                       >
-                        <div className={`w-4.5 h-4.5 bg-slate-950 rounded-full transition-transform ${
-                          autoUpdate ? 'translate-x-5' : 'translate-x-0'
-                        }`} />
+                        <Download className="w-3.5 h-3.5 shrink-0" />
+                        {t('about_download_btn')}
                       </button>
                     </div>
+                  ) : status.state === 'downloaded' ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openUrl(status.releaseUrl || githubReleaseUrl(status.version))}
+                        className="flex items-center justify-center gap-1.5 w-full py-2.5 px-2 rounded-xl text-[11px] font-cyber font-bold tracking-wide bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 border border-white/10 transition-colors cursor-pointer"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                        {t('about_view_release')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleInstall}
+                        className="flex items-center justify-center gap-1.5 w-full py-2.5 px-2 rounded-xl text-[11px] font-cyber font-bold tracking-wide bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition-colors cursor-pointer"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        {t('about_install_btn')}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleCheck}
+                      disabled={status.state === 'checking' || status.state === 'downloading'}
+                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-cyber font-bold tracking-wider bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 border border-white/10 disabled:opacity-50 transition-colors cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${status.state === 'checking' ? 'animate-spin' : ''}`} />
+                      {t('about_check_updates')}
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleCopyDiagnostics}
+                    disabled={!versions}
+                    className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-cyber font-bold tracking-wider border transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                      diagCopied
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                        : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 border-white/10'
+                    }`}
+                  >
+                    {diagCopied ? <Check className="w-3.5 h-3.5" /> : <ClipboardCopy className="w-3.5 h-3.5" />}
+                    {diagCopied ? t('about_diagnostics_copied') : t('about_copy_diagnostics')}
+                  </button>
+
+                  <div className="flex items-center justify-between px-1 py-2 mt-1 gap-3">
+                    <div className="flex flex-col text-left">
+                      <span className="text-xs text-slate-200 font-medium leading-tight">{t('about_auto_updates')}</span>
+                      <span className="text-[11px] text-slate-400 leading-snug mt-0.5">{t('about_auto_updates_desc')}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { onAutoUpdateChange(!autoUpdate); playCyberBeep(); }}
+                      className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-500/40 ${
+                        autoUpdate ? 'bg-[var(--neon-glow-color-raw)]' : 'bg-slate-700'
+                      }`}
+                      aria-pressed={autoUpdate}
+                      aria-label={t('about_auto_updates')}
+                    >
+                      <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform shadow ${
+                        autoUpdate ? 'translate-x-5' : 'translate-x-0'
+                      }`} />
+                    </button>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between px-5 py-2.5 border-t border-slate-900 bg-black/30 shrink-0">
+            <div className="flex items-center justify-between px-6 py-3 border-t border-white/5 bg-black/30 shrink-0">
               <button
                 type="button"
                 onClick={() => openUrl('https://cybergems.org')}
-                className="text-[10px] font-semibold text-slate-500 hover:text-white transition-colors cursor-pointer select-none"
+                className="text-[11px] font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer select-none"
                 title={t('about_website_tooltip')}
               >
                 {t('about_footer')}
               </button>
-              <div className="flex items-center gap-0.5">
+              <div className="flex items-center gap-1">
                 <FooterIconButton label={t('about_website_tooltip')} onClick={() => openUrl('https://cybergems.org')}>
-                  <Globe className="w-3.5 h-3.5" />
+                  <Globe className="w-4 h-4" />
                 </FooterIconButton>
                 <FooterIconButton label={t('about_docs_tooltip')} onClick={() => openUrl(`${REPO_URL}/wiki`)}>
-                  <BookOpen className="w-3.5 h-3.5" />
+                  <BookOpen className="w-4 h-4" />
                 </FooterIconButton>
                 <FooterIconButton label={t('about_github_tooltip')} onClick={() => openUrl(REPO_URL)}>
-                  <Github className="w-3.5 h-3.5" />
+                  <Github className="w-4 h-4" />
                 </FooterIconButton>
                 <FooterIconButton label={t('about_issues_tooltip')} onClick={() => openUrl(`${REPO_URL}/issues`)}>
-                  <Bug className="w-3.5 h-3.5" />
+                  <Bug className="w-4 h-4" />
                 </FooterIconButton>
                 <FooterIconButton label={t('about_releases_tooltip')} onClick={() => openUrl(`${REPO_URL}/releases`)}>
-                  <Tag className="w-3.5 h-3.5" />
+                  <Tag className="w-4 h-4" />
                 </FooterIconButton>
                 <button
                   type="button"
                   onClick={() => openUrl(`${REPO_URL}#%EF%B8%8F-donate`)}
-                  className="group flex items-center justify-center w-7 h-7 rounded-md hover:bg-white/10 transition-colors cursor-pointer"
+                  className="group flex items-center justify-center w-[30px] h-[30px] rounded-md hover:bg-white/10 transition-colors cursor-pointer"
                   title={t('about_donate_tooltip')}
                   aria-label={t('about_donate_tooltip')}
                 >
-                  <Heart className="w-3.5 h-3.5 fill-[#F43F5E] text-[#F43F5E] transition-transform group-hover:scale-110" />
+                  <Heart className="w-4 h-4 fill-[#F43F5E] text-[#F43F5E] transition-transform group-hover:scale-110" />
                 </button>
               </div>
             </div>
           </motion.div>
-        </>
+        </motion.div>
       )}
     </AnimatePresence>
   );
@@ -385,7 +373,7 @@ function FooterIconButton({
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center justify-center w-7 h-7 rounded-md hover:bg-white/10 text-slate-500 hover:text-[var(--neon-glow-color)] transition-colors cursor-pointer"
+      className="group flex items-center justify-center w-[30px] h-[30px] rounded-md hover:bg-white/10 text-slate-400 hover:text-[var(--neon-glow-color)] transition-colors cursor-pointer"
       title={label}
       aria-label={label}
     >

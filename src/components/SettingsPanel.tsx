@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sliders, Upload, Volume2 } from 'lucide-react';
+import { Sliders, Upload, Volume2, MousePointer2, Monitor } from 'lucide-react';
 import { translate } from '../locales';
 import { isElectron, INITIAL_CATEGORIES } from '../lib/appUtils';
 
@@ -378,56 +378,83 @@ export default function SettingsPanel({
                     </div>
 
                     {/* Hotspot Corners */}
-                    <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
-                      <div>
-                      <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('general_hotspots')}</h4>
-                        <p className="text-xs text-slate-500 mt-1 mb-3">{translate('general_hotspots_desc')}</p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {['top-left', 'top-right', 'bottom-left', 'bottom-right'].map((corner) => {
-                          const isActive = config.hotspotCorners?.includes(corner) || false;
-                          const label = corner.replace('-', ' ').replace(/\b\w/g, (l) => l.toUpperCase());
-                          return (
-                            <button
-                              key={corner}
-                              onClick={() => {
-                                const current = config.hotspotCorners || [];
-                                const next = isActive
-                                  ? current.filter((c: string) => c !== corner)
-                                  : [...current, corner];
-                                handleUpdateConfigSetting('hotspotCorners', next);
-                                if (isElectron) window.electronAPI!.setHotspots(next, config.hotspotDelay || 300);
-                              }}
-                              className={`px-3 py-2 border rounded-lg text-[10px] font-cyber font-bold tracking-wider transition-all cursor-pointer ${
-                                isActive
-                                  ? 'border-[var(--neon-glow-color)] text-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10'
-                                  : 'border-slate-800 text-slate-500 hover:border-slate-700'
-                              }`}
-                            >
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div className="border-t border-slate-900 pt-3">
-                        <div className="flex justify-between items-center mb-1">
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('general_hotspot_delay')}</h5>
-                          <span className="text-[var(--neon-glow-color)] font-bold">{config.hotspotDelay || 300}ms</span>
+                    <div className="space-y-4">
+                      <label className="text-xs font-cyber font-bold text-slate-400 tracking-widest drop-shadow-sm flex items-center gap-2">
+                        <MousePointer2 className="w-4 h-4 text-[var(--neon-glow-color)]" />
+                        {translate('general_hotspots')}
+                      </label>
+
+                      <div className="flex flex-col gap-4 bg-black/20 p-4 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                        <div className="flex flex-col md:flex-row gap-6 items-center">
+                          <div className="relative w-48 h-32 bg-black/40 border-2 border-white/10 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                            <Monitor className="absolute text-slate-700 w-16 h-16 opacity-50" />
+                            {(['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const).map((corner) => {
+                              const isActive = config.hotspotCorners?.includes(corner) || false;
+                              return (
+                                <button
+                                  key={corner}
+                                  type="button"
+                                  onClick={() => {
+                                    const current = config.hotspotCorners || [];
+                                    const next = isActive
+                                      ? current.filter((c: string) => c !== corner)
+                                      : [...current, corner];
+                                    handleUpdateConfigSetting('hotspotCorners', next);
+                                    if (isElectron) window.electronAPI!.setHotspots(next, config.hotspotDelay || 300);
+                                  }}
+                                  className={`absolute w-10 h-10 flex items-center justify-center transition-all focus:outline-none cursor-pointer ${
+                                    isActive
+                                      ? 'bg-[var(--neon-glow-color-raw)]/30 border-[var(--neon-glow-color)] shadow-[0_0_15px_rgba(34,211,238,0.5)] z-10'
+                                      : 'bg-white/5 border-white/20 hover:bg-white/10'
+                                  } ${
+                                    corner === 'top-left' ? 'top-0 left-0 rounded-br-2xl border-b border-r' :
+                                    corner === 'top-right' ? 'top-0 right-0 rounded-bl-2xl border-b border-l' :
+                                    corner === 'bottom-left' ? 'bottom-0 left-0 rounded-tr-2xl border-t border-r' :
+                                    'bottom-0 right-0 rounded-tl-2xl border-t border-l'
+                                  }`}
+                                  aria-pressed={isActive}
+                                  aria-label={corner}
+                                >
+                                  <div className={`w-2.5 h-2.5 rounded-full ${
+                                    isActive
+                                      ? 'bg-[var(--neon-glow-color)] shadow-[0_0_8px_var(--neon-glow-color)]'
+                                      : 'bg-slate-500'
+                                  }`} />
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <div className="flex-1 space-y-4 w-full">
+                            <div>
+                              <h4 className="text-sm font-medium text-slate-200 mb-1">{translate('general_hotspots_corners')}</h4>
+                              <p className="text-xs text-slate-500 leading-relaxed">{translate('general_hotspots_corners_desc')}</p>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-white/5">
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm font-medium text-slate-300">{translate('general_hotspots_delay')}</span>
+                                <span className="text-xs font-mono text-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10 px-2 py-0.5 rounded border border-[var(--neon-glow-border)]">
+                                  {config.hotspotDelay ?? 300}ms
+                                </span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="1000"
+                                step="50"
+                                value={config.hotspotDelay ?? 300}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value, 10);
+                                  handleUpdateConfigSetting('hotspotDelay', val);
+                                  if (isElectron) window.electronAPI!.setHotspots(config.hotspotCorners || [], val);
+                                }}
+                                className="w-full accent-[var(--neon-glow-color)] h-1 bg-white/10 rounded-full appearance-none outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-[var(--neon-glow-color)] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(34,211,238,0.5)] cursor-pointer mt-3"
+                              />
+                              <p className="text-[10px] text-slate-500 text-right mt-1">{translate('general_hotspots_delay_desc')}</p>
+                            </div>
+                          </div>
                         </div>
-                        <p className="text-xs text-slate-500 mb-2">{translate('general_hotspot_delay_desc')}</p>
-                        <input
-                          type="range"
-                          min="0"
-                          max="2000"
-                          step="50"
-                          value={config.hotspotDelay || 300}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value);
-                            handleUpdateConfigSetting('hotspotDelay', val);
-                            if (isElectron) window.electronAPI!.setHotspots(config.hotspotCorners || [], val);
-                          }}
-                          className="w-full accent-[var(--neon-glow-color)] h-1 bg-slate-900 rounded-lg cursor-pointer"
-                        />
                       </div>
                     </div>
 
