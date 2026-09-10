@@ -187,34 +187,6 @@ To continue:
 
 ---
 
-## ❓ Frequently Asked Questions
-
-### What is CyberTray?
-
-CyberTray is a system tray application launcher for Windows. It provides an animated shelf that slides out from your screen edge, giving you quick access to organized shortcuts, system monitoring, process management, and a secure file vault.
-
-### How do I show/hide CyberTray?
-
-Click the system tray icon or use the global hotkey (`Alt+T` by default). You can also configure hot corners to trigger it by dwelling your cursor in a screen corner.
-
-### How do updates work?
-
-CyberTray can check GitHub Releases on boot and notify you when a new version is available. From About you can download the update in-app and install it with a restart. Automatic install is off — you always confirm.
-
-### How does the Cyber-Vault work?
-
-The Cyber-Vault is a PIN-protected folder for storing sensitive files. You can enable PIN protection in Settings → Vault, set an auto-lock timeout, and use the "Desktop Sweep" feature to move all desktop files into the vault.
-
-### Can I import my existing shortcuts?
-
-Yes. Drag and drop `.exe` or `.lnk` files directly into the shelf to add them. You can also organize shortcuts into categories and folders.
-
-### Does CyberTray support multiple monitors?
-
-Yes. You can choose which display CyberTray appears on, or use "Follow cursor" mode to show it on whichever screen your mouse is on.
-
----
-
 ## ❤️ Donate
 
 **CyberTray** is one of the projects in [CyberGems](https://github.com/CyberGems#-all-apps--repositories), a personal set of daily-use tools for Windows. I've spent countless hours building and refining it for my own use, and it will continue to be maintained by me. I recently decided to share the entire suite with the world, completely free and open-source.
@@ -256,6 +228,16 @@ If you're enjoying CyberTray, I'd be truly grateful for your support! You can sh
 </details>
 
 </div>
+
+---
+
+## 📄 License
+
+CyberTray is distributed under the terms of the GNU General Public License v3.0. See [LICENSE](LICENSE) for the full license text.
+
+## ❓ FAQ
+
+For frequently asked questions, troubleshooting guides, and detailed configuration instructions, visit the [FAQ](https://github.com/CyberGems/CyberTray/wiki/FAQ) or the [online documentation](https://cybergems.org/docs/cybertray/FAQ).
 
 ---
 
