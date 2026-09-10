@@ -235,6 +235,8 @@ If you're enjoying CyberTray, I'd be truly grateful for your support! You can sh
 
 CyberTray is distributed under the terms of the GNU General Public License v3.0. See [LICENSE](LICENSE) for the full license text.
 
+---
+
 ## ❓ FAQ
 
 For frequently asked questions, troubleshooting guides, and detailed configuration instructions, visit the [FAQ](https://github.com/CyberGems/CyberTray/wiki/FAQ) or the [online documentation](https://cybergems.org/docs/cybertray/FAQ).
