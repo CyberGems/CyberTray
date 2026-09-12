@@ -2,10 +2,10 @@
   <img src="public/icon.png" width="128" height="128" alt="CyberTray icon / icono de CyberTray" />
 </p>
 
-<h1 align="center">CyberTray — System Tray Launcher</h1>
+<h1 align="center">CyberTray: System Tray Launcher</h1>
 
 <p align="center">
-  <strong>A shortcut launcher and dock</strong> — animated shelf that slides out from your screen edge, with system monitoring, process management, and a secure file vault.
+  <strong>A shortcut launcher and dock</strong>: animated shelf that slides out from your screen edge, with system monitoring, process management, and a secure file vault.
 </p>
 
 <p align="center">
@@ -19,15 +19,15 @@
   <a href="https://github.com/CyberGems/CyberTray/wiki"><img src="https://img.shields.io/badge/%F0%9F%93%96_Wiki-Documentation-222222?style=flat-square&logo=github&logoColor=white" alt="Wiki" height="24" /></a>
 </p>
 
-A **system tray shortcut launcher and dock** for Windows. CyberTray provides a sleek, animated shelf that slides out from the top or bottom of the screen, allowing you to organize, search, and launch applications, files, and URLs — all wrapped in a stunning neon glassmorphic interface.
+A **system tray shortcut launcher and dock** for Windows. CyberTray provides a sleek, animated shelf that slides out from the top or bottom of the screen, allowing you to organize, search, and launch applications, files, and URLs, all wrapped in a stunning neon glassmorphic interface.
 
-*Free and open source — no ads, no tracking, and no data collection. Just enjoy it.*
+*Free and open source: no ads, no tracking, and no data collection. Just enjoy it.*
 
 ---
 
 ## 🎯 Why CyberTray?
 
-Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTray gives you a **dedicated launchpad** that stays out of the way until you need it — then slides out with a smooth animation, ready to launch anything in milliseconds.
+Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTray gives you a **dedicated launchpad** that stays out of the way until you need it, then slides out with a smooth animation, ready to launch anything in milliseconds.
 
 | Need | Solution |
 |---|---|
@@ -168,7 +168,7 @@ The installer will be in the `release/` directory.
 
 ### 🛡️ Windows SmartScreen
 
-Windows may show a SmartScreen warning the first time you run the CyberTray installer — this is an unsigned hobby app, so Windows hasn't built reputation for the file yet. This is expected; the source is public so you can inspect exactly what it does.
+Windows may show a SmartScreen warning the first time you run the CyberTray installer: this is an unsigned hobby app, so Windows hasn't built reputation for the file yet. This is expected; the source is public so you can inspect exactly what it does.
 
 To continue:
 
@@ -253,12 +253,12 @@ Made by [**CyberGems**](https://cybergems.org)
 
 </div>
 <p align="center">
-  <a href="https://twitter.com/intent/tweet?text=CyberTray%20%E2%80%94%20free%20%26%20open-source%20desktop%20tool%20for%20Windows&url=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F"><img src="https://img.shields.io/badge/Share_on_X-1DA1F2?style=for-the-badge&logo=x&logoColor=white" alt="Share on X" /></a>
+  <a href="https://twitter.com/intent/tweet?text=CyberTray%3A%20free%20%26%20open-source%20desktop%20tool%20for%20Windows&url=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F"><img src="https://img.shields.io/badge/Share_on_X-1DA1F2?style=for-the-badge&logo=x&logoColor=white" alt="Share on X" /></a>
   &nbsp;<a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F"><img src="https://img.shields.io/badge/Share_on_Facebook-1877F2?style=for-the-badge&logo=facebook&logoColor=white" alt="Share on Facebook" /></a>
-  &nbsp;<a href="https://www.reddit.com/submit?url=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F&title=CyberTray%20%E2%80%94%20free%20%26%20open-source%20desktop%20tool%20for%20Windows"><img src="https://img.shields.io/badge/Share_on_Reddit-FF4500?style=for-the-badge&logo=reddit&logoColor=white" alt="Share on Reddit" /></a>
-  &nbsp;<a href="https://t.me/share/url?url=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F&text=CyberTray%20%E2%80%94%20free%20%26%20open-source%20desktop%20tool%20for%20Windows"><img src="https://img.shields.io/badge/Share_on_Telegram-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Share on Telegram" /></a>
+  &nbsp;<a href="https://www.reddit.com/submit?url=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F&title=CyberTray%3A%20free%20%26%20open-source%20desktop%20tool%20for%20Windows"><img src="https://img.shields.io/badge/Share_on_Reddit-FF4500?style=for-the-badge&logo=reddit&logoColor=white" alt="Share on Reddit" /></a>
+  &nbsp;<a href="https://t.me/share/url?url=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F&text=CyberTray%3A%20free%20%26%20open-source%20desktop%20tool%20for%20Windows"><img src="https://img.shields.io/badge/Share_on_Telegram-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Share on Telegram" /></a>
   &nbsp;<a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F"><img src="https://img.shields.io/badge/Share_on_LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" alt="Share on LinkedIn" /></a>
-  &nbsp;<a href="mailto:?subject=CyberTray%20%E2%80%94%20free%20%26%20open-source%20desktop%20tool%20for%20Windows&body=CyberTray%20%E2%80%94%20free%20%26%20open-source%20desktop%20tool%20for%20Windows%20https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F"><img src="https://img.shields.io/badge/Share_by_Email-EA4335?style=for-the-badge&logo=gmail&logoColor=white" alt="Share by Email" /></a>
+  &nbsp;<a href="mailto:?subject=CyberTray%3A%20free%20%26%20open-source%20desktop%20tool%20for%20Windows&body=CyberTray%3A%20free%20%26%20open-source%20desktop%20tool%20for%20Windows%20https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F"><img src="https://img.shields.io/badge/Share_by_Email-EA4335?style=for-the-badge&logo=gmail&logoColor=white" alt="Share by Email" /></a>
 </p>
 
 ---
@@ -272,7 +272,7 @@ More free, open-source, privacy-first apps from [**CyberGems**](https://github.c
 | 🕐&nbsp;[**CyberClock**](https://github.com/CyberGems/CyberClock#readme) | Desktop clock with analog & digital display, calendar, timer, stopwatch and relaxation module. |
 | 📢&nbsp;[**CyberFeeds**](https://github.com/CyberGems/CyberFeeds#readme) | High-performance, local-first RSS and Atom reader built for speed, privacy and clean reading. |
 | 🚀&nbsp;[**CyberLauncher**](https://github.com/CyberGems/CyberLauncher#readme) | Windows application launcher with hot corners, scheduler, system monitor and integrated terminal. |
-| 💻&nbsp;[**CyberManager**](https://github.com/CyberGems/CyberManager#readme) | Lightweight, high-performance task manager, virtualized and NT-native — a powerful Task Manager alternative. |
+| 💻&nbsp;[**CyberManager**](https://github.com/CyberGems/CyberManager#readme) | Lightweight, high-performance task manager, virtualized and NT-native, a powerful Task Manager alternative. |
 | 📝&nbsp;[**CyberNotes**](https://github.com/CyberGems/CyberNotes#readme) | Privacy-focused note-taking app with rich text, folders, tabs and bcrypt-protected local storage. |
 | ⚡&nbsp;[**CyberPaste**](https://github.com/CyberGems/CyberPaste#readme) | Privacy-first clipboard manager for text, code, images, HTML and files. |
 | 📸&nbsp;[**CyberSnap**](https://github.com/CyberGems/CyberSnap#readme) | Screen capture and annotation suite with vector tools, high-speed OCR, screen recording and color picker. |
