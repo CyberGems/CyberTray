@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sliders, Upload, Volume2, MousePointer2, Monitor } from 'lucide-react';
+import { Sliders, Upload, Volume2, MousePointer2, Monitor, Grid, List as ListIcon, ArrowUpDown } from 'lucide-react';
 import { translate } from '../locales';
 import { isElectron, INITIAL_CATEGORIES } from '../lib/appUtils';
 
@@ -55,6 +55,10 @@ export interface SettingsPanelProps {
   setEnableConfirmPinInput: (v: string) => void;
   enablePinError: string;
   setEnablePinError: (v: string) => void;
+  viewMode: 'grid' | 'list';
+  setViewMode: (v: 'grid' | 'list') => void;
+  iconSortOrder: 'alpha' | 'recent' | 'added';
+  setIconSortOrder: (v: 'alpha' | 'recent' | 'added') => void;
 }
 
 export default function SettingsPanel({
@@ -108,6 +112,10 @@ export default function SettingsPanel({
   setEnableConfirmPinInput,
   enablePinError,
   setEnablePinError,
+  viewMode,
+  setViewMode,
+  iconSortOrder,
+  setIconSortOrder,
 }: SettingsPanelProps) {
   return (
     <>
@@ -220,26 +228,6 @@ export default function SettingsPanel({
                           className={`px-4 py-1.5 border rounded-lg transition-all text-xs font-cyber font-bold cursor-pointer ${langCode === 'es' ? 'border-[var(--neon-glow-color)] text-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10' : 'border-slate-800 text-slate-400 hover:border-slate-700'}`}
                         >
                           ESPAÑOL
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Dock Position */}
-                    <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('general_dock_position')}</h4>
-                      <p className="text-xs text-slate-500 mt-1 mb-3">{translate('general_dock_position_desc')}</p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleUpdateConfigSetting({ dockPosition: 'top' })}
-                          className={`flex-1 py-1.5 border rounded-lg text-xs font-cyber font-bold cursor-pointer ${config.dockPosition === 'top' ? 'border-[var(--neon-glow-color)] text-[var(--neon-glow-color)]' : 'border-slate-800 text-slate-400 hover:border-slate-700'}`}
-                        >
-                          TOP
-                        </button>
-                        <button
-                          onClick={() => handleUpdateConfigSetting({ dockPosition: 'bottom' })}
-                          className={`flex-1 py-1.5 border rounded-lg text-xs font-cyber font-bold cursor-pointer ${config.dockPosition === 'bottom' ? 'border-[var(--neon-glow-color)] text-[var(--neon-glow-color)]' : 'border-slate-800 text-slate-400 hover:border-slate-700'}`}
-                        >
-                          BOTTOM
                         </button>
                       </div>
                     </div>
@@ -841,6 +829,83 @@ export default function SettingsPanel({
                 {/* 2. INTERFACE CORE (APPEARANCE) SETTINGS */}
                 {settingsTab === 'appearance' && (
                   <div className="space-y-6 max-w-2xl text-xs">
+
+                    <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
+                      <div>
+                        <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('app_layout')}</h4>
+                        <p className="text-xs text-slate-500 mt-1">{translate('app_layout_desc')}</p>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <h5 className="font-cyber font-bold text-slate-300 text-xs tracking-wider">{translate('app_icon_size')}</h5>
+                          <span className="text-xs font-mono text-[var(--neon-glow-color)]">{config.iconSize}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="40"
+                          max="90"
+                          value={config.iconSize}
+                          onChange={(e) => handleUpdateConfigSetting('iconSize', parseInt(e.target.value, 10))}
+                          className="w-full accent-[var(--neon-glow-color)] h-1 bg-slate-900 rounded-full cursor-pointer"
+                        />
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-900">
+                        <h5 className="font-cyber font-bold text-slate-300 text-xs tracking-wider mb-2">{translate('app_view_mode')}</h5>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => { setViewMode('grid'); playCyberBeep(); }}
+                            className={`py-2 px-3 border rounded-lg text-xs font-cyber font-bold flex items-center justify-center gap-2 cursor-pointer ${
+                              viewMode === 'grid'
+                                ? 'border-[var(--neon-glow-color)] text-white bg-slate-900'
+                                : 'border-slate-900 text-slate-500 hover:border-slate-800'
+                            }`}
+                          >
+                            <Grid className="w-3.5 h-3.5" />
+                            {translate('view_mode_grid')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setViewMode('list'); playCyberBeep(); }}
+                            className={`py-2 px-3 border rounded-lg text-xs font-cyber font-bold flex items-center justify-center gap-2 cursor-pointer ${
+                              viewMode === 'list'
+                                ? 'border-[var(--neon-glow-color)] text-white bg-slate-900'
+                                : 'border-slate-900 text-slate-500 hover:border-slate-800'
+                            }`}
+                          >
+                            <ListIcon className="w-3.5 h-3.5" />
+                            {translate('view_mode_list')}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-900">
+                        <h5 className="font-cyber font-bold text-slate-300 text-xs tracking-wider mb-2">{translate('app_sort_order')}</h5>
+                        <div className="flex flex-col gap-1">
+                          {([
+                            ['alpha', 'sort_alpha'],
+                            ['recent', 'sort_recent'],
+                            ['added', 'sort_added'],
+                          ] as const).map(([id, key]) => (
+                            <button
+                              key={id}
+                              type="button"
+                              onClick={() => { setIconSortOrder(id); playCyberBeep(); }}
+                              className={`py-1.5 px-3 border rounded-lg text-left text-xs font-cyber font-bold flex items-center gap-2 cursor-pointer ${
+                                iconSortOrder === id
+                                  ? 'border-[var(--neon-glow-color)] text-white bg-slate-900'
+                                  : 'border-slate-900 text-slate-500 hover:border-slate-800'
+                              }`}
+                            >
+                              <ArrowUpDown className="w-3 h-3" />
+                              {translate(key)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                     
                     {/* Presets de Color */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">

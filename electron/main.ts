@@ -40,7 +40,6 @@ let isDialogOpen = false;
 
 // ── CONFIGURACIÓN PREDETERMINADA ──
 interface CyberTrayConfig {
-  dockPosition: 'top' | 'bottom';
   monitorId: string;
   shortcut: string;
   hideOnBlur: boolean;
@@ -73,7 +72,6 @@ interface CyberTrayConfig {
 }
 
 const DEFAULT_CONFIG: CyberTrayConfig = {
-  dockPosition: 'top', // De arriba hacia abajo por defecto
   monitorId: '',
   shortcut: 'Alt+T', // Atajo CyberTray por defecto
   hideOnBlur: true,
@@ -103,7 +101,6 @@ const DEFAULT_CONFIG: CyberTrayConfig = {
 
 let config: CyberTrayConfig = { ...DEFAULT_CONFIG };
 const CONFIG_FILE = path.join(app.getPath('userData'), 'cyber-tray-config.json');
-const STATE_FILE = path.join(app.getPath('userData'), 'cyber-tray-state.json');
 
 function getIconsDir(): string {
   const dir = path.join(app.getPath('userData'), 'icons');
@@ -400,7 +397,7 @@ function getTrayMenuTemplate(): Electron.MenuItemConstructorOptions[] {
   const lang = (config as any).language === 'es' ? 'es' : 'en';
   const t = TRAY_TRANSLATIONS[lang];
   const version = app.getVersion();
-  const isVisible = !!(shelfWindow && !shelfWindow.isDestroyed() && shelfWindow.isVisible());
+  const isVisible = isShelfCurrentlyOpen();
   const parts = t.showHide.split(' / ');
   const dynamicLabel = isVisible ? (parts[1] || t.showHide) : (parts[0] || t.showHide);
   const iconBrand = getBrandMenuIcon();
@@ -554,6 +551,7 @@ function loadConfig() {
     if (fs.existsSync(CONFIG_FILE)) {
       const data = fs.readFileSync(CONFIG_FILE, 'utf-8');
       config = { ...DEFAULT_CONFIG, ...JSON.parse(data) };
+      delete (config as { dockPosition?: unknown }).dockPosition;
     }
   } catch (err) {
     console.error('Error loading config:', err);
@@ -615,6 +613,10 @@ let uacGuardTimer: NodeJS.Timeout | null = null;
 let uacResumeTimer: NodeJS.Timeout | null = null;
 let uacWatchdogTimer: NodeJS.Timeout | null = null;
 let shelfAnimationTimer: NodeJS.Timeout | null = null;
+let shelfOpen = false;
+let blurGuardUntil = 0;
+let nextShowClickThrough = false;
+let shelfClickThrough = false;
 
 function updateCachedDisplays() {
   try {
@@ -722,35 +724,45 @@ function getTargetDisplay(): Electron.Display {
 }
 
 // ── POSICIONAMIENTO DE VENTANAS ──
-function getShelfBounds(display: Electron.Display, customHeight?: number): Electron.Rectangle {
-  const workArea = display.workArea;
-
-  // Recuperar altura guardada o usar la mitad de la pantalla
-  let height = customHeight;
-  if (!height) {
-    try {
-      if (fs.existsSync(STATE_FILE)) {
-        const state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
-        if (state.height) height = state.height;
-      }
-    } catch {}
-  }
-  if (!height) {
-    height = Math.round(workArea.height * 0.5);
-  }
-
-  // Limitar altura (hasta el 95% para permitir extenderlo casi al completo)
-  height = Math.max(200, Math.min(Math.round(workArea.height * 0.95), height));
-
-  const width = workArea.width;
-  const x = workArea.x;
-
-  let y = workArea.y;
-  if (config.dockPosition === 'bottom') {
-    y = workArea.y + workArea.height - height;
-  }
-
+function getShelfBounds(display: Electron.Display): Electron.Rectangle {
+  const { x, y, width, height } = display.workArea;
   return { x, y, width, height };
+}
+
+/**
+ * Size the visible client to the work area. On Windows, frameless windows keep
+ * WS_THICKFRAME by default (~7px invisible DWM border), so setBounds(workArea)
+ * leaves a desktop/taskbar peek on the edges. Content bounds + thickFrame:false
+ * match what maximize() does in CyberLauncher without using maximize().
+ */
+function applyOverlayBounds(display?: Electron.Display) {
+  if (!shelfWindow || shelfWindow.isDestroyed()) return;
+  const wa = getShelfBounds(display ?? getTargetDisplay());
+  try {
+    shelfWindow.setResizable(true);
+    shelfWindow.setContentBounds(wa, false);
+    const got = shelfWindow.getContentBounds();
+    const dx = wa.x - got.x;
+    const dy = wa.y - got.y;
+    const dw = wa.width - got.width;
+    const dh = wa.height - got.height;
+    if (dx || dy || dw || dh) {
+      shelfWindow.setContentBounds({
+        x: got.x + dx,
+        y: got.y + dy,
+        width: Math.max(1, got.width + dw),
+        height: Math.max(1, got.height + dh),
+      }, false);
+    }
+  } catch {
+    try {
+      shelfWindow.setBounds(wa, false);
+    } catch { /* ignore */ }
+  } finally {
+    try {
+      shelfWindow.setResizable(false);
+    } catch { /* ignore */ }
+  }
 }
 
 // --- Iconos de la Aplicación ---
@@ -783,9 +795,14 @@ function createWindows() {
     x: shelfBounds.x,
     y: shelfBounds.y,
     frame: false,
-    transparent: true, // Habilitar transparencia para esquinas redondeadas y acople fluido sin bordes fantasma
+    transparent: false,
+    thickFrame: false,
+    hasShadow: false,
+    backgroundColor: '#070b13',
     alwaysOnTop: config.alwaysOnTop,
-    resizable: true,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
     skipTaskbar: !config.showTaskbarIcon,
     show: false,
     icon: getAppIcon(),
@@ -799,25 +816,7 @@ function createWindows() {
     autoHideMenuBar: true,
   });
 
-  const display = getTargetDisplay();
-  const workArea = display.workArea;
-  shelfWindow.setMinimumSize(workArea.width, 200);
-  shelfWindow.setMaximumSize(workArea.width, Math.round(workArea.height * 0.95));
-
-  let saveStateTimeout: NodeJS.Timeout | null = null;
-
-  // Guardar dimensiones después del redimensionamiento nativo (de-bounced para evitar lag de I/O en disco)
-  shelfWindow.on('resize', () => {
-    if (!shelfWindow) return;
-    const bounds = shelfWindow.getBounds();
-    
-    if (saveStateTimeout) clearTimeout(saveStateTimeout);
-    saveStateTimeout = setTimeout(() => {
-      fs.writeFile(STATE_FILE, JSON.stringify({ height: bounds.height }), 'utf-8', (err) => {
-        if (err) console.error('Error saving window height state:', err);
-      });
-    }, 500);
-  });
+  applyOverlayBounds(targetDisplay);
 
   shelfWindow.on('blur', () => {
     if (!shelfWindow || shelfWindow.isDestroyed()) return;
@@ -828,14 +827,18 @@ function createWindows() {
       return;
     }
 
-    if (config.hideOnBlur) {
-      setTimeout(() => {
-        if (isDragActive || isDialogOpen) return; // Bypasar ocultamiento si hay drag o diálogo activo
-        if (shelfWindow && !shelfWindow.isFocused()) {
-          hideShelf();
-        }
-      }, 200);
-    }
+    if (!config.hideOnBlur) return;
+
+    // Windows steals focus on frameless show(); wait out the guard then re-check.
+    const delay = Math.max(200, blurGuardUntil - Date.now() + 50);
+    setTimeout(() => {
+      if (isDragActive || isDialogOpen) return;
+      if (!shelfOpen) return;
+      if (Date.now() < blurGuardUntil) return;
+      if (shelfWindow && !shelfWindow.isDestroyed() && !shelfWindow.isFocused()) {
+        hideShelf();
+      }
+    }, delay);
   });
 
   // Cargar URL de la aplicación React
@@ -854,7 +857,6 @@ function createWindows() {
 }
 
 // ── CONTROL DE VISIBILIDAD DE SHELF ──
-// ── SHELF SHOW/HIDE WINDOW ANIMATIONS ──
 function stopShelfAnimation() {
   if (shelfAnimationTimer) {
     clearInterval(shelfAnimationTimer);
@@ -862,108 +864,87 @@ function stopShelfAnimation() {
   }
 }
 
-function animateShelfShow(targetBounds: Electron.Rectangle, duration = 220) {
+function setShelfClickThrough(enabled: boolean) {
   if (!shelfWindow || shelfWindow.isDestroyed()) return;
-  stopShelfAnimation();
-
-  const isBottom = config.dockPosition === 'bottom';
-  const startY = isBottom
-    ? targetBounds.y + targetBounds.height
-    : targetBounds.y - targetBounds.height;
-
-  // Ensure window is fully opaque before showing (repair from any previous opacity=0 state)
-  shelfWindow.setOpacity(1);
-  shelfWindow.setBounds({ ...targetBounds, y: startY });
-  shelfWindow.show();
-  shelfWindow.focus();
-
-  // Mount React DOM immediately when opening to prevent window duplication glitch/pop
-  shelfWindow.webContents.send('shelf-state-change', true);
-
-  const startTime = Date.now();
-  shelfAnimationTimer = setInterval(() => {
-    if (!shelfWindow || shelfWindow.isDestroyed()) {
-      stopShelfAnimation();
-      return;
+  if (shelfClickThrough === enabled) return;
+  shelfClickThrough = enabled;
+  try {
+    if (enabled) {
+      shelfWindow.setIgnoreMouseEvents(true, { forward: true });
+    } else {
+      shelfWindow.setIgnoreMouseEvents(false);
     }
-
-    const elapsed = Date.now() - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-    // ease-out cubic for smooth deceleration
-    const eased = 1 - Math.pow(1 - progress, 3);
-
-    const currentY = startY + (targetBounds.y - startY) * eased;
-    shelfWindow.setBounds({ ...targetBounds, y: currentY });
-
-    if (progress >= 1) {
-      stopShelfAnimation();
-      shelfWindow.setBounds(targetBounds);
-    }
-  }, 16);
+  } catch {
+    try {
+      shelfWindow.setIgnoreMouseEvents(enabled);
+    } catch { /* ignore */ }
+  }
 }
 
-function animateShelfHide(targetBounds: Electron.Rectangle, duration = 180) {
-  if (!shelfWindow || shelfWindow.isDestroyed()) return;
-  stopShelfAnimation();
-
-  const isBottom = config.dockPosition === 'bottom';
-  const endY = isBottom
-    ? targetBounds.y + targetBounds.height
-    : targetBounds.y - targetBounds.height;
-
-  const startTime = Date.now();
-  shelfAnimationTimer = setInterval(() => {
-    if (!shelfWindow || shelfWindow.isDestroyed()) {
-      stopShelfAnimation();
-      return;
-    }
-
-    const elapsed = Date.now() - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-    // ease-in quad for acceleration away
-    const eased = progress * progress;
-
-    const currentY = targetBounds.y + (endY - targetBounds.y) * eased;
-
-    shelfWindow.setBounds({ ...targetBounds, y: currentY });
-
-    if (progress >= 1) {
-      stopShelfAnimation();
-      shelfWindow.hide();
-      shelfWindow.setBounds(targetBounds);
-      shelfWindow.webContents.send('shelf-state-change', false);
-    }
-  }, 16);
+function isShelfCurrentlyOpen(): boolean {
+  return !!(shelfOpen && shelfWindow && !shelfWindow.isDestroyed() && shelfWindow.isVisible());
 }
 
 function showShelf() {
   if (!shelfWindow || shelfWindow.isDestroyed()) return;
+  stopShelfAnimation();
   resumeHotspotsImmediate();
   syncHotspotLockAfterWindowChange();
+  shelfOpen = true;
+
+  const display = getTargetDisplay();
+  shelfWindow.setAlwaysOnTop(config.alwaysOnTop);
+  shelfWindow.setSkipTaskbar(!config.showTaskbarIcon);
+
+  try {
+    shelfWindow.webContents.setBackgroundThrottling(false);
+  } catch { /* ignore */ }
+
+  if (shelfWindow.isMinimized()) {
+    shelfWindow.restore();
+  }
+
+  shelfWindow.setOpacity(1);
+  applyOverlayBounds(display);
+  blurGuardUntil = Date.now() + 1200;
+  if (!config.alwaysOnTop) {
+    shelfWindow.setAlwaysOnTop(true);
+    shelfWindow.show();
+    shelfWindow.focus();
+    shelfWindow.setAlwaysOnTop(false);
+  } else {
+    shelfWindow.show();
+    shelfWindow.focus();
+  }
+  applyOverlayBounds(display);
+
+  if (nextShowClickThrough) {
+    setShelfClickThrough(true);
+    nextShowClickThrough = false;
+  } else {
+    setShelfClickThrough(false);
+  }
 
   if (config.soundEnabled !== false) {
     shelfWindow.webContents.send('play-launch-sound');
   }
-
-  // Compute final bounds WITHOUT moving the window yet (avoid Chrome repaints)
-  const display = getTargetDisplay();
-  const shelfBounds = getShelfBounds(display);
-
-  // Update constraints and flags only; do NOT call setBounds yet
-  const workArea = display.workArea;
-  shelfWindow.setMinimumSize(workArea.width, 200);
-  shelfWindow.setMaximumSize(workArea.width, Math.round(workArea.height * 0.95));
-  shelfWindow.setAlwaysOnTop(config.alwaysOnTop);
-  shelfWindow.setSkipTaskbar(!config.showTaskbarIcon);
-
-  animateShelfShow(shelfBounds);
+  shelfWindow.webContents.send('shelf-state-change', true);
 }
 
 function hideShelf() {
   if (!shelfWindow || shelfWindow.isDestroyed()) return;
+  stopShelfAnimation();
+  shelfOpen = false;
+  setShelfClickThrough(false);
   syncHotspotLockAfterWindowChange();
-  const bounds = shelfWindow.getBounds();
-  animateShelfHide(bounds);
+  shelfWindow.hide();
+  try {
+    applyOverlayBounds();
+  } catch { /* ignore */ }
+  shelfWindow.webContents.send('shelf-state-change', false);
+  try {
+    shelfWindow.webContents.setBackgroundThrottling(true);
+  } catch { /* ignore */ }
 }
 
 function toggleShelf() {
@@ -971,7 +952,7 @@ function toggleShelf() {
     createWindows();
     return;
   }
-  if (shelfWindow.isVisible()) {
+  if (shelfOpen || shelfWindow.isVisible()) {
     hideShelf();
   } else {
     showShelf();
@@ -989,18 +970,9 @@ function triggerOpenAbout(checkUpdates = false) {
 
 function alignWindows() {
   const display = getTargetDisplay();
-  const shelfBounds = getShelfBounds(display);
 
   if (shelfWindow && !shelfWindow.isDestroyed()) {
-    const workArea = display.workArea;
-    shelfWindow.setMinimumSize(workArea.width, 200);
-    shelfWindow.setMaximumSize(workArea.width, Math.round(workArea.height * 0.95));
-    shelfWindow.setBounds({
-      x: shelfBounds.x,
-      y: shelfBounds.y,
-      width: shelfBounds.width,
-      height: shelfBounds.height,
-    });
+    applyOverlayBounds(display);
     shelfWindow.setAlwaysOnTop(config.alwaysOnTop);
     shelfWindow.setSkipTaskbar(!config.showTaskbarIcon);
   }
@@ -1245,6 +1217,7 @@ function startHotspotPolling() {
       hasCursorExitedSinceLastAction = true;
       lastHotspotCorner = '';
       hotspotEntryTime = 0;
+      setShelfClickThrough(false);
     }
     if (now - lastHotspotActionTime >= HOTSPOT_TOGGLE_SAFETY_MS) {
       hotspotCooldown = false;
@@ -1271,6 +1244,9 @@ function startHotspotPolling() {
 
     const executeHotspotAction = () => {
       if (!shelfWindow || shelfWindow.isDestroyed()) return;
+      if (!(shelfOpen || shelfWindow.isVisible())) {
+        nextShowClickThrough = true;
+      }
       toggleShelf();
     };
 

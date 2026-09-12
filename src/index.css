@@ -198,22 +198,6 @@
   text-shadow: 0 0 4px var(--neon-glow-color-raw);
 }
 
-/* ── MARQUEE ANIMATIONS FOR SEARCH PLACEHOLDER ── */
-@keyframes marquee-loop {
-  0% {
-    transform: translateX(0%);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
-
-.cyber-marquee-track {
-  display: inline-block;
-  white-space: nowrap;
-  animation: marquee-loop 8s linear infinite;
-}
-
 /* ── CATEGORY 'ALL' ACTIVE RAINBOW GLOW ── */
 .category-all-active-btn {
   animation: cyber-all-border-rainbow 8s linear infinite;
@@ -252,10 +236,6 @@
 
   .cyber-scanlines::after {
     display: none;
-  }
-
-  .cyber-marquee-track {
-    animation: none !important;
   }
 
   .category-all-active-btn,

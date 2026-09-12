@@ -202,7 +202,7 @@ export default function AboutModal({
 
             <div className="overflow-y-auto custom-scrollbar px-7 pb-5 text-center">
               <div className="relative w-[72px] h-[72px] mx-auto mb-4 flex items-center justify-center">
-                <CyberTrayLogo className="w-[72px] h-[72px] drop-shadow-[0_0_8px_rgba(34,211,238,0.28)]" animated={false} />
+                <CyberTrayLogo className="w-[72px] h-[72px]" animated={false} />
               </div>
 
               <h1 className="text-[26px] font-cyber font-bold tracking-wide text-white mb-1">

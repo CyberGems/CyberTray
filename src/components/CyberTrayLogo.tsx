@@ -6,7 +6,7 @@ export default function CyberTrayLogo({ className = "w-6 h-6", animated = false 
       <img
         src="/icon.png"
         alt="CyberTray"
-        className="w-full h-full object-contain drop-shadow-[0_0_8px_var(--neon-glow-color)]"
+        className="w-full h-full object-contain drop-shadow-[0_0_2px_var(--neon-glow-color)]"
         draggable={false}
       />
     </div>

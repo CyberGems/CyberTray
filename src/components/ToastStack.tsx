@@ -16,16 +16,15 @@ export interface ToastItem {
 
 interface ToastStackProps {
   toasts: ToastItem[];
-  dockPosition: string;
   dismissToast: (id: number) => void;
 }
 
-export default function ToastStack({ toasts, dockPosition, dismissToast }: ToastStackProps) {
+export default function ToastStack({ toasts, dismissToast }: ToastStackProps) {
   if (toasts.length === 0) return null;
 
   return (
     <div
-      className={`fixed left-1/2 -translate-x-1/2 z-[90000] flex flex-col gap-2 pointer-events-none w-[min(92%,420px)] ${dockPosition === 'top' ? 'top-20' : 'bottom-20'}`}
+      className="fixed left-1/2 -translate-x-1/2 top-20 z-[90000] flex flex-col gap-2 pointer-events-none w-[min(92%,420px)]"
     >
       {toasts.map(t => (
         <div

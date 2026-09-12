@@ -24,11 +24,9 @@ import {
   getFolderPath,
 } from './lib/appUtils';
 import {
-  Search, Grid, List as ListIcon, Plus, Clock, ArrowUpDown, Settings,
-  Minus, X, LayoutGrid, Palette, Key, Trash2, Shield, Info,
-  Power, Pin, Play, Edit, ArrowDown, Shrink, MoreHorizontal,
-  Monitor, ExternalLink, Sliders, ChevronDown, RefreshCw, Upload, Check, Trash,
-  Activity, MemoryStick, Star, Lock, Cpu, FolderOpen,
+  Search, Plus, Settings, X, Trash2, Info,
+  Pin, Play, ArrowDown, Shrink, MoreHorizontal,
+  RefreshCw, Check, Activity, Lock, FolderOpen,
   CheckSquare, FlipHorizontal2, Heart, BookOpen, HelpCircle, Tag, Globe
 } from 'lucide-react';
 
@@ -115,7 +113,6 @@ const DEFAULT_LAUNCH_SOUND = '/sounds/launch-thud.wav';
 export default function App() {
   // Configuración de la App
   const [config, setConfig] = useState<any>({
-    dockPosition: 'top',
     monitorId: '',
     shortcut: 'Alt+T',
     hideOnBlur: true,
@@ -151,7 +148,9 @@ export default function App() {
   const [isPinned, setIsPinned] = useState<boolean>(true);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [settingsTab, setSettingsTab] = useState<'general' | 'appearance' | 'shortcuts'>('general');
-  const [iconSortOrder, setIconSortOrder] = useState<'alpha' | 'recent' | 'added'>('alpha');
+  const [iconSortOrder, setIconSortOrder] = useState<'alpha' | 'recent' | 'added'>(
+    () => (localStorage.getItem('cybertray_icon_sort') as 'alpha' | 'recent' | 'added') || 'alpha'
+  );
   const [settingsSaved, setSettingsSaved] = useState<boolean>(false);
   const settingsSavedTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [showProcessMatrixModal, setShowProcessMatrixModal] = useState<boolean>(false);
@@ -169,6 +168,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('cybertray_view_mode', viewMode);
   }, [viewMode]);
+
+  useEffect(() => {
+    localStorage.setItem('cybertray_icon_sort', iconSortOrder);
+  }, [iconSortOrder]);
   
   // CyberVault Security States
   const [lastVaultUnlockTime, setLastVaultUnlockTime] = useState<number>(0);
@@ -218,21 +221,26 @@ export default function App() {
   const showTooltip = useCallback((e: React.MouseEvent, text: string, subText?: string, borderColor?: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = Math.max(160, Math.min(window.innerWidth - 160, rect.left + rect.width / 2));
-    
-    // Detect dock position dynamically to decide vertical placement
-    const isDockTop = config.dockPosition === 'top';
-    const y = isDockTop ? rect.bottom + 8 : rect.top - 8;
-    
+    const extraLines = subText ? subText.split('\n').length : 0;
+    const estimatedHeight = 36 + extraLines * 16;
+    let y = rect.bottom + 8;
+    let placement: 'top' | 'bottom' = 'bottom';
+    if (y + estimatedHeight > window.innerHeight - 8) {
+      y = Math.max(8, rect.top - 8);
+      placement = 'top';
+    }
+    y = Math.max(8, Math.min(y, window.innerHeight - 8));
+
     setGlobalTooltip({
       text,
       subText,
       borderColor: borderColor || 'var(--neon-glow-border)',
       x,
       y,
-      placement: isDockTop ? 'bottom' : 'top',
+      placement,
       visible: true
     });
-  }, [config.dockPosition]);
+  }, []);
 
   const hideTooltip = useCallback(() => {
     setGlobalTooltip(prev => ({ ...prev, visible: false }));
@@ -398,7 +406,6 @@ export default function App() {
   const lastSelectedIndex = useRef<number | null>(null);
   const gridScrollRef = useRef<HTMLElement | null>(null);
 
-  const [searchFocused, setSearchFocused] = useState<boolean>(false);
   const [shortcutMenu, setShortcutMenu] = useState<{
     visible: boolean;
     x: number;
@@ -407,7 +414,6 @@ export default function App() {
   } | null>(null);
 
   // Refs
-  const categoryTabsRef = useRef<HTMLDivElement>(null);
   const configRef = useRef<any>(config);
   const usagePersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingUsageRef = useRef<{ shortcuts: any[]; totalLaunches: number } | null>(null);
@@ -1687,13 +1693,6 @@ export default function App() {
     );
   };
 
-  // Rueda del ratón en pestañas
-  const handleCategoryWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (categoryTabsRef.current) {
-      categoryTabsRef.current.scrollLeft += e.deltaY;
-    }
-  };
-
   // Menú contextual de categorías
   const handleCategoryContextMenu = (e: React.MouseEvent, cat: any) => {
     e.preventDefault();
@@ -2077,25 +2076,17 @@ export default function App() {
     : getChildFolders(categories, activeCategory);
 
   if (!isShelfVisible) {
-    return <div className={`theme-${config.theme} w-full h-screen bg-transparent`} />;
+    return <div className={`theme-${config.theme} w-full h-screen bg-[#070b13]`} />;
   }
 
   return (
     <div 
-      className={`theme-${config.theme} ${isShelfVisible && bgType !== 'image' ? 'cyber-scanlines' : ''} w-full h-screen bg-[#070b13] border-[var(--neon-glow-border)] flex flex-col justify-between overflow-hidden shadow-2xl relative select-none ${
-        config.dockPosition === 'bottom' ? 'rounded-t-2xl' : 'rounded-b-2xl'
-      }`}
-      style={{
-        borderTopWidth: config.dockPosition === 'bottom' ? '1.5px' : '0px',
-        borderBottomWidth: config.dockPosition === 'top' ? '1.5px' : '0px',
-        borderLeftWidth: '1.5px',
-        borderRightWidth: '1.5px',
-      }}
+      className={`theme-${config.theme} ${isShelfVisible && bgType !== 'image' ? 'cyber-scanlines' : ''} w-full h-screen bg-[#070b13] flex flex-col justify-between overflow-hidden shadow-2xl relative select-none`}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       onClick={handleBackgroundClick}
     >
-      <ToastStack toasts={toasts} dockPosition={config.dockPosition} dismissToast={dismissToast} />
+      <ToastStack toasts={toasts} dismissToast={dismissToast} />
 
       {/* ── CAPA DE FONDO PERSONALIZADO (Solid / Gradient / Image) ── */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none">
@@ -2141,617 +2132,334 @@ export default function App() {
         )}
       </div>
 
-      {/* ── BARRA SUPERIOR DE DOS NIVELES ── */}
-      <header className="border-b border-[var(--neon-glow-border)] flex flex-col bg-slate-950/75 backdrop-blur-md z-10">
-        {/* Nivel 1: Brand | Category Tabs | Window Controls */}
-        <div className="h-16 flex items-center px-8">
+      {/* ── BARRA SUPERIOR ── */}
+      <header className="h-12 shrink-0 border-b border-[var(--neon-glow-border)] flex items-center gap-3 px-4 bg-slate-950/75 backdrop-blur-md z-10">
+        <CyberTrayLogo className="w-6 h-6 shrink-0" animated={activeTasksCount > 0} />
 
-          {/* Brand */}
-          <div className="flex items-center gap-2 flex-shrink-0 w-36">
-            <CyberTrayLogo className="w-7 h-7" animated={activeTasksCount > 0} />
-            <span className="font-cyber font-extrabold text-[13px] text-white tracking-widest bg-gradient-to-r from-white to-[var(--neon-glow-color)] bg-clip-text text-transparent hidden sm:inline">
-              CyberTray
-            </span>
-          </div>
-
-          {/* Category Tabs Scroll Container (Centered Navigation) */}
-          <div className="hidden">
-            <div
-              ref={categoryTabsRef}
-              onWheel={handleCategoryWheel}
-              className="flex items-center gap-2 overflow-x-auto overflow-y-visible custom-scrollbar flex-1 px-3 py-2 h-full"
-            >
-              {/* Favorites Tab — fixed at start */}
-              <button
-                onClick={() => handleTabClick('favorites')}
-                onDragOver={handleFavoriteDragOver}
-                onDragLeave={handleFavoriteDragLeave}
-                onDrop={handleFavoriteDrop}
-                onMouseEnter={(e) => showTooltip(e, langCode === 'es' ? 'FAVORITOS' : 'FAVORITES', translate('tooltip_fav'), 'rgba(245,158,11,0.5)')}
-                onMouseLeave={hideTooltip}
-                className={`px-4 h-9.5 text-[11px] font-cyber font-bold tracking-widest rounded-lg border transition-all flex items-center gap-2 cursor-pointer flex-shrink-0 ${
-                  dragOverCategoryId === 'favorites'
-                    ? 'scale-105 bg-amber-500/15 border-amber-500/60 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.4)]'
-                    : activeCategory === 'favorites'
-                      ? 'bg-slate-900 border-amber-500/50 text-amber-400 scale-105 shadow-[0_0_8px_rgba(245,158,11,0.3)]'
-                      : 'bg-transparent border-slate-800 text-slate-500 hover:text-amber-400 hover:border-amber-500/40'
-                }`}
-                aria-label={langCode === 'es' ? 'Favoritos' : 'Favorites'}
-              >
-                <Star className="w-3.5 h-3.5" fill={(activeCategory === 'favorites' || dragOverCategoryId === 'favorites') ? 'currentColor' : 'none'} />
-                <span>{langCode === 'es' ? 'FAV' : 'FAV'}</span>
-                <span className={`px-1 py-0.2 text-[9px] rounded border font-digits tabular-nums transition-colors ${
-                  activeCategory === 'favorites'
-                    ? 'bg-slate-950/80 border-amber-500/40 text-amber-400'
-                    : 'bg-slate-950/40 border-slate-900 text-slate-500'
-                }`}>
-                  {shortcuts.filter(s => s.isFavorite).length}
-                </span>
-              </button>
-
-            {/* Vault Tab — fixed at start */}
-            <button
-              onClick={() => handleTabClick('vault')}
-              onMouseEnter={(e) => showTooltip(e, translate('tab_vault'), translate('tooltip_vault'), 'rgba(168,85,247,0.5)')}
-              onMouseLeave={hideTooltip}
-              className={`px-4 h-9.5 text-[11px] font-cyber font-bold tracking-widest rounded-lg border transition-all flex items-center gap-2 cursor-pointer flex-shrink-0 ${
-                activeCategory === 'vault'
-                  ? 'bg-slate-900 border-purple-500/50 text-purple-400 scale-105 shadow-[0_0_8px_rgba(168,85,247,0.3)]'
-                  : 'bg-transparent border-slate-800 text-slate-500 hover:text-purple-400 hover:border-purple-500/40'
-              }`}
-            >
-              <Shield className="w-3.5 h-3.5" />
-              <span>{translate('tab_vault')}</span>
-              <span className={`px-1 py-0.2 text-[9px] rounded border font-digits tabular-nums transition-colors ${
-                activeCategory === 'vault'
-                  ? 'bg-slate-950/80 border-purple-500/40 text-purple-400'
-                  : 'bg-slate-950/40 border-slate-900 text-slate-500'
-              }`}>
-                {shortcuts.filter(s => s.category === 'vault').length}
-              </span>
-            </button>
-
-            {/* ALL Tab — fixed at start */}
-            <button
-              onClick={() => handleTabClick('all')}
-              onMouseEnter={(e) => showTooltip(e, translate('cat_all'), translate('tooltip_all'))}
-              onMouseLeave={hideTooltip}
-              className={`px-4 h-9.5 text-[11px] font-cyber font-bold tracking-widest rounded-lg border transition-all flex items-center gap-2 cursor-pointer flex-shrink-0 ${
-                activeCategory === 'all'
-                  ? `bg-slate-900 text-white scale-105 ${isShelfVisible ? 'category-all-active-btn' : ''} border-[var(--neon-glow-border)] shadow-[0_0_8px_var(--neon-glow-color-raw)]`
-                  : 'bg-transparent border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
-              }`}
-            >
-              <span className={activeCategory === 'all' && isShelfVisible ? 'category-all-text-active' : ''}>
-                {translate('cat_all')}
-              </span>
-              <span
-                className={`px-1 py-0.2 text-[9px] rounded border font-digits tabular-nums transition-colors ${
-                  activeCategory === 'all'
-                    ? 'bg-slate-950/80 border-slate-800 text-slate-400'
-                    : 'bg-slate-950/40 border-slate-900 text-slate-500'
-                }`}
-              >
-                {shortcuts.length}
-              </span>
-            </button>
-
-            {/* Elegant Divider between system tabs and custom categories */}
-            <div className="h-5 w-[1.5px] bg-slate-800/80 mx-1 flex-shrink-0 rounded-full" />
-
-            {categories.filter(cat => cat && cat.id && cat.id.trim() !== '' && cat.name && cat.name.trim() !== '' && cat.id !== 'all').map((cat) => {
-              const isActive = activeCategory === cat.id;
-              const isDragOver = dragOverCategoryId === cat.id;
-              const isAll = cat.id === 'all';
-              const count = isAll ? shortcuts.length : shortcuts.filter(s => s.category === cat.id).length;
-
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => handleTabClick(cat.id)}
-                  onContextMenu={(e) => handleCategoryContextMenu(e, cat)}
-                  draggable={cat.id !== 'all'}
-                  onDragStart={(e) => handleCategoryDragStart(e, cat)}
-                  onDragOver={(e) => handleCategoryDragOver(e, cat)}
-                  onDragLeave={() => handleCategoryDragLeave(cat)}
-                  onDragEnd={handleCategoryDragEnd}
-                  onDrop={(e) => handleCategoryDrop(e, cat)}
-                  className={`px-4 h-9.5 text-[11px] font-cyber font-bold tracking-widest rounded-lg border transition-all flex items-center gap-2 ${
-                    isDragOver
-                      ? 'scale-105 bg-[var(--neon-glow-color-raw)]/10 text-white'
-                      : isActive
-                        ? isAll
-                          ? `bg-slate-900 text-white scale-105 ${isShelfVisible ? 'category-all-active-btn' : ''}`
-                          : 'bg-slate-900 scale-105'
-                        : 'bg-transparent border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
-                  } ${
-                    draggingCategoryId === cat.id ? 'opacity-60' : ''
-                  } ${
-                    cat.id !== 'all' ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
-                  }`}
-                  style={{
-                    color: isDragOver
-                      ? cat.color || 'var(--neon-glow-color)'
-                      : isActive ? (isAll ? undefined : cat.color || 'var(--neon-glow-color)') : undefined,
-                    borderColor: isDragOver
-                      ? cat.color || 'var(--neon-glow-color)'
-                      : isActive ? (isAll ? undefined : cat.color || 'var(--neon-glow-color)') : undefined,
-                    boxShadow: isDragOver
-                      ? `0 0 10px ${cat.color || 'var(--neon-glow-color)'}`
-                      : isActive ? (isAll ? undefined : `0 0 5px ${cat.color || 'var(--neon-glow-color)'}`) : undefined
-                  }}
-                >
-                  <span className={isAll && isActive && isShelfVisible ? 'category-all-text-active' : ''}>
-                    {cat.id === 'all' ? translate('cat_all') : cat.name}
-                  </span>
-                  <span
-                    className={`px-1 py-0.2 text-[9px] rounded border font-digits tabular-nums transition-colors ${
-                      isActive
-                        ? isAll
-                          ? 'bg-slate-950/80 border-slate-800 text-slate-400'
-                          : 'bg-slate-950/80'
-                        : 'bg-slate-950/40 border-slate-900 text-slate-500'
-                    }`}
-                    style={{
-                      borderColor: isActive && !isAll ? cat.color || 'var(--neon-glow-border)' : undefined,
-                      color: isActive && !isAll ? cat.color || 'var(--neon-glow-color)' : undefined
-                    }}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-
-            <button
-              onClick={() => { setNewCatModal(true); playCyberBeep(); }}
-              onMouseEnter={(e) => showTooltip(e, langCode === 'es' ? 'NUEVA CATEGORÍA' : 'NEW CATEGORY', translate('tooltip_add_category'))}
-              onMouseLeave={hideTooltip}
-              className="h-9.5 w-9.5 rounded-lg border border-dashed border-slate-700 hover:border-[var(--neon-glow-color)] text-slate-500 hover:text-[var(--neon-glow-color)] flex items-center justify-center transition-all cursor-pointer flex-shrink-0"
-              aria-label={translate('tooltip_add_category')}
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
-          {/* Fade Gradients */}
-          <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-slate-950 to-transparent pointer-events-none z-10" />
-          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-slate-950 via-slate-950/80 to-transparent pointer-events-none z-10" />
-        </div>
-
-          {/* Window Controls */}
-          <div className="ml-auto flex items-center gap-1 flex-shrink-0">
-            {config.autoUpdate !== false && (updateStatus.state === 'available' || updateStatus.state === 'downloaded' || updateStatus.state === 'downloading') && (
-              <button
-                type="button"
-                onClick={() => { setShowAboutModal(true); playCyberBeep(); }}
-                className="relative flex items-center justify-center w-7 h-7 rounded-full bg-[#1D2636] hover:bg-[#253246] border border-[#2D3A4E] hover:border-[#3B4E6E] text-[#6C9BFF] shadow-[0_0_12px_rgba(108,155,255,0.2)] hover:shadow-[0_0_16px_rgba(108,155,255,0.45)] transition-all cursor-pointer"
-                title={
-                  updateStatus.state === 'downloaded'
-                    ? translate('about_status_downloaded', { version: updateStatus.version || '' })
-                    : updateStatus.state === 'downloading'
-                    ? translate('about_status_downloading', { percent: String(updateStatus.percent || 0) })
-                    : translate('about_status_available', { version: (updateStatus as { version?: string }).version || '' })
-                }
-              >
-                <ArrowDown className={`w-4 h-4 text-[#6C9BFF] ${updateStatus.state === 'downloading' ? 'animate-bounce' : ''}`} />
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={handleTogglePin}
-              className={`flex items-center justify-center w-7 h-7 rounded-md transition-all group cursor-pointer ${
-                isPinFlashing
-                  ? 'bg-red-500/30 text-red-400 border border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.7)] animate-bounce'
-                  : isPinned
-                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-[0_0_8px_rgba(34,211,238,0.4)]'
-                    : 'hover:bg-white/10 text-slate-400 hover:text-white'
-              }`}
-              title={isPinned ? translate('tooltip_pin_on') : translate('tooltip_pin_off')}
-            >
-              <Pin className={`w-3.5 h-3.5 transition-transform duration-300 ${
-                isPinFlashing
-                  ? 'scale-125 text-red-400'
-                  : isPinned
-                    ? 'fill-cyan-400'
-                    : 'rotate-45'
-              }`} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => { setShowSettings(!showSettings); playCyberBeep(); }}
-              className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors group cursor-pointer ${
-                showSettings ? 'bg-white/15 text-white' : 'hover:bg-white/10 text-slate-400 hover:text-white'
-              }`}
-              title={translate('tooltip_settings')}
-            >
-              <Settings className="w-3.5 h-3.5" />
-            </button>
-
-            <div className="relative" ref={moreMenuRef}>
-              <button
-                type="button"
-                onClick={() => { setIsMoreMenuOpen(prev => !prev); playCyberBeep(); }}
-                aria-haspopup="true"
-                aria-expanded={isMoreMenuOpen}
-                className={`relative flex items-center justify-center w-7 h-7 rounded-md transition-colors group cursor-pointer ${
-                  isMoreMenuOpen ? 'bg-white/15 text-white' : 'hover:bg-white/10 text-slate-400 hover:text-white'
-                }`}
-                title={translate('tooltip_more')}
-              >
-                <MoreHorizontal className="w-3.5 h-3.5" />
-                {(updateStatus.state === 'available' || updateStatus.state === 'downloaded') && (
-                  <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)] animate-pulse" />
-                )}
-              </button>
-
-              <AnimatePresence>
-                {isMoreMenuOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                    transition={{ duration: 0.12 }}
-                    className="absolute right-0 top-full mt-1.5 z-50 w-[224px] p-1.5 rounded-xl bg-[#0c121e]/95 backdrop-blur-xl border border-white/10 shadow-[0_12px_32px_rgba(0,0,0,0.8),0_0_15px_rgba(34,211,238,0.1)] flex flex-col gap-0.5 select-none"
-                    role="menu"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMoreMenuOpen(false);
-                        if (window.electronAPI?.openExternal) {
-                          window.electronAPI.openExternal('https://github.com/CyberGems/CyberTray#%EF%B8%8F-donate');
-                        }
-                      }}
-                      className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-200 hover:text-white hover:bg-cyan-500/10 transition-colors text-left cursor-pointer"
-                    >
-                      <Heart className="w-3.5 h-3.5 text-[#00D8F1] fill-[#00D8F1]/20 group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_rgba(0,216,241,0.8)] transition-transform shrink-0" />
-                      <span className="font-semibold text-[#00D8F1]">{translate('more_menu_donate')}</span>
-                    </button>
-
-                    <div className="h-px bg-white/10 my-1 mx-1.5" />
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMoreMenuOpen(false);
-                        window.electronAPI?.openExternal?.('https://github.com/CyberGems/CyberTray/wiki');
-                      }}
-                      className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
-                    >
-                      <BookOpen className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors shrink-0" />
-                      <span>{translate('more_menu_docs')}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMoreMenuOpen(false);
-                        window.electronAPI?.openExternal?.('https://github.com/CyberGems/CyberTray/issues');
-                      }}
-                      className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
-                    >
-                      <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors shrink-0" />
-                      <span>{translate('more_menu_faq')}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMoreMenuOpen(false);
-                        window.electronAPI?.openExternal?.('https://github.com/CyberGems/CyberTray/releases');
-                      }}
-                      className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
-                    >
-                      <Tag className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors shrink-0" />
-                      <span>{translate('more_menu_changelog')}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMoreMenuOpen(false);
-                        window.electronAPI?.openExternal?.('https://cybergems.org');
-                      }}
-                      className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
-                    >
-                      <Globe className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors shrink-0" />
-                      <span>{translate('more_menu_website')}</span>
-                    </button>
-
-                    <div className="h-px bg-white/10 my-1 mx-1.5" />
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMoreMenuOpen(false);
-                        setShowAboutModal(true);
-                        playCyberBeep();
-                      }}
-                      className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
-                    >
-                      <Info className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors shrink-0" />
-                      <span className="flex-1">{translate('more_menu_about')}</span>
-                      {(updateStatus.state === 'available' || updateStatus.state === 'downloaded') && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]" />
-                      )}
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <div className="w-[1px] h-3.5 bg-white/10 mx-0.5" />
-
+        <div className="relative w-52 shrink-0">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder={translate('search_placeholder')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-slate-950/70 border border-[var(--neon-glow-border)] hover:border-[var(--neon-glow-color)] rounded-lg py-1.5 pl-8 pr-7 text-[11px] font-sans tracking-wide text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-[var(--neon-glow-color)] transition-all"
+          />
+          {searchQuery && (
             <button
               type="button"
               onClick={() => {
-                if (isPinned) {
-                  playPinBlockSound();
-                  setIsPinFlashing(true);
-                  setTimeout(() => setIsPinFlashing(false), 1200);
-                  return;
-                }
-                if (isElectron) window.electronAPI!.windowHideToTray();
+                setSearchQuery('');
+                playCyberBeep();
+                hideTooltip();
               }}
-              className="flex items-center justify-center w-7 h-7 hover:bg-white/10 rounded-md transition-colors group cursor-pointer"
-              title={translate('tooltip_minimize')}
+              onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={(e) => showTooltip(e, translate('clear_search'))}
+              onMouseLeave={hideTooltip}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"
             >
-              <Shrink className="w-3.5 h-3.5 text-slate-400 group-hover:text-white" />
+              <X className="w-3.5 h-3.5" />
             </button>
-          </div>
+          )}
         </div>
 
-        {/* Nivel 2: Operations & Layout Toolbar */}
-        <div className="h-12 flex items-center px-8 border-t border-slate-800/40 justify-between bg-slate-950/20">
-          
-          {/* Search Bar - Left aligned */}
-          <div className="flex-shrink-0 w-64">
-            <div className="relative w-full flex items-center overflow-hidden">
-              <Search className="absolute left-2.5 w-3.5 h-3.5 text-slate-500 z-10 pointer-events-none" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder=""
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-                className="w-full bg-slate-950/70 border border-[var(--neon-glow-border)] hover:border-[var(--neon-glow-color)] rounded-lg py-1.5 pl-8.5 pr-7 text-[11px] font-sans tracking-wide focus:outline-none focus:ring-1 focus:ring-[var(--neon-glow-color)] focus:shadow-[0_0_8px_var(--neon-glow-color-raw)] transition-all z-[1]"
-                style={{ color: searchFocused || searchQuery ? 'white' : 'transparent' }}
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => {
-                    setSearchQuery('');
-                    playCyberBeep();
-                  }}
-                  onMouseDown={(e) => e.preventDefault()}
-                  className="absolute right-2 text-slate-500 hover:text-white z-20 cursor-pointer"
-                  title={translate('clear_search')}
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          {selectionMode && (
+            <div className="flex items-center gap-1 pr-2 border-r border-slate-700/50">
+              <span className="text-[10px] font-cyber font-bold tracking-wider text-[var(--neon-glow-color)] px-1 whitespace-nowrap">
+                {translate('selected_count', { count: String(selectedIds.size) })}
+              </span>
+              <button
+                onClick={handleSelectAll}
+                onMouseEnter={(e) => showTooltip(e, translate('select_all').toUpperCase(), '', 'rgba(56,189,248,0.5)')}
+                onMouseLeave={hideTooltip}
+                className="h-8 w-8 bg-slate-800/40 border border-slate-700/50 hover:border-[var(--neon-glow-border)] text-slate-300 hover:text-[var(--neon-glow-color)] rounded-lg flex items-center justify-center transition-all cursor-pointer"
+              >
+                <Check className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleInvertSelection}
+                onMouseEnter={(e) => showTooltip(e, translate('invert_selection').toUpperCase(), '', 'rgba(56,189,248,0.5)')}
+                onMouseLeave={hideTooltip}
+                className="h-8 w-8 bg-slate-800/40 border border-slate-700/50 hover:border-[var(--neon-glow-border)] text-slate-300 hover:text-[var(--neon-glow-color)] rounded-lg flex items-center justify-center transition-all cursor-pointer"
+              >
+                <FlipHorizontal2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleClearSelection}
+                onMouseEnter={(e) => showTooltip(e, translate('unselect_all').toUpperCase(), '', 'rgba(148,163,184,0.5)')}
+                onMouseLeave={hideTooltip}
+                className="h-8 w-8 bg-slate-800/40 border border-slate-700/50 hover:border-slate-500 text-slate-300 hover:text-white rounded-lg flex items-center justify-center transition-all cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleDeleteSelected}
+                disabled={selectedIds.size === 0}
+                onMouseEnter={(e) => showTooltip(e, translate('delete_selected').toUpperCase(), '', 'rgba(244,63,94,0.5)')}
+                onMouseLeave={hideTooltip}
+                className="h-8 px-3 bg-rose-500/15 border border-rose-500/40 hover:border-rose-400 hover:bg-rose-500/25 disabled:opacity-40 disabled:cursor-not-allowed text-rose-300 hover:text-rose-200 font-cyber font-bold tracking-widest text-[10px] rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {translate('delete_selected')} ({selectedIds.size})
+              </button>
+            </div>
+          )}
+
+          <button
+            onClick={toggleSelectionMode}
+            onMouseEnter={(e) => showTooltip(e, translate('selection_mode').toUpperCase(), selectionMode ? translate('selection_exit') : translate('selection_mode'), 'rgba(56,189,248,0.5)')}
+            onMouseLeave={hideTooltip}
+            className={`h-8 w-8 rounded-lg flex items-center justify-center border transition-all cursor-pointer ${
+              selectionMode
+                ? 'bg-[var(--neon-glow-color-raw)]/15 border-[var(--neon-glow-border)] text-[var(--neon-glow-color)] shadow-[0_0_8px_var(--neon-glow-color-raw)]'
+                : 'bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-slate-500'
+            }`}
+          >
+            <CheckSquare className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={handleLaunchAll}
+            onMouseEnter={(e) => showTooltip(e, langCode === 'es' ? 'EJECUTAR GRUPO' : 'GROUP LAUNCH', translate('tooltip_launch_all'), 'rgba(16,185,129,0.5)')}
+            onMouseLeave={hideTooltip}
+            disabled={filteredShortcutsList.length === 0}
+            className="h-8 w-8 bg-emerald-500/15 border border-emerald-500/30 hover:border-emerald-400 hover:bg-emerald-500/25 disabled:opacity-40 text-emerald-400 hover:text-emerald-300 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+          >
+            <Play className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => { setShowProcessMatrixModal(true); playCyberBeep(); }}
+            onMouseEnter={(e) => showTooltip(e, langCode === 'es' ? 'MATRIZ DE PROCESOS' : 'PROCESS MATRIX', translate('tooltip_process_matrix'), 'rgba(239,68,68,0.5)')}
+            onMouseLeave={hideTooltip}
+            className="h-8 w-8 bg-red-500/10 border border-red-500/30 hover:border-red-400 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+            aria-label={translate('tab_process_matrix')}
+          >
+            <Activity className="w-4 h-4" />
+          </button>
+
+          {isElectron && activeCategory === 'vault' && (
+            <button
+              onClick={handleDesktopSweep}
+              onMouseEnter={(e) => showTooltip(e, langCode === 'es' ? 'BARRER ESCRITORIO' : 'SWEEP DESKTOP', translate('tooltip_sweep_desktop'), 'rgba(168,85,247,0.5)')}
+              onMouseLeave={hideTooltip}
+              className="h-8 px-3 bg-purple-500/15 border border-purple-500/30 hover:border-purple-400 hover:bg-purple-500/25 text-purple-400 hover:text-purple-300 font-cyber font-bold tracking-widest text-[10px] rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              {translate('vault_sweep_btn')}
+            </button>
+          )}
+
+          {activeCategory === 'vault' && config.vaultPinEnabled === true && (
+            <button
+              onClick={handleLockVault}
+              onMouseEnter={(e) => showTooltip(e, translate('vault_lock_btn'), translate('tooltip_lock_vault'), 'rgba(239,68,68,0.5)')}
+              onMouseLeave={hideTooltip}
+              className="h-8 px-3 bg-red-500/15 border border-red-500/30 hover:border-red-400 hover:bg-red-500/25 text-red-400 hover:text-red-300 font-cyber font-bold tracking-widest text-[10px] rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              {translate('vault_lock_btn')}
+            </button>
+          )}
+
+          <button
+            onClick={handleOpenAddModal}
+            onMouseEnter={(e) => showTooltip(e, langCode === 'es' ? 'REGISTRAR ACCESO' : 'ADD SHORTCUT', translate('tooltip_add_shortcut'))}
+            onMouseLeave={hideTooltip}
+            className="h-8 px-3 bg-[var(--neon-glow-color-raw)] hover:bg-[var(--neon-glow-color)] text-[var(--neon-glow-color)] hover:text-slate-950 font-cyber font-bold tracking-widest text-[10px] rounded-lg border border-[var(--neon-glow-border)] hover:shadow-[0_0_10px_var(--neon-glow-color)] transition-all flex items-center gap-1 cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            {translate('add_btn')}
+          </button>
+
+          <div className="w-px h-3.5 bg-white/10 mx-1" />
+
+          {config.autoUpdate !== false && (updateStatus.state === 'available' || updateStatus.state === 'downloaded' || updateStatus.state === 'downloading') && (
+            <button
+              type="button"
+              onClick={() => { setShowAboutModal(true); playCyberBeep(); hideTooltip(); }}
+              onMouseEnter={(e) => showTooltip(
+                e,
+                updateStatus.state === 'downloaded'
+                  ? translate('about_status_downloaded', { version: updateStatus.version || '' })
+                  : updateStatus.state === 'downloading'
+                  ? translate('about_status_downloading', { percent: String(updateStatus.percent || 0) })
+                  : translate('about_status_available', { version: (updateStatus as { version?: string }).version || '' })
+              )}
+              onMouseLeave={hideTooltip}
+              className="relative flex items-center justify-center w-7 h-7 rounded-full bg-[#1D2636] hover:bg-[#253246] border border-[#2D3A4E] hover:border-[#3B4E6E] text-[#6C9BFF] shadow-[0_0_12px_rgba(108,155,255,0.2)] hover:shadow-[0_0_16px_rgba(108,155,255,0.45)] transition-all cursor-pointer"
+            >
+              <ArrowDown className={`w-4 h-4 text-[#6C9BFF] ${updateStatus.state === 'downloading' ? 'animate-bounce' : ''}`} />
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleTogglePin}
+            onMouseEnter={(e) => showTooltip(e, isPinned ? translate('tooltip_pin_on') : translate('tooltip_pin_off'))}
+            onMouseLeave={hideTooltip}
+            className={`flex items-center justify-center w-7 h-7 rounded-md transition-all group cursor-pointer ${
+              isPinFlashing
+                ? 'bg-red-500/30 text-red-400 border border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.7)] animate-bounce'
+                : isPinned
+                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-[0_0_8px_rgba(34,211,238,0.4)]'
+                  : 'hover:bg-white/10 text-slate-400 hover:text-white'
+            }`}
+          >
+            <Pin className={`w-3.5 h-3.5 transition-transform duration-300 ${
+              isPinFlashing
+                ? 'scale-125 text-red-400'
+                : isPinned
+                  ? 'fill-cyan-400'
+                  : 'rotate-45'
+            }`} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setShowSettings(!showSettings); playCyberBeep(); hideTooltip(); }}
+            onMouseEnter={(e) => showTooltip(e, translate('tooltip_settings'))}
+            onMouseLeave={hideTooltip}
+            className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors group cursor-pointer ${
+              showSettings ? 'bg-white/15 text-white' : 'hover:bg-white/10 text-slate-400 hover:text-white'
+            }`}
+          >
+            <Settings className="w-3.5 h-3.5" />
+          </button>
+
+          <div className="relative" ref={moreMenuRef}>
+            <button
+              type="button"
+              onClick={() => { setIsMoreMenuOpen(prev => !prev); playCyberBeep(); hideTooltip(); }}
+              onMouseEnter={(e) => showTooltip(e, translate('tooltip_more'))}
+              onMouseLeave={hideTooltip}
+              aria-haspopup="true"
+              aria-expanded={isMoreMenuOpen}
+              className={`relative flex items-center justify-center w-7 h-7 rounded-md transition-colors group cursor-pointer ${
+                isMoreMenuOpen ? 'bg-white/15 text-white' : 'hover:bg-white/10 text-slate-400 hover:text-white'
+              }`}
+            >
+              <MoreHorizontal className="w-3.5 h-3.5" />
+              {(updateStatus.state === 'available' || updateStatus.state === 'downloaded') && (
+                <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)] animate-pulse" />
+              )}
+            </button>
+
+            <AnimatePresence>
+              {isMoreMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                  transition={{ duration: 0.12 }}
+                  className="absolute right-0 top-full mt-1.5 z-50 w-[224px] p-1.5 rounded-xl bg-[#0c121e]/95 backdrop-blur-xl border border-white/10 shadow-[0_12px_32px_rgba(0,0,0,0.8),0_0_15px_rgba(34,211,238,0.1)] flex flex-col gap-0.5 select-none"
+                  role="menu"
                 >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMoreMenuOpen(false);
+                      if (window.electronAPI?.openExternal) {
+                        window.electronAPI.openExternal('https://github.com/CyberGems/CyberTray#%EF%B8%8F-donate');
+                      }
+                    }}
+                    className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-200 hover:text-white hover:bg-cyan-500/10 transition-colors text-left cursor-pointer"
+                  >
+                    <Heart className="w-3.5 h-3.5 text-[#00D8F1] fill-[#00D8F1]/20 group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_rgba(0,216,241,0.8)] transition-transform shrink-0" />
+                    <span className="font-semibold text-[#00D8F1]">{translate('more_menu_donate')}</span>
+                  </button>
 
-              {/* Marquee del Placeholder */}
-              {!searchQuery && (
-                <div className="absolute left-8.5 right-6 overflow-hidden pointer-events-none text-[11px] text-slate-500 font-sans flex items-center select-none z-0">
-                  <div className="cyber-marquee-track">
-                    <span>{translate('search_placeholder')}</span>
-                    <span className="mx-4 text-slate-800 font-cyber">///</span>
-                    <span>{translate('search_placeholder')}</span>
-                    <span className="mx-4 text-slate-800 font-cyber">///</span>
-                  </div>
-                </div>
-              )}
+                  <div className="h-px bg-white/10 my-1 mx-1.5" />
 
-              {/* Marquee del texto buscado */}
-              {!searchFocused && searchQuery && (
-                <div className="absolute left-8.5 right-6 overflow-hidden pointer-events-none text-[11px] text-[var(--neon-glow-color)] font-mono flex items-center select-none z-10">
-                  <div className={searchQuery.length > 8 ? "cyber-marquee-track" : ""}>
-                    <span>{searchQuery}</span>
-                    {searchQuery.length > 8 && (
-                      <>
-                        <span className="mx-4 text-slate-700 font-cyber">///</span>
-                        <span>{searchQuery}</span>
-                        <span className="mx-4 text-slate-700 font-cyber">///</span>
-                      </>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMoreMenuOpen(false);
+                      window.electronAPI?.openExternal?.('https://github.com/CyberGems/CyberTray/wiki');
+                    }}
+                    className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
+                  >
+                    <BookOpen className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors shrink-0" />
+                    <span>{translate('more_menu_docs')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMoreMenuOpen(false);
+                      window.electronAPI?.openExternal?.('https://github.com/CyberGems/CyberTray/issues');
+                    }}
+                    className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
+                  >
+                    <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors shrink-0" />
+                    <span>{translate('more_menu_faq')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMoreMenuOpen(false);
+                      window.electronAPI?.openExternal?.('https://github.com/CyberGems/CyberTray/releases');
+                    }}
+                    className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
+                  >
+                    <Tag className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors shrink-0" />
+                    <span>{translate('more_menu_changelog')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMoreMenuOpen(false);
+                      window.electronAPI?.openExternal?.('https://cybergems.org');
+                    }}
+                    className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
+                  >
+                    <Globe className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors shrink-0" />
+                    <span>{translate('more_menu_website')}</span>
+                  </button>
+
+                  <div className="h-px bg-white/10 my-1 mx-1.5" />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMoreMenuOpen(false);
+                      setShowAboutModal(true);
+                      playCyberBeep();
+                    }}
+                    className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
+                  >
+                    <Info className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors shrink-0" />
+                    <span className="flex-1">{translate('more_menu_about')}</span>
+                    {(updateStatus.state === 'available' || updateStatus.state === 'downloaded') && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]" />
                     )}
-                  </div>
-                </div>
+                  </button>
+                </motion.div>
               )}
-            </div>
+            </AnimatePresence>
           </div>
 
-          {/* Operational Controls & Layout (Right-aligned panels) */}
-          <div className="flex-1 flex items-center justify-end gap-3 ml-4">
-            
-            {/* Layout Configuration Card (Visual Group) */}
-            <div className="flex items-center gap-2 bg-slate-900/30 border border-slate-800/80 px-2 py-0.5 rounded-lg">
-              {/* Slider de tamaño de icono */}
-              <div 
-                className="h-7 flex items-center gap-2 bg-slate-950/40 border border-slate-800/60 rounded-md px-2 cursor-help"
-                onMouseEnter={(e) => showTooltip(e, langCode === 'es' ? 'TAMAÑO DE ICONOS' : 'ICON SIZING', translate('tooltip_size_slider'))}
-                onMouseLeave={hideTooltip}
-              >
-                <Sliders className="w-3.5 h-3.5 text-slate-500" />
-                <input
-                  type="range"
-                  min="40"
-                  max="90"
-                  value={config.iconSize}
-                  onChange={(e) => handleUpdateConfigSetting('iconSize', parseInt(e.target.value))}
-                  className="w-16 accent-[var(--neon-glow-color)] h-1 rounded-lg cursor-pointer bg-slate-950"
-                />
-              </div>
+          <div className="w-px h-3.5 bg-white/10 mx-0.5" />
 
-              {/* View Mode Toggle */}
-              <div className="flex items-center bg-slate-950/40 border border-slate-800/60 rounded-md p-0.5">
-                <button 
-                  onClick={() => { setViewMode('grid'); playCyberBeep(); }}
-                  onMouseEnter={(e) => showTooltip(e, translate('view_mode_grid'), translate('tooltip_view_mode_grid'))}
-                  onMouseLeave={hideTooltip}
-                  className={`p-1 rounded transition-all cursor-pointer border ${viewMode === 'grid' ? 'bg-[var(--neon-glow-color-raw)]/10 text-[var(--neon-glow-color)] border-[var(--neon-glow-border)]/30 shadow-[0_0_8px_var(--neon-glow-color-raw)]' : 'text-slate-500 hover:text-slate-300 border-transparent'}`}
-                >
-                  <Grid className="w-3.5 h-3.5" />
-                </button>
-                <button 
-                  onClick={() => { setViewMode('list'); playCyberBeep(); }}
-                  onMouseEnter={(e) => showTooltip(e, translate('view_mode_list'), translate('tooltip_view_mode_list'))}
-                  onMouseLeave={hideTooltip}
-                  className={`p-1 rounded transition-all cursor-pointer border ${viewMode === 'list' ? 'bg-[var(--neon-glow-color-raw)]/10 text-[var(--neon-glow-color)] border-[var(--neon-glow-border)]/30 shadow-[0_0_8px_var(--neon-glow-color-raw)]' : 'text-slate-500 hover:text-slate-300 border-transparent'}`}
-                >
-                  <ListIcon className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Ordenamiento */}
-              <div className="relative group">
-                <button className="h-7 px-2 bg-slate-950/40 hover:bg-slate-900 text-slate-400 hover:text-white rounded-md border border-slate-800/60 hover:border-slate-700/60 flex items-center gap-1.5 text-xs font-mono transition-all cursor-pointer">
-                  <ArrowUpDown className="w-3.5 h-3.5" />
-                  <ChevronDown className="w-3 h-3" />
-                </button>
-                <div className="absolute right-0 top-8 w-44 hidden group-hover:block bg-slate-950 border border-[var(--neon-glow-border)] rounded-lg shadow-2xl p-1 z-50 text-left font-mono">
-                  <button
-                    onClick={() => { setIconSortOrder('alpha'); playCyberBeep(); }}
-                    className={`w-full py-1.5 px-3 text-left text-xs rounded hover:bg-slate-900 hover:text-white ${iconSortOrder === 'alpha' ? 'text-[var(--neon-glow-color)]' : 'text-slate-400'}`}
-                  >
-                    {translate('sort_alpha')}
-                  </button>
-                  <button
-                    onClick={() => { setIconSortOrder('recent'); playCyberBeep(); }}
-                    className={`w-full py-1.5 px-3 text-left text-xs rounded hover:bg-slate-900 hover:text-white ${iconSortOrder === 'recent' ? 'text-[var(--neon-glow-color)]' : 'text-slate-400'}`}
-                  >
-                    {translate('sort_recent')}
-                  </button>
-                  <button
-                    onClick={() => { setIconSortOrder('added'); playCyberBeep(); }}
-                    className={`w-full py-1.5 px-3 text-left text-xs rounded hover:bg-slate-900 hover:text-white ${iconSortOrder === 'added' ? 'text-[var(--neon-glow-color)]' : 'text-slate-400'}`}
-                  >
-                    {translate('sort_added')}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Operations Panel (Visual Group) */}
-            <div className="flex items-center gap-2">
-              {/* Cluster de selección (visible solo en modo selección) */}
-              {selectionMode && (
-                <div className="flex items-center gap-1 mr-1 pr-2 border-r border-slate-700/50 animate-fade-in">
-                  <span className="text-[10px] font-cyber font-bold tracking-wider text-[var(--neon-glow-color)] px-1 whitespace-nowrap">
-                    {translate('selected_count', { count: String(selectedIds.size) })}
-                  </span>
-                  <button
-                    onClick={handleSelectAll}
-                    onMouseEnter={(e) => showTooltip(e, translate('select_all').toUpperCase(), '', 'rgba(56,189,248,0.5)')}
-                    onMouseLeave={hideTooltip}
-                    className="h-8 w-8 bg-slate-800/40 border border-slate-700/50 hover:border-[var(--neon-glow-border)] text-slate-300 hover:text-[var(--neon-glow-color)] rounded-lg flex items-center justify-center transition-all cursor-pointer"
-                  >
-                    <Check className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={handleInvertSelection}
-                    onMouseEnter={(e) => showTooltip(e, translate('invert_selection').toUpperCase(), '', 'rgba(56,189,248,0.5)')}
-                    onMouseLeave={hideTooltip}
-                    className="h-8 w-8 bg-slate-800/40 border border-slate-700/50 hover:border-[var(--neon-glow-border)] text-slate-300 hover:text-[var(--neon-glow-color)] rounded-lg flex items-center justify-center transition-all cursor-pointer"
-                  >
-                    <FlipHorizontal2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={handleClearSelection}
-                    onMouseEnter={(e) => showTooltip(e, translate('unselect_all').toUpperCase(), '', 'rgba(148,163,184,0.5)')}
-                    onMouseLeave={hideTooltip}
-                    className="h-8 w-8 bg-slate-800/40 border border-slate-700/50 hover:border-slate-500 text-slate-300 hover:text-white rounded-lg flex items-center justify-center transition-all cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={handleDeleteSelected}
-                    disabled={selectedIds.size === 0}
-                    onMouseEnter={(e) => showTooltip(e, translate('delete_selected').toUpperCase(), '', 'rgba(244,63,94,0.5)')}
-                    onMouseLeave={hideTooltip}
-                    className="h-8 px-3 bg-rose-500/15 border border-rose-500/40 hover:border-rose-400 hover:bg-rose-500/25 disabled:opacity-40 disabled:cursor-not-allowed text-rose-300 hover:text-rose-200 font-cyber font-bold tracking-widest text-[10px] rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    {translate('delete_selected')} ({selectedIds.size})
-                  </button>
-                </div>
-              )}
-
-              {/* Toggle modo selección */}
-              <button
-                onClick={toggleSelectionMode}
-                onMouseEnter={(e) => showTooltip(e, translate('selection_mode').toUpperCase(), selectionMode ? translate('selection_exit') : translate('selection_mode'), 'rgba(56,189,248,0.5)')}
-                onMouseLeave={hideTooltip}
-                className={`h-8 w-8 rounded-lg flex items-center justify-center border transition-all cursor-pointer ${
-                  selectionMode
-                    ? 'bg-[var(--neon-glow-color-raw)]/15 border-[var(--neon-glow-border)] text-[var(--neon-glow-color)] shadow-[0_0_8px_var(--neon-glow-color-raw)]'
-                    : 'bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-slate-500'
-                }`}
-              >
-                <CheckSquare className="w-4 h-4" />
-              </button>
-
-              {/* Launch All */}
-              <button
-                onClick={handleLaunchAll}
-                onMouseEnter={(e) => showTooltip(e, langCode === 'es' ? 'EJECUTAR GRUPO' : 'GROUP LAUNCH', translate('tooltip_launch_all'), 'rgba(16,185,129,0.5)')}
-                onMouseLeave={hideTooltip}
-                disabled={filteredShortcutsList.length === 0}
-                className="h-8 w-8 bg-emerald-500/15 border border-emerald-500/30 hover:border-emerald-400 hover:bg-emerald-500/25 disabled:opacity-40 text-emerald-400 hover:text-emerald-300 rounded-lg flex items-center justify-center transition-all cursor-pointer"
-              >
-                <Play className="w-4 h-4" />
-              </button>
-
-              {/* Process Matrix */}
-              <button
-                onClick={() => { setShowProcessMatrixModal(true); playCyberBeep(); }}
-                onMouseEnter={(e) => showTooltip(e, langCode === 'es' ? 'MATRIZ DE PROCESOS' : 'PROCESS MATRIX', translate('tooltip_process_matrix'), 'rgba(239,68,68,0.5)')}
-                onMouseLeave={hideTooltip}
-                className="h-8 w-8 bg-red-500/10 border border-red-500/30 hover:border-red-400 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg flex items-center justify-center transition-all cursor-pointer"
-                aria-label={translate('tab_process_matrix')}
-              >
-                <Activity className="w-4 h-4" />
-              </button>
-
-              {/* Sweep Desktop button (visible only in Vault tab) */}
-              {isElectron && activeCategory === 'vault' && (
-                <button
-                  onClick={handleDesktopSweep}
-                  onMouseEnter={(e) => showTooltip(e, langCode === 'es' ? 'BARRER ESCRITORIO' : 'SWEEP DESKTOP', translate('tooltip_sweep_desktop'), 'rgba(168,85,247,0.5)')}
-                  onMouseLeave={hideTooltip}
-                  className="h-8 px-3 bg-purple-500/15 border border-purple-500/30 hover:border-purple-400 hover:bg-purple-500/25 text-purple-400 hover:text-purple-300 font-cyber font-bold tracking-widest text-[10px] rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  {translate('vault_sweep_btn')}
-                </button>
-              )}
-
-              {/* Lock Vault button (visible only in Vault tab when PIN is enabled) */}
-              {activeCategory === 'vault' && config.vaultPinEnabled === true && (
-                <button
-                  onClick={handleLockVault}
-                  onMouseEnter={(e) => showTooltip(e, translate('vault_lock_btn'), translate('tooltip_lock_vault'), 'rgba(239,68,68,0.5)')}
-                  onMouseLeave={hideTooltip}
-                  className="h-8 px-3 bg-red-500/15 border border-red-500/30 hover:border-red-400 hover:bg-red-500/25 text-red-400 hover:text-red-300 font-cyber font-bold tracking-widest text-[10px] rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Lock className="w-3.5 h-3.5" />
-                  {translate('vault_lock_btn')}
-                </button>
-              )}
-
-              {/* Add Shortcut */}
-              <button
-                onClick={handleOpenAddModal}
-                onMouseEnter={(e) => showTooltip(e, langCode === 'es' ? 'REGISTRAR ACCESO' : 'ADD SHORTCUT', translate('tooltip_add_shortcut'))}
-                onMouseLeave={hideTooltip}
-                className="h-8 px-3 bg-[var(--neon-glow-color-raw)] hover:bg-[var(--neon-glow-color)] text-[var(--neon-glow-color)] hover:text-slate-950 font-cyber font-bold tracking-widest text-[10px] rounded-lg border border-[var(--neon-glow-border)] hover:shadow-[0_0_10px_var(--neon-glow-color)] transition-all flex items-center gap-1 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                ADD
-              </button>
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              hideTooltip();
+              if (isPinned) {
+                playPinBlockSound();
+                setIsPinFlashing(true);
+                setTimeout(() => setIsPinFlashing(false), 1200);
+                return;
+              }
+              if (isElectron) window.electronAPI!.windowHideToTray();
+            }}
+            onMouseEnter={(e) => showTooltip(e, translate('tooltip_minimize'))}
+            onMouseLeave={hideTooltip}
+            className="flex items-center justify-center w-7 h-7 hover:bg-white/10 rounded-md transition-colors group cursor-pointer"
+          >
+            <Shrink className="w-3.5 h-3.5 text-slate-400 group-hover:text-white" />
+          </button>
         </div>
       </header>
 
@@ -2904,6 +2612,10 @@ export default function App() {
         setEnableConfirmPinInput={setEnableConfirmPinInput}
         enablePinError={enablePinError}
         setEnablePinError={setEnablePinError}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        iconSortOrder={iconSortOrder}
+        setIconSortOrder={setIconSortOrder}
       />
 
       <ProcessMatrixModal
