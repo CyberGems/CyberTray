@@ -5,9 +5,10 @@ import {
   SlidersHorizontal, Star, Trash2, Upload, X,
 } from 'lucide-react';
 import { translate } from '../locales';
-import { getFolderPath, isElectron } from '../lib/appUtils';
+import { isElectron } from '../lib/appUtils';
 import { shortcutIconSrc } from '../lib/iconSrc';
 import Toggle from './Toggle';
+import FolderPicker from './FolderPicker';
 
 export type ShortcutDraft = { name: string; path: string; iconPath?: string };
 
@@ -106,14 +107,6 @@ export default function ShortcutFormModal({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [shortcutModal.open, setShortcutModal]);
-
-  const folderOptions = categories
-    .filter(folder => folder && folder.id && folder.id.trim() !== '' && folder.id !== 'all')
-    .sort((a, b) => {
-      const pathA = getFolderPath(categories, a.id).map(folder => folder.name).join('/');
-      const pathB = getFolderPath(categories, b.id).map(folder => folder.name).join('/');
-      return pathA.localeCompare(pathB);
-    });
 
   const canSave = isBatch
     ? batchItems.length > 0 && !!formCategory
@@ -467,20 +460,11 @@ export default function ShortcutFormModal({
 
                 <div>
                   <label className="text-xs font-bold text-slate-400 tracking-wider mb-2 block">{translate('app_field_folder')}</label>
-                  <div className="relative">
-                    <select
-                      value={formCategory}
-                      onChange={(e) => setFormCategory(e.target.value)}
-                      className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-sm text-white outline-none focus:outline-none focus:border-cyan-500/50 transition-colors appearance-none"
-                    >
-                      {folderOptions.map(folder => (
-                        <option key={folder.id} value={folder.id} className="bg-[#0f172a]">
-                          {getFolderPath(categories, folder.id).map(item => item.id === 'all' ? translate('explorer_all') : item.name).join(' / ')}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronRight className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none rotate-90" />
-                  </div>
+                  <FolderPicker
+                    categories={categories}
+                    value={formCategory}
+                    onChange={setFormCategory}
+                  />
                 </div>
               </div>
 
