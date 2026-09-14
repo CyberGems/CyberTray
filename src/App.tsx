@@ -2234,27 +2234,6 @@ export default function App() {
         </div>
 
         <div className="ml-auto flex items-center gap-2 shrink-0 overflow-visible">
-          <button
-            type="button"
-            onClick={toggleSelectionMode}
-            onMouseEnter={(e) => showTooltip(
-              e,
-              selectionMode ? translate('selection_exit') : translate('selection_mode'),
-              translate('selection_mode_hint'),
-              'rgba(56,189,248,0.5)'
-            )}
-            onMouseLeave={hideTooltip}
-            className={`h-8 w-8 rounded-lg flex items-center justify-center border transition-all cursor-pointer ${
-              selectionMode
-                ? 'bg-[var(--neon-glow-color-raw)]/15 border-[var(--neon-glow-border)] text-[var(--neon-glow-color)] shadow-[0_0_8px_var(--neon-glow-color-raw)]'
-                : 'bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-slate-500'
-            }`}
-            aria-label={selectionMode ? translate('selection_exit') : translate('selection_mode')}
-            aria-pressed={selectionMode}
-          >
-            <CheckSquare className="w-4 h-4" />
-          </button>
-
           {selectionMode && (
             <>
               <button
@@ -2306,6 +2285,27 @@ export default function App() {
               </button>
             </>
           )}
+
+          <button
+            type="button"
+            onClick={toggleSelectionMode}
+            onMouseEnter={(e) => showTooltip(
+              e,
+              selectionMode ? translate('selection_exit') : translate('selection_mode'),
+              translate('selection_mode_hint'),
+              'rgba(56,189,248,0.5)'
+            )}
+            onMouseLeave={hideTooltip}
+            className={`h-8 w-8 rounded-lg flex items-center justify-center border transition-all cursor-pointer ${
+              selectionMode
+                ? 'bg-[var(--neon-glow-color-raw)]/15 border-[var(--neon-glow-border)] text-[var(--neon-glow-color)] shadow-[0_0_8px_var(--neon-glow-color-raw)]'
+                : 'bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-slate-500'
+            }`}
+            aria-label={selectionMode ? translate('selection_exit') : translate('selection_mode')}
+            aria-pressed={selectionMode}
+          >
+            <CheckSquare className="w-4 h-4" />
+          </button>
 
           <button
             onClick={handleLaunchAll}
