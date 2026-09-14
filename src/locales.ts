@@ -173,6 +173,7 @@ export const translations = {
     stat_total_shortcuts: "SHORTCUTS",
     stat_total_categories: "CATEGORIES",
     stat_total_launches: "LAUNCHES",
+    stat_cpu_cores: "{count} cores",
     stat_cpu: "CPU STRUCTURE",
     stat_ram: "RAM CACHE LOAD",
     stat_disks: "STORAGE ARRAY",
@@ -209,6 +210,9 @@ export const translations = {
     menu_kill_process: "KILL PROCESS",
     add_to_favorites: "Add to Favorites",
     remove_from_favorites: "Remove from Favorites",
+    pin_to_taskbar: "Pin to taskbar",
+    unpin_from_taskbar: "Unpin from taskbar",
+    tooltip_add_taskbar: "Add a shortcut to the bottom bar",
 
     // Files & Sweep Features
     tab_vault: "FILES",
@@ -542,6 +546,7 @@ export const translations = {
     stat_total_shortcuts: "ACCESOS",
     stat_total_categories: "CATEGORÍAS",
     stat_total_launches: "LANZAMIENTOS",
+    stat_cpu_cores: "{count} núcleos",
     stat_cpu: "CPU",
     stat_ram: "MEMORIA RAM CACHE",
     stat_disks: "DISCOS",
@@ -578,6 +583,9 @@ export const translations = {
     menu_kill_process: "MATAR PROCESO",
     add_to_favorites: "Agregar a Favoritos",
     remove_from_favorites: "Quitar de Favoritos",
+    pin_to_taskbar: "Anclar a la barra",
+    unpin_from_taskbar: "Desanclar de la barra",
+    tooltip_add_taskbar: "Añadir un acceso a la barra inferior",
 
     // Files & Sweep Features
     tab_vault: "ARCHIVOS",

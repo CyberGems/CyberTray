@@ -87,6 +87,7 @@ interface CyberTrayConfig {
   totalLaunches?: number;
   autoUpdate?: boolean;
   autoCheckUpdates?: boolean;
+  taskbarIds?: number[];
 }
 
 const DEFAULT_CONFIG: CyberTrayConfig = {

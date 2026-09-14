@@ -138,6 +138,7 @@ export default function App() {
     soundPath: '',
     folderSchemaVersion: FOLDER_SCHEMA_VERSION,
     autoUpdate: true,
+    taskbarIds: [] as number[],
   });
 
 
@@ -455,6 +456,7 @@ export default function App() {
   const launchAudioRef = useRef<HTMLAudioElement | null>(null);
   const folderAudioRef = useRef<HTMLAudioElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const pinNextToTaskbarRef = useRef(false);
 
   useEffect(() => {
     if (!isMoreMenuOpen) return;
@@ -990,13 +992,20 @@ export default function App() {
     setShortcuts(normalizedShortcuts);
     setCategories(normalizedCategories);
 
+    const prevTaskbar = Array.isArray(configRef.current.taskbarIds) ? configRef.current.taskbarIds : [];
+    const taskbarIds = prevTaskbar.filter((id: number) => normalizedShortcuts.some((s: any) => s.id === id));
+    const nextCfg = {
+      ...configRef.current,
+      shortcutsList: normalizedShortcuts,
+      categoriesList: normalizedCategories,
+      folderSchemaVersion: FOLDER_SCHEMA_VERSION,
+      taskbarIds,
+    };
+    configRef.current = nextCfg;
+    setConfig(nextCfg);
+
     if (isElectron) {
-      await window.electronAPI!.saveConfig({
-        ...configRef.current,
-        shortcutsList: normalizedShortcuts,
-        categoriesList: normalizedCategories,
-        folderSchemaVersion: FOLDER_SCHEMA_VERSION,
-      });
+      await window.electronAPI!.saveConfig(nextCfg);
     }
   };
 
@@ -1416,8 +1425,42 @@ export default function App() {
     );
   };
 
+  const taskbarIds: number[] = Array.isArray(config.taskbarIds) ? config.taskbarIds : [];
+
+  const handleOpenAddToTaskbar = () => {
+    handleOpenAddModal();
+    pinNextToTaskbarRef.current = true;
+  };
+
+  const pinShortcutToTaskbar = (id: number) => {
+    if (!id || taskbarIds.includes(id)) return;
+    handleUpdateConfigSetting('taskbarIds', [...taskbarIds, id]);
+    playCyberBeep();
+  };
+
+  const toggleTaskbarPin = (id: number) => {
+    if (taskbarIds.includes(id)) {
+      handleUpdateConfigSetting('taskbarIds', taskbarIds.filter((x) => x !== id));
+    } else {
+      handleUpdateConfigSetting('taskbarIds', [...taskbarIds, id]);
+    }
+    playCyberBeep();
+  };
+
+  const reorderTaskbar = (fromId: number, toId: number) => {
+    if (fromId === toId) return;
+    const ids = [...taskbarIds];
+    const from = ids.indexOf(fromId);
+    const to = ids.indexOf(toId);
+    if (from < 0 || to < 0) return;
+    ids.splice(from, 1);
+    ids.splice(to, 0, fromId);
+    handleUpdateConfigSetting('taskbarIds', ids);
+  };
+
   // Configurar e Inyectar Accesos Directos
   const handleOpenAddModal = () => {
+    pinNextToTaskbarRef.current = false;
     setFormName('');
     setFormPath('');
     setFormArgs('');
@@ -1494,8 +1537,9 @@ export default function App() {
       });
     } else {
       // Agregar
+      const newId = Date.now();
       newShortcuts.push({
-        id: Date.now(),
+        id: newId,
         name: finalName,
         path: finalPath,
         category: formCategory,
@@ -1507,6 +1551,13 @@ export default function App() {
         usageCount: 0,
         addedTimestamp: Date.now()
       });
+      if (pinNextToTaskbarRef.current) {
+        const ids = Array.isArray(configRef.current.taskbarIds) ? configRef.current.taskbarIds : [];
+        if (!ids.includes(newId)) {
+          configRef.current = { ...configRef.current, taskbarIds: [...ids, newId] };
+        }
+        pinNextToTaskbarRef.current = false;
+      }
     }
 
     await saveDataToConfig(newShortcuts, categories);
@@ -2653,6 +2704,13 @@ export default function App() {
         systemInfo={systemInfo}
         disks={disks}
         langCode={langCode}
+        shortcuts={shortcuts}
+        taskbarIds={taskbarIds}
+        onLaunch={handleLaunch}
+        onOpenAdd={handleOpenAddToTaskbar}
+        onPinShortcut={pinShortcutToTaskbar}
+        onReorderTaskbar={reorderTaskbar}
+        onShortcutContextMenu={handleShortcutContextMenu}
         showTooltip={showTooltip}
         hideTooltip={hideTooltip}
       />
@@ -2794,6 +2852,8 @@ export default function App() {
         handleLaunch={handleLaunch}
         executeLaunch={executeLaunch}
         handleOpenEditModal={handleOpenEditModal}
+        taskbarIds={taskbarIds}
+        onToggleTaskbarPin={toggleTaskbarPin}
         confirmModal={confirmModal}
         setConfirmModal={setConfirmModal}
       />

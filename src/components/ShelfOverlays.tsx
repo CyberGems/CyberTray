@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Edit, ExternalLink, FolderOpen, Play, Power, Shield, Trash2 } from 'lucide-react';
+import { Edit, ExternalLink, FolderOpen, Pin, Play, Power, Shield, Trash2 } from 'lucide-react';
 import { translate } from '../locales';
 import { getFolderPath, isElectron } from '../lib/appUtils';
 
@@ -33,6 +33,8 @@ interface ShelfOverlaysProps {
   handleLaunch: (item: any) => void;
   executeLaunch: (item: any) => void;
   handleOpenEditModal: (item: any, e?: any) => void;
+  taskbarIds: number[];
+  onToggleTaskbarPin: (id: number) => void;
   confirmModal: any;
   setConfirmModal: (v: any) => void;
 }
@@ -66,6 +68,8 @@ export default function ShelfOverlays({
   handleLaunch,
   executeLaunch,
   handleOpenEditModal,
+  taskbarIds,
+  onToggleTaskbarPin,
   confirmModal,
   setConfirmModal,
 }: ShelfOverlaysProps) {
@@ -248,7 +252,7 @@ export default function ShelfOverlays({
             onContextMenu={(e) => { e.preventDefault(); setShortcutMenu(null); }}
           />
           <div 
-            className="fixed bg-slate-950 border border-[var(--neon-glow-border)] rounded-lg shadow-2xl p-1 z-50 text-left font-mono w-48"
+            className="fixed bg-slate-950 border border-[var(--neon-glow-border)] rounded-lg shadow-2xl p-1 z-50 text-left font-mono w-56"
             style={{ 
               left: Math.min(window.innerWidth - 200, shortcutMenu.x), 
               top: Math.min(window.innerHeight - 180, shortcutMenu.y) 
@@ -326,6 +330,20 @@ export default function ShelfOverlays({
                 ? translate('remove_from_favorites')
                 : translate('add_to_favorites')
               }
+            </button>
+
+            <button
+              onClick={() => {
+                const item = shortcutMenu.item;
+                setShortcutMenu(null);
+                onToggleTaskbarPin(item.id);
+              }}
+              className="w-full py-1.5 px-3 text-left text-xs rounded hover:bg-slate-900 hover:text-white text-slate-300 flex items-center gap-2 cursor-pointer border-0 bg-transparent"
+            >
+              <Pin className="w-3.5 h-3.5 text-slate-500" />
+              {taskbarIds.includes(shortcutMenu.item.id)
+                ? translate('unpin_from_taskbar')
+                : translate('pin_to_taskbar')}
             </button>
 
             {/* Submenú de Mover a Carpeta */}
