@@ -77,7 +77,7 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 - **Custom Vault Path** — Store vault files in any location
 
 ### 🎨 Appearance Customization
-- **5 Neon Themes** — Netrunner Cyan, Synthetic Purple, Sandevistan Amber, Arasaka Crimson, Maelstrom Emerald
+- **5 accent colors**: Cyan, Purple, Amber, Crimson, Emerald
 - **Background Types** — Solid color, gradient presets, 4 built-in image presets, custom image
 - **Blur Level** — Adjustable backdrop blur intensity
 - **Opacity** — Background transparency control

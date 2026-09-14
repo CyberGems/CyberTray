@@ -12,14 +12,14 @@ export interface CyberFolder {
 }
 
 export const INITIAL_CATEGORIES = [
-  { id: 'all', name: 'ALL MODULES', color: '#a1a1a1', parentId: null, order: -1 },
-  { id: 'ai', name: 'AI CORES', color: '#34d399', parentId: null, order: 0 },
-  { id: 'browsers', name: 'BROWSERS', color: '#f97316', parentId: null, order: 1 },
-  { id: 'comm', name: 'NET CHATS', color: '#6366f1', parentId: null, order: 2 },
-  { id: 'design', name: 'CYBER ART', color: '#ef4444', parentId: null, order: 3 },
-  { id: 'dev', name: 'GRID CODING', color: '#38bdf8', parentId: null, order: 4 },
-  { id: 'gaming', name: 'HOLODECKS', color: '#ec4899', parentId: null, order: 5 },
-  { id: 'utils', name: 'DOCK TOOLS', color: '#60a5fa', parentId: null, order: 6 },
+  { id: 'all', name: 'All', color: '#a1a1a1', parentId: null, order: -1 },
+  { id: 'ai', name: 'Tools', color: '#34d399', parentId: null, order: 0 },
+  { id: 'browsers', name: 'Browsers', color: '#f97316', parentId: null, order: 1 },
+  { id: 'comm', name: 'Chat', color: '#6366f1', parentId: null, order: 2 },
+  { id: 'design', name: 'Design', color: '#ef4444', parentId: null, order: 3 },
+  { id: 'dev', name: 'Development', color: '#38bdf8', parentId: null, order: 4 },
+  { id: 'gaming', name: 'Gaming', color: '#ec4899', parentId: null, order: 5 },
+  { id: 'utils', name: 'Utilities', color: '#60a5fa', parentId: null, order: 6 },
 ];
 
 const normalizeParentId = (value: unknown, id: string, ids: Set<string>) => {

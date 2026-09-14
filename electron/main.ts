@@ -254,10 +254,10 @@ const TRAY_TRANSLATIONS = {
   es: {
     showHide: 'Mostrar / Ocultar',
     newShortcut: 'Nuevo acceso...',
-    settings: 'Configuración...',
+    settings: 'Ajustes...',
     help: 'Ayuda',
     faq: 'Preguntas frecuentes',
-    changelog: 'Changelog',
+    changelog: 'Registro de cambios',
     homepage: 'Sitio web',
     donate: 'Donar',
     about: 'Acerca de...',

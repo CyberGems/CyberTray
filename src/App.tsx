@@ -1321,12 +1321,12 @@ export default function App() {
             }
             if (res.count && res.count > 0) {
               showAlert(
-                langCode === 'es' ? 'Barrer completado' : 'Sweep complete',
+                translate('sweep_complete_title'),
                 translate('vault_sweep_success', { count: String(res.count) })
               );
             } else {
               showAlert(
-                langCode === 'es' ? 'Escritorio Limpio' : 'Clean Desktop',
+                translate('sweep_clean_title'),
                 translate('vault_sweep_empty')
               );
             }
@@ -1409,13 +1409,9 @@ export default function App() {
     const list = getFilteredShortcuts();
     if (list.length === 0) return;
 
-    const message = langCode === 'es'
-      ? `¿Estás seguro de lanzar los ${list.length} accesos directos de esta categoría en lote?`
-      : `Are you sure you want to batch launch all ${list.length} shortcuts in this category?`;
-
     showConfirm(
-      langCode === 'es' ? 'Lanzamiento en Grupo' : 'Group Launch',
-      message,
+      translate('group_launch_title'),
+      translate('group_launch_desc', { count: String(list.length) }),
       async () => {
         for (const item of list) {
           handleLaunch(item);
@@ -1803,8 +1799,8 @@ export default function App() {
     );
     if (siblingExists) {
       showAlert(
-        langCode === 'es' ? 'Carpeta Existente' : 'Folder Exists',
-        langCode === 'es' ? 'Ya existe una carpeta con ese nombre en esta ubicación.' : 'A folder with that name already exists here.'
+        translate('folder_exists_title'),
+        translate('folder_exists_desc')
       );
       return;
     }
@@ -1881,8 +1877,8 @@ export default function App() {
         && folder.name.trim().toLowerCase() === newName.toLowerCase()
     )) {
       showAlert(
-        langCode === 'es' ? 'Carpeta Existente' : 'Folder Exists',
-        langCode === 'es' ? 'Ya existe una carpeta con ese nombre aquí.' : 'A folder with that name already exists here.'
+        translate('folder_exists_title'),
+        translate('folder_exists_desc')
       );
       return;
     }
@@ -2065,7 +2061,7 @@ export default function App() {
     const path = await window.electronAPI!.exportConfig(backupData);
     if (path) {
       showAlert(
-        langCode === 'es' ? 'Respaldo Exportado' : 'Backup Exported',
+        translate('backup_exported_title'),
         translate('notif_backup_exported')
       );
     }
@@ -2097,7 +2093,7 @@ export default function App() {
           });
           
           showAlert(
-            langCode === 'es' ? 'Respaldo Importado' : 'Backup Imported',
+            translate('backup_imported_title'),
             translate('notif_backup_imported'),
             () => {
               window.location.reload();
@@ -2108,8 +2104,8 @@ export default function App() {
         }
       } catch {
         showAlert(
-          langCode === 'es' ? 'Error de Importación' : 'Import Error',
-          langCode === 'es' ? 'Error al procesar el archivo de respaldo.' : 'Error parsing backup file.'
+          translate('backup_import_error_title'),
+          translate('backup_import_error_desc')
         );
       }
     }
@@ -2293,7 +2289,7 @@ export default function App() {
                     : `local-resource:///${bgCustomPath.replace(/\\/g, '/')}`)
                   : `/backgrounds/cyber_bg_${bgImage.replace('preset-', '')}.png`
               } 
-              alt="Cyber Background" 
+              alt={translate('app_bg_type')} 
               className="w-full h-full object-cover transition-opacity duration-300"
               style={{
                 opacity: opacityVal / 100
@@ -2442,7 +2438,7 @@ export default function App() {
 
           <button
             onClick={handleLaunchAll}
-            onMouseEnter={(e) => showTooltip(e, langCode === 'es' ? 'EJECUTAR GRUPO' : 'GROUP LAUNCH', translate('tooltip_launch_all'), 'rgba(16,185,129,0.5)')}
+            onMouseEnter={(e) => showTooltip(e, translate('toolbar_group_launch'), translate('tooltip_launch_all'), 'rgba(16,185,129,0.5)')}
             onMouseLeave={hideTooltip}
             disabled={filteredShortcutsList.length === 0}
             className="h-8 w-8 bg-emerald-500/15 border border-emerald-500/30 hover:border-emerald-400 hover:bg-emerald-500/25 disabled:opacity-40 text-emerald-400 hover:text-emerald-300 rounded-lg flex items-center justify-center transition-all cursor-pointer"
@@ -2452,7 +2448,7 @@ export default function App() {
 
           <button
             onClick={() => { setShowProcessMatrixModal(true); playCyberBeep(); }}
-            onMouseEnter={(e) => showTooltip(e, langCode === 'es' ? 'MATRIZ DE PROCESOS' : 'PROCESS MATRIX', translate('tooltip_process_matrix'), 'rgba(239,68,68,0.5)')}
+            onMouseEnter={(e) => showTooltip(e, translate('tab_process_matrix'), translate('tooltip_process_matrix'), 'rgba(239,68,68,0.5)')}
             onMouseLeave={hideTooltip}
             className="h-8 w-8 bg-red-500/10 border border-red-500/30 hover:border-red-400 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg flex items-center justify-center transition-all cursor-pointer"
             aria-label={translate('tab_process_matrix')}
@@ -2463,7 +2459,7 @@ export default function App() {
           {isElectron && activeCategory === 'vault' && (
             <button
               onClick={handleDesktopSweep}
-              onMouseEnter={(e) => showTooltip(e, langCode === 'es' ? 'BARRER ESCRITORIO' : 'SWEEP DESKTOP', translate('tooltip_sweep_desktop'), 'rgba(168,85,247,0.5)')}
+              onMouseEnter={(e) => showTooltip(e, translate('vault_sweep_btn'), translate('tooltip_sweep_desktop'), 'rgba(168,85,247,0.5)')}
               onMouseLeave={hideTooltip}
               className="h-8 px-3 bg-purple-500/15 border border-purple-500/30 hover:border-purple-400 hover:bg-purple-500/25 text-purple-400 hover:text-purple-300 font-cyber font-bold tracking-widest text-[10px] rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
             >

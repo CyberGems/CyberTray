@@ -40,7 +40,6 @@ interface ShelfOverlaysProps {
 }
 
 export default function ShelfOverlays({
-  langCode,
   shortcuts,
   categories,
   playCyberBeep,
@@ -415,7 +414,7 @@ export default function ShelfOverlays({
                     onClick={() => {
                       setShortcutMenu(null);
                       showConfirm(
-                        langCode === 'es' ? 'Terminar Proceso' : 'Terminate Process',
+                        translate('terminate_process_title'),
                         translate('process_kill_confirm'),
                         async () => {
                           await window.electronAPI!.killProcess(proc.pid);
@@ -485,7 +484,7 @@ export default function ShelfOverlays({
                     }}
                     className="py-1.5 px-4 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white text-xs font-cyber font-bold tracking-wider rounded-lg transition-all cursor-pointer"
                   >
-                    {langCode === 'es' ? 'ABORTAR' : 'ABORT'}
+                    {translate('confirm_cancel')}
                   </button>
                 )}
                 <button
@@ -501,8 +500,8 @@ export default function ShelfOverlays({
                   }`}
                 >
                   {confirmModal.isAlert 
-                    ? (langCode === 'es' ? 'ENTENDIDO' : 'ACKNOWLEDGE') 
-                    : (langCode === 'es' ? 'CONFIRMAR' : 'CONFIRM')}
+                    ? translate('confirm_ok')
+                    : translate('confirm_confirm')}
                 </button>
               </div>
             </motion.div>

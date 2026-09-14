@@ -274,7 +274,7 @@ export default function SettingsPanel({
                         className="flex items-center justify-center gap-1.5 py-1.5 text-[10px] font-cyber font-bold tracking-widest text-emerald-400"
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
-                        {langCode === 'es' ? 'CONFIGURACIÓN GUARDADA' : 'SETTINGS SAVED'}
+                        {translate('settings_saved')}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -356,7 +356,7 @@ export default function SettingsPanel({
                         />
                         <button
                           onClick={() => {
-                            const newKey = prompt('Presiona la combinación de teclas (ej. Alt+T, Ctrl+Shift+T):', config.shortcut);
+                            const newKey = prompt(translate('general_shortcut_prompt'), config.shortcut);
                             if (newKey) {
                               if (isElectron) window.electronAPI!.registerShortcut(newKey);
                               handleUpdateConfigSetting('shortcut', newKey);
@@ -364,7 +364,7 @@ export default function SettingsPanel({
                           }}
                           className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
                         >
-                          RECORD NEW
+                          {translate('general_shortcut_record_btn')}
                         </button>
                       </div>
                     </div>
@@ -695,7 +695,7 @@ export default function SettingsPanel({
                               type="button"
                               onClick={async () => {
                                 if (enablePinInput.length !== 4) {
-                                  setEnablePinError(langCode === 'es' ? 'EL PIN DEBE TENER 4 DÍGITOS' : 'PIN MUST BE 4 DIGITS');
+                                  setEnablePinError(translate('vault_pin_digits_error'));
                                   playPinBlockSound();
                                   return;
                                 }
@@ -811,7 +811,7 @@ export default function SettingsPanel({
                                       return;
                                     }
                                     if (newPinInput.length !== 4) {
-                                      setChangePinError(langCode === 'es' ? 'EL PIN DEBE TENER 4 DÍGITOS' : 'PIN MUST BE 4 DIGITS');
+                                      setChangePinError(translate('vault_pin_digits_error'));
                                       playPinBlockSound();
                                       return;
                                     }
@@ -1021,7 +1021,7 @@ export default function SettingsPanel({
                             onClick={() => handleUpdateConfigSetting('bgSolidColor', '#070b13')}
                             className="py-1.5 px-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer"
                           >
-                            RESET (#070B13)
+                            {translate('app_bg_reset')} (#070B13)
                           </button>
                         </div>
                       </div>
@@ -1032,10 +1032,10 @@ export default function SettingsPanel({
                         <SectionHead icon={Palette} title={translate('app_bg_gradients')} desc={translate('app_bg_gradients_desc')} />
                         <div className="grid grid-cols-2 gap-3">
                           {[
-                            { id: 'preset-1', name: 'CYAN GRID', css: 'bg-gradient-to-br from-[#061826] via-[#070b13] to-[#042f40] border-cyan-800' },
-                            { id: 'preset-2', name: 'PURPLE NEON', css: 'bg-gradient-to-br from-[#12072b] via-[#070b13] to-[#24083b] border-purple-800' },
-                            { id: 'preset-3', name: 'AMBER DUSK', css: 'bg-gradient-to-br from-[#1c0d02] via-[#070b13] to-[#3a1a03] border-amber-800' },
-                            { id: 'preset-4', name: 'CRIMSON FIRE', css: 'bg-gradient-to-br from-[#1c0202] via-[#070b13] to-[#3d0303] border-red-950' }
+                            { id: 'preset-1', name: translate('app_bg_gradient_cyan'), css: 'bg-gradient-to-br from-[#061826] via-[#070b13] to-[#042f40] border-cyan-800' },
+                            { id: 'preset-2', name: translate('app_bg_gradient_purple'), css: 'bg-gradient-to-br from-[#12072b] via-[#070b13] to-[#24083b] border-purple-800' },
+                            { id: 'preset-3', name: translate('app_bg_gradient_amber'), css: 'bg-gradient-to-br from-[#1c0d02] via-[#070b13] to-[#3a1a03] border-amber-800' },
+                            { id: 'preset-4', name: translate('app_bg_gradient_crimson'), css: 'bg-gradient-to-br from-[#1c0202] via-[#070b13] to-[#3d0303] border-red-950' }
                           ].map((gradient) => (
                             <button
                               key={gradient.id}
@@ -1202,23 +1202,21 @@ export default function SettingsPanel({
                       <div className="flex items-start gap-2.5 mb-3">
                         <BadgeIcon icon={AlertTriangle} tone="red" />
                         <div className="min-w-0">
-                          <h4 className="font-cyber font-bold text-red-400 text-xs tracking-widest">DANGER ZONE / NÚCLEO FÍSICO</h4>
-                          <p className="text-xs text-slate-500 mt-1">Vaciar completamente la memoria de accesos inyectados de CyberTray.</p>
+                          <h4 className="font-cyber font-bold text-red-400 text-xs tracking-widest">{translate('sys_danger_title')}</h4>
+                          <p className="text-xs text-slate-500 mt-1">{translate('sys_danger_desc')}</p>
                         </div>
                       </div>
                       
                       <button
                         onClick={() => {
                           showConfirm(
-                            langCode === 'es' ? 'Depurar Memoria' : 'Purge Memory',
-                            langCode === 'es' 
-                              ? '¿Vaciar memoria indexada por completo? Esta acción es irreversible.' 
-                              : 'Purge indexed memory completely? This action is irreversible.',
+                            translate('sys_purge_confirm_title'),
+                            translate('sys_purge_confirm_desc'),
                             async () => {
                               await saveDataToConfig([], INITIAL_CATEGORIES);
                               showAlert(
-                                langCode === 'es' ? 'Memoria Depurada' : 'Memory Purged',
-                                langCode === 'es' ? 'Base de datos depurada.' : 'Database cleared successfully.'
+                                translate('sys_purge_done_title'),
+                                translate('sys_purge_done_desc')
                               );
                             },
                             true
@@ -1226,7 +1224,7 @@ export default function SettingsPanel({
                         }}
                         className="py-1.5 px-4 bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 text-xs font-bold rounded-lg transition-all cursor-pointer"
                       >
-                        PURGE ALL MEMORY
+                        {translate('sys_purge_btn')}
                       </button>
                     </div>
 
