@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMe
 import { translate, setLocale } from './locales';
 import { motion, AnimatePresence } from 'motion/react';
 import ProcessMatrixModal from './components/ProcessMatrixModal';
-import ShortcutFormModal from './components/ShortcutFormModal';
+import ShortcutFormModal, { ShortcutDraft } from './components/ShortcutFormModal';
 import CyberTrayLogo, { CyberTrayWordmark } from './components/CyberTrayLogo';
 import ShortcutGrid from './components/ShortcutGrid';
 import TelemetryBar from './components/TelemetryBar';
@@ -361,7 +361,7 @@ export default function App() {
   };
   
   // Modales
-  const [shortcutModal, setShortcutModal] = useState<{ open: boolean; item?: any }>({ open: false });
+  const [shortcutModal, setShortcutModal] = useState<{ open: boolean; item?: any; batchItems?: ShortcutDraft[] }>({ open: false });
   const [newCatModal, setNewCatModal] = useState<boolean>(false);
   const [renameCatModal, setRenameCatModal] = useState<{ open: boolean; category?: any }>({ open: false });
   const [renameCatName, setRenameCatName] = useState<string>('');
@@ -456,7 +456,6 @@ export default function App() {
   const launchAudioRef = useRef<HTMLAudioElement | null>(null);
   const folderAudioRef = useRef<HTMLAudioElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const pinNextToTaskbarRef = useRef(false);
 
   useEffect(() => {
     if (!isMoreMenuOpen) return;
@@ -544,6 +543,8 @@ export default function App() {
   const [formAdmin, setFormAdmin] = useState<boolean>(false);
   const [formHotkey, setFormHotkey] = useState<string>('');
   const [formIconPath, setFormIconPath] = useState<string>('');
+  const [formFavorite, setFormFavorite] = useState<boolean>(false);
+  const [formPinToTaskbar, setFormPinToTaskbar] = useState<boolean>(false);
 
   // Form de Nueva Categoría
   const [newCatName, setNewCatName] = useState<string>('');
@@ -1427,10 +1428,42 @@ export default function App() {
 
   const taskbarIds: number[] = Array.isArray(config.taskbarIds) ? config.taskbarIds : [];
 
-  const handleOpenAddToTaskbar = () => {
-    handleOpenAddModal();
-    pinNextToTaskbarRef.current = true;
+  const defaultShortcutFolder = () => (
+    activeCategory === 'all' || activeCategory === 'favorites' || activeCategory === 'vault'
+      ? 'utils'
+      : activeCategory
+  );
+
+  const resetShortcutForm = (opts?: { pinToTaskbar?: boolean; favorite?: boolean }) => {
+    setFormName('');
+    setFormPath('');
+    setFormArgs('');
+    setFormDelay(0);
+    setFormCategory(defaultShortcutFolder());
+    setFormAdmin(false);
+    setFormHotkey('');
+    setFormIconPath('');
+    setFormFavorite(opts?.favorite ?? (activeCategory === 'favorites'));
+    setFormPinToTaskbar(!!opts?.pinToTaskbar);
   };
+
+  const handleOpenAddToTaskbar = () => {
+    resetShortcutForm({ pinToTaskbar: true });
+    setShortcutModal({ open: true });
+  };
+
+  // Ready for drop-opens-drawer; current drop still adds instantly via importDroppedFiles.
+  const openAddModalForFiles = (drafts: ShortcutDraft[], opts?: { pinToTaskbar?: boolean; favorite?: boolean }) => {
+    if (!drafts.length) return;
+    resetShortcutForm(opts);
+    if (drafts.length === 1) {
+      setFormName(drafts[0].name);
+      setFormPath(drafts[0].path);
+      setFormIconPath(drafts[0].iconPath || '');
+    }
+    setShortcutModal({ open: true, batchItems: drafts });
+  };
+  void openAddModalForFiles;
 
   const pinShortcutToTaskbar = (id: number) => {
     if (!id || taskbarIds.includes(id)) return;
@@ -1458,21 +1491,8 @@ export default function App() {
     handleUpdateConfigSetting('taskbarIds', ids);
   };
 
-  // Configurar e Inyectar Accesos Directos
   const handleOpenAddModal = () => {
-    pinNextToTaskbarRef.current = false;
-    setFormName('');
-    setFormPath('');
-    setFormArgs('');
-    setFormDelay(0);
-    setFormCategory(
-      activeCategory === 'all' || activeCategory === 'favorites' || activeCategory === 'vault'
-        ? 'utils'
-        : activeCategory
-    );
-    setFormAdmin(false);
-    setFormHotkey('');
-    setFormIconPath('');
+    resetShortcutForm();
     setShortcutModal({ open: true });
   };
 
@@ -1486,6 +1506,8 @@ export default function App() {
     setFormAdmin(!!item.isAdmin);
     setFormHotkey(item.hotkey || '');
     setFormIconPath(item.iconPath || '');
+    setFormFavorite(!!item.isFavorite);
+    setFormPinToTaskbar(taskbarIds.includes(item.id));
     setShortcutModal({ open: true, item });
   };
 
@@ -1499,44 +1521,109 @@ export default function App() {
     }
   };
 
-  const handleSaveShortcut = async () => {
-    if (!formName.trim() || !formPath.trim()) return;
+  const handleBrowseIcon = async () => {
+    if (!isElectron) return;
+    const path = await window.electronAPI!.selectImage();
+    if (!path) return;
+    const data = await window.electronAPI!.getImageData(path);
+    setFormIconPath(data || path);
+  };
 
-    let finalPath = formPath;
-    let finalIconPath = formIconPath;
-    let finalName = formName;
+  const mergeTaskbarIds = (idsToAdd: number[], idsToRemove: number[] = []) => {
+    const current: number[] = Array.isArray(configRef.current.taskbarIds) ? configRef.current.taskbarIds : [];
+    const removeSet = new Set(idsToRemove);
+    const next = current.filter((id) => !removeSet.has(id));
+    for (const id of idsToAdd) {
+      if (!next.includes(id)) next.push(id);
+    }
+    configRef.current = { ...configRef.current, taskbarIds: next };
+  };
 
-    if (formCategory === 'vault') {
-      const importRes = await window.electronAPI!.importFileToVault(formPath);
+  const resolveVaultEntry = async (name: string, path: string, iconPath?: string) => {
+    let finalPath = path;
+    let finalIconPath = iconPath || '';
+    let finalName = name;
+    if (formCategory === 'vault' && isElectron) {
+      const importRes = await window.electronAPI!.importFileToVault(path);
       if (importRes.success) {
         finalPath = importRes.path;
         finalIconPath = importRes.iconPath;
         finalName = importRes.name;
       }
     }
+    return { finalPath, finalIconPath, finalName };
+  };
+
+  const handleSaveShortcut = async () => {
+    const batchItems = shortcutModal.batchItems || [];
+    const isBatch = !shortcutModal.item && batchItems.length > 1;
+    if (!isBatch && (!formName.trim() || !formPath.trim())) return;
+    if (isBatch && batchItems.length === 0) return;
 
     let newShortcuts = [...shortcuts];
 
     if (shortcutModal.item) {
-      // Editar
+      const { finalPath, finalIconPath, finalName } = await resolveVaultEntry(formName, formPath, formIconPath);
+      const id = shortcutModal.item.id;
       newShortcuts = newShortcuts.map(s => {
-        if (s.id === shortcutModal.item.id) {
-          return {
-            ...s,
-            name: finalName,
-            path: finalPath,
-            category: formCategory,
-            arguments: formArgs,
-            delay: formDelay,
-            isAdmin: formAdmin,
-            hotkey: formHotkey,
-            iconPath: finalIconPath
-          };
-        }
-        return s;
+        if (s.id !== id) return s;
+        return {
+          ...s,
+          name: finalName,
+          path: finalPath,
+          category: formCategory,
+          arguments: formArgs,
+          delay: formDelay,
+          isAdmin: formAdmin,
+          hotkey: formHotkey,
+          iconPath: finalIconPath,
+          isFavorite: formFavorite,
+        };
       });
+      if (formPinToTaskbar) mergeTaskbarIds([id]);
+      else mergeTaskbarIds([], [id]);
+    } else if (isBatch) {
+      const dupKey = (p: string, a: string) => JSON.stringify([(p || '').toLowerCase(), (a || '').toLowerCase()]);
+      const newIds: number[] = [];
+      for (let i = 0; i < batchItems.length; i++) {
+        const draft = batchItems[i];
+        const { finalPath, finalIconPath, finalName } = await resolveVaultEntry(draft.name, draft.path, draft.iconPath);
+        const key = dupKey(finalPath, '');
+        const existingIndex = newShortcuts.findIndex(s => dupKey(s.path, s.arguments || '') === key);
+        if (existingIndex !== -1) {
+          const existing = newShortcuts[existingIndex];
+          const willChangeCategory = existing.category !== formCategory;
+          const willMarkFavorite = formFavorite && !existing.isFavorite;
+          if (willChangeCategory || willMarkFavorite) {
+            newShortcuts[existingIndex] = {
+              ...existing,
+              category: formCategory,
+              ...(formFavorite ? { isFavorite: true } : {}),
+            };
+          }
+          newIds.push(existing.id);
+          continue;
+        }
+        const newId = Date.now() + i;
+        newShortcuts.push({
+          id: newId,
+          name: finalName,
+          path: finalPath,
+          category: formCategory,
+          arguments: '',
+          delay: formDelay,
+          isAdmin: formAdmin,
+          hotkey: '',
+          iconPath: finalIconPath,
+          isFavorite: formFavorite,
+          usageCount: 0,
+          addedTimestamp: Date.now(),
+        });
+        newIds.push(newId);
+      }
+      if (formPinToTaskbar) mergeTaskbarIds(newIds);
     } else {
-      // Agregar
+      const { finalPath, finalIconPath, finalName } = await resolveVaultEntry(formName, formPath, formIconPath);
       const newId = Date.now();
       newShortcuts.push({
         id: newId,
@@ -1548,16 +1635,11 @@ export default function App() {
         isAdmin: formAdmin,
         hotkey: formHotkey,
         iconPath: finalIconPath,
+        isFavorite: formFavorite,
         usageCount: 0,
-        addedTimestamp: Date.now()
+        addedTimestamp: Date.now(),
       });
-      if (pinNextToTaskbarRef.current) {
-        const ids = Array.isArray(configRef.current.taskbarIds) ? configRef.current.taskbarIds : [];
-        if (!ids.includes(newId)) {
-          configRef.current = { ...configRef.current, taskbarIds: [...ids, newId] };
-        }
-        pinNextToTaskbarRef.current = false;
-      }
+      if (formPinToTaskbar) mergeTaskbarIds([newId]);
     }
 
     await saveDataToConfig(newShortcuts, categories);
@@ -2404,7 +2486,7 @@ export default function App() {
 
           <button
             onClick={handleOpenAddModal}
-            onMouseEnter={(e) => showTooltip(e, langCode === 'es' ? 'REGISTRAR ACCESO' : 'ADD SHORTCUT', translate('tooltip_add_shortcut'))}
+            onMouseEnter={(e) => showTooltip(e, translate('app_add_title'), translate('tooltip_add_shortcut'))}
             onMouseLeave={hideTooltip}
             className="h-8 px-3 bg-[var(--neon-glow-color-raw)] hover:bg-[var(--neon-glow-color)] text-[var(--neon-glow-color)] hover:text-slate-950 font-cyber font-bold tracking-widest text-[10px] rounded-lg border border-[var(--neon-glow-border)] hover:shadow-[0_0_10px_var(--neon-glow-color)] transition-all flex items-center gap-1 cursor-pointer"
           >
@@ -2807,9 +2889,20 @@ export default function App() {
         setFormCategory={setFormCategory}
         formAdmin={formAdmin}
         setFormAdmin={setFormAdmin}
+        formHotkey={formHotkey}
+        setFormHotkey={setFormHotkey}
+        formIconPath={formIconPath}
+        setFormIconPath={setFormIconPath}
+        formFavorite={formFavorite}
+        setFormFavorite={setFormFavorite}
+        formPinToTaskbar={formPinToTaskbar}
+        setFormPinToTaskbar={setFormPinToTaskbar}
         handleSaveShortcut={handleSaveShortcut}
         handleBrowseFile={handleBrowseFile}
+        handleBrowseIcon={handleBrowseIcon}
         handleDeleteShortcut={handleDeleteShortcut}
+        showTooltip={showTooltip}
+        hideTooltip={hideTooltip}
       />
 
       <PinPadModal

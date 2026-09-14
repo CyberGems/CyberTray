@@ -1,12 +1,41 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trash2 } from 'lucide-react';
+import {
+  ChevronLeft, ChevronRight, Clock, CornerDownLeft, Keyboard, Lock, Pin,
+  SlidersHorizontal, Star, Trash2, Upload, X,
+} from 'lucide-react';
 import { translate } from '../locales';
-import { getFolderPath } from '../lib/appUtils';
+import { getFolderPath, isElectron } from '../lib/appUtils';
+import { shortcutIconSrc } from '../lib/iconSrc';
+
+export type ShortcutDraft = { name: string; path: string; iconPath?: string };
+
+type ShowTooltipFn = (e: React.MouseEvent, text: string, subText?: string, borderColor?: string) => void;
+
+function Toggle({
+  on, onClick, colorClass, ringClass,
+}: {
+  on: boolean;
+  onClick: () => void;
+  colorClass: string;
+  ringClass: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative w-11 h-6 rounded-full transition-colors shrink-0 focus:outline-none focus:ring-2 ${ringClass} mt-0.5 ${on ? colorClass : 'bg-slate-700'}`}
+    >
+      <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform shadow flex items-center justify-center ${on ? 'translate-x-5' : 'translate-x-0'}`}>
+        <div className={`w-2 h-2 rounded-full ${on ? `${colorClass} shadow-[0_0_5px_currentColor]` : 'bg-slate-400'}`} />
+      </div>
+    </button>
+  );
+}
 
 interface ShortcutFormModalProps {
-  shortcutModal: { open: boolean; item?: any };
-  setShortcutModal: (v: { open: boolean; item?: any }) => void;
+  shortcutModal: { open: boolean; item?: any; batchItems?: ShortcutDraft[] };
+  setShortcutModal: (v: { open: boolean; item?: any; batchItems?: ShortcutDraft[] }) => void;
   categories: any[];
   formName: string;
   setFormName: (v: string) => void;
@@ -20,9 +49,20 @@ interface ShortcutFormModalProps {
   setFormCategory: (v: string) => void;
   formAdmin: boolean;
   setFormAdmin: (v: boolean) => void;
+  formHotkey: string;
+  setFormHotkey: (v: string) => void;
+  formIconPath: string;
+  setFormIconPath: (v: string) => void;
+  formFavorite: boolean;
+  setFormFavorite: (v: boolean) => void;
+  formPinToTaskbar: boolean;
+  setFormPinToTaskbar: (v: boolean) => void;
   handleSaveShortcut: () => void;
   handleBrowseFile: () => void;
+  handleBrowseIcon: () => void;
   handleDeleteShortcut: (id: number) => void;
+  showTooltip: ShowTooltipFn;
+  hideTooltip: () => void;
 }
 
 export default function ShortcutFormModal({
@@ -41,10 +81,52 @@ export default function ShortcutFormModal({
   setFormCategory,
   formAdmin,
   setFormAdmin,
+  formHotkey,
+  setFormHotkey,
+  formIconPath,
+  setFormIconPath,
+  formFavorite,
+  setFormFavorite,
+  formPinToTaskbar,
+  setFormPinToTaskbar,
   handleSaveShortcut,
   handleBrowseFile,
+  handleBrowseIcon,
   handleDeleteShortcut,
+  showTooltip,
+  hideTooltip,
 }: ShortcutFormModalProps) {
+  const isEdit = !!shortcutModal.item;
+  const batchItems = shortcutModal.batchItems || [];
+  const isBatch = batchItems.length > 1;
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [recordingHotkey, setRecordingHotkey] = useState(false);
+
+  useEffect(() => {
+    if (!shortcutModal.open) {
+      setAdvancedOpen(false);
+      setRecordingHotkey(false);
+      return;
+    }
+    if (formPinToTaskbar || formFavorite || formAdmin || formDelay > 0 || formArgs || formHotkey) {
+      setAdvancedOpen(true);
+    }
+    // Only when the drawer opens: later field edits should not force the panel back open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shortcutModal.open]);
+
+  useEffect(() => {
+    if (!shortcutModal.open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShortcutModal({ open: false });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [shortcutModal.open, setShortcutModal]);
+
   const folderOptions = categories
     .filter(folder => folder && folder.id && folder.id.trim() !== '' && folder.id !== 'all')
     .sort((a, b) => {
@@ -52,6 +134,24 @@ export default function ShortcutFormModal({
       const pathB = getFolderPath(categories, b.id).map(folder => folder.name).join('/');
       return pathA.localeCompare(pathB);
     });
+
+  const canSave = isBatch
+    ? batchItems.length > 0 && !!formCategory
+    : !!formName.trim() && !!formPath.trim();
+
+  const close = () => setShortcutModal({ open: false });
+
+  const title = isEdit
+    ? translate('app_edit_title')
+    : isBatch
+      ? translate('app_add_batch_title', { count: String(batchItems.length) })
+      : translate('app_add_title');
+
+  const submitLabel = isEdit
+    ? translate('app_edit_submit')
+    : isBatch
+      ? translate('app_add_batch_submit', { count: String(batchItems.length) })
+      : translate('app_add_submit');
 
   return (
     <AnimatePresence>
@@ -61,132 +161,345 @@ export default function ShortcutFormModal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setShortcutModal({ open: false })}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs"
+            onClick={close}
+            className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
           />
           <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] z-[60] bg-[#070b13]/95 border border-[var(--neon-glow-border)] shadow-2xl rounded-2xl p-6 font-mono text-xs text-left"
+            initial={{ x: '100%', opacity: 0.9 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: '100%', opacity: 0.9 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            onClick={(e) => e.stopPropagation()}
+            className="fixed right-0 top-0 bottom-0 z-[60] flex shadow-2xl"
           >
-            <h3 className="font-ui font-bold text-white text-sm tracking-widest border-b border-slate-900 pb-3 mb-4.5">
-              {shortcutModal.item ? translate('modal_title_edit') : translate('modal_title_add')}
-            </h3>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-[9.5px] text-slate-500 mb-1.5 tracking-wider uppercase">{translate('modal_label_name')}</label>
-                <input
-                  type="text"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveShortcut(); }}
-                  placeholder={translate('modal_placeholder_name')}
-                  className="w-full bg-slate-950 border border-slate-900 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-[var(--neon-glow-color)] text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[9.5px] text-slate-500 mb-1.5 tracking-wider uppercase">{translate('modal_label_path')}</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={formPath}
-                    onChange={(e) => setFormPath(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleSaveShortcut(); }}
-                    placeholder={translate('modal_placeholder_path')}
-                    className="flex-1 bg-slate-950 border border-slate-900 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-[var(--neon-glow-color)] text-xs font-mono"
-                  />
+            <motion.div
+              initial={false}
+              animate={{ width: advancedOpen ? 300 : 0, opacity: advancedOpen ? 1 : 0 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+              className={`h-full overflow-hidden shrink-0 bg-[#070b13]/95 backdrop-blur-2xl ${advancedOpen ? 'border-l border-[var(--neon-glow-border)]' : ''}`}
+            >
+              <div className="w-[300px] h-full flex flex-col overflow-hidden">
+                <div className="px-4 py-4 border-b border-[var(--neon-glow-border)] flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <SlidersHorizontal className="w-4 h-4 text-[var(--logo-accent)] shrink-0" />
+                    <h3 className="text-xs font-cyber font-bold text-white tracking-widest truncate">{translate('app_advanced_title')}</h3>
+                  </div>
                   <button
-                    onClick={handleBrowseFile}
-                    className="px-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg font-bold text-xs transition-all cursor-pointer"
+                    type="button"
+                    onClick={() => setAdvancedOpen(false)}
+                    onMouseEnter={(e) => showTooltip(e, translate('app_advanced_hide'))}
+                    onMouseLeave={hideTooltip}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-[var(--logo-accent)] hover:bg-cyan-500/10 transition-colors shrink-0 cursor-pointer"
                   >
-                    {translate('modal_btn_select_file')}
+                    <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
-              </div>
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
+                  <div className="bg-black/20 p-3.5 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                    <div className="flex items-start gap-2.5">
+                      <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/20 shrink-0">
+                        <Star className="w-4 h-4 text-blue-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1">{translate('app_pin_fav_title')}</h4>
+                        <p className="text-[11px] text-slate-500 leading-snug">{translate('app_pin_fav_desc')}</p>
+                      </div>
+                      <Toggle on={formFavorite} onClick={() => setFormFavorite(!formFavorite)} colorClass="bg-blue-500" ringClass="focus:ring-blue-500/50" />
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[9.5px] text-slate-500 mb-1.5 tracking-wider uppercase">{translate('modal_label_category')}</label>
-                  <select
-                    value={formCategory}
-                    onChange={(e) => setFormCategory(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-900 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-[var(--neon-glow-color)] text-xs"
+                  <div className="bg-black/20 p-3.5 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                    <div className="flex items-start gap-2.5">
+                      <div className="p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/20 shrink-0">
+                        <Pin className="w-4 h-4 text-cyan-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1">{translate('app_pin_taskbar_title')}</h4>
+                        <p className="text-[11px] text-slate-500 leading-snug">{translate('app_pin_taskbar_desc')}</p>
+                      </div>
+                      <Toggle on={formPinToTaskbar} onClick={() => setFormPinToTaskbar(!formPinToTaskbar)} colorClass="bg-cyan-500" ringClass="focus:ring-cyan-500/50" />
+                    </div>
+                  </div>
+
+                  <div className="bg-black/20 p-3.5 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                    <div className="flex items-start gap-2.5">
+                      <div className="p-2 bg-amber-500/10 rounded-lg border border-amber-500/20 shrink-0">
+                        <Lock className="w-4 h-4 text-amber-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1">{translate('app_admin_title')}</h4>
+                        <p className="text-[11px] text-slate-500 leading-snug">{translate('app_admin_desc')}</p>
+                      </div>
+                      <Toggle on={formAdmin} onClick={() => setFormAdmin(!formAdmin)} colorClass="bg-amber-500" ringClass="focus:ring-amber-500/50" />
+                    </div>
+                  </div>
+
+                  <div className="bg-black/20 p-3.5 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                    <div className="flex items-start gap-2.5">
+                      <div className="p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/20 shrink-0">
+                        <Clock className="w-4 h-4 text-cyan-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1">{translate('app_delay_title')}</h4>
+                        <p className="text-[11px] text-slate-500 leading-snug">{translate('app_delay_desc')}</p>
+                        <input
+                          type="number"
+                          min={0}
+                          max={60}
+                          value={formDelay}
+                          onChange={(e) => setFormDelay(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                          className="mt-2 w-full bg-black/30 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-cyan-500/50"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {!isBatch && (
+                    <div className="bg-black/20 p-3.5 rounded-xl border border-white/5 hover:border-white/10 transition-colors space-y-2">
+                      <h4 className="text-sm font-medium text-slate-200 leading-tight">{translate('app_args_title')}</h4>
+                      <p className="text-[11px] text-slate-500 leading-snug">{translate('app_args_desc')}</p>
+                      <input
+                        type="text"
+                        value={formArgs}
+                        onChange={(e) => setFormArgs(e.target.value)}
+                        placeholder={translate('app_args_placeholder')}
+                        className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-cyan-500/50"
+                      />
+                    </div>
+                  )}
+
+                  {!isBatch && (
+                    <div className="bg-black/20 p-3.5 rounded-xl border border-white/5 hover:border-white/10 transition-colors space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2.5 min-w-0">
+                          <div className="p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/20 shrink-0">
+                            <Keyboard className="w-4 h-4 text-cyan-400" />
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1 text-left">{translate('app_shortcut_title')}</h4>
+                            <p className="text-[11px] text-slate-500 text-left leading-snug">{translate('app_shortcut_desc')}</p>
+                          </div>
+                        </div>
+                        {formHotkey && (
+                          <button
+                            type="button"
+                            onClick={() => setFormHotkey('')}
+                            className="text-xs text-red-400 hover:text-red-300 font-cyber transition-colors shrink-0 cursor-pointer"
+                          >
+                            {translate('app_shortcut_clear')}
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setRecordingHotkey(true)}
+                        onKeyDown={(e) => {
+                          if (!recordingHotkey) return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const keys: string[] = [];
+                          if (e.ctrlKey) keys.push('Ctrl');
+                          if (e.altKey) keys.push('Alt');
+                          if (e.shiftKey) keys.push('Shift');
+                          if (e.metaKey) keys.push('Meta');
+                          if (e.key !== 'Control' && e.key !== 'Alt' && e.key !== 'Shift' && e.key !== 'Meta') {
+                            keys.push(e.code === 'Space' ? 'Space' : e.key.length === 1 ? e.key.toUpperCase() : e.key);
+                            setFormHotkey(keys.join('+'));
+                            setRecordingHotkey(false);
+                          }
+                        }}
+                        onBlur={() => setRecordingHotkey(false)}
+                        className={`w-full text-center px-3 py-2.5 rounded-lg text-xs font-mono outline-none transition-all cursor-pointer ${
+                          recordingHotkey
+                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
+                            : 'bg-black/30 text-slate-300 hover:bg-white/5 border border-white/10'
+                        }`}
+                      >
+                        {recordingHotkey ? translate('app_shortcut_recording') : (formHotkey || translate('app_shortcut_none'))}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+
+            <div className="w-[420px] max-w-[100vw] h-full bg-[#070b13]/95 backdrop-blur-2xl border-l border-[var(--neon-glow-border)] flex flex-col overflow-hidden">
+              <div className="px-5 py-4 border-b border-[var(--neon-glow-border)] flex items-center justify-between shrink-0 gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setAdvancedOpen(prev => !prev)}
+                    onMouseEnter={(e) => showTooltip(e, advancedOpen ? translate('app_advanced_hide') : translate('app_advanced_show'))}
+                    onMouseLeave={hideTooltip}
+                    className={`p-1.5 rounded-lg border transition-all shrink-0 focus:outline-none cursor-pointer ${
+                      advancedOpen
+                        ? 'border-cyan-500/40 text-cyan-400 bg-cyan-500/10'
+                        : 'border-white/10 text-slate-400 hover:text-cyan-400 hover:border-cyan-500/30 hover:bg-cyan-500/10'
+                    }`}
                   >
-                    {folderOptions.map(folder => (
-                      <option key={folder.id} value={folder.id} className="bg-slate-950">
-                        {getFolderPath(categories, folder.id).map(item => item.id === 'all' ? translate('explorer_all') : item.name).join(' / ')}
-                      </option>
-                    ))}
-                  </select>
+                    {advancedOpen ? <SlidersHorizontal className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                  </button>
+                  <h2 className="text-sm font-cyber font-bold text-white tracking-widest truncate">{title}</h2>
                 </div>
+                <button
+                  type="button"
+                  onClick={close}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors focus:outline-none shrink-0 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-5 overflow-y-auto custom-scrollbar flex-1 space-y-5">
+                {isBatch && (
+                  <div className="space-y-2">
+                    <p className="text-[12px] text-slate-400 leading-relaxed">{translate('app_batch_desc')}</p>
+                    <div className="max-h-40 overflow-y-auto custom-scrollbar rounded-xl border border-white/10 bg-black/30 divide-y divide-white/5">
+                      {batchItems.map((item, index) => (
+                        <div key={`${item.path}-${index}`} className="flex items-center gap-2.5 px-3 py-2">
+                          <span className="w-7 h-7 rounded-lg bg-slate-900 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                            {item.iconPath ? (
+                              <img src={shortcutIconSrc(item.iconPath)} alt="" className="w-4 h-4 object-contain" />
+                            ) : (
+                              <span className="text-[9px] font-cyber font-bold text-slate-500">&gt;_</span>
+                            )}
+                          </span>
+                          <span className="text-[12px] text-slate-200 truncate">{item.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {!isBatch && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 tracking-wider mb-2 block">{translate('app_field_name')}</label>
+                      <input
+                        type="text"
+                        value={formName}
+                        onChange={(e) => setFormName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && canSave) handleSaveShortcut(); }}
+                        placeholder={translate('app_name_placeholder')}
+                        className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 tracking-wider mb-2 block">{translate('app_field_path')}</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={formPath}
+                          onChange={(e) => setFormPath(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' && canSave) handleSaveShortcut(); }}
+                          placeholder={translate('app_path_placeholder')}
+                          className="flex-1 bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors font-mono"
+                        />
+                        {isElectron && (
+                          <button
+                            type="button"
+                            onClick={handleBrowseFile}
+                            onMouseEnter={(e) => showTooltip(e, translate('app_browse'))}
+                            onMouseLeave={hideTooltip}
+                            className="flex items-center justify-center bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors border border-white/5 shrink-0"
+                          >
+                            <Upload className="w-4 h-4 mr-2" />
+                            {translate('app_browse')}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 tracking-wider mb-2 block">{translate('app_field_icon')}</label>
+                      <div className="flex gap-3 items-center">
+                        <div className="w-11 h-11 bg-black/40 border border-white/10 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
+                          {formIconPath ? (
+                            <img src={shortcutIconSrc(formIconPath)} alt="" className="w-8 h-8 object-contain" />
+                          ) : (
+                            <span className="text-[9px] font-cyber font-bold text-slate-500">&gt;_</span>
+                          )}
+                        </div>
+                        <div className="flex-1 flex gap-2">
+                          <input
+                            type="text"
+                            readOnly
+                            value={
+                              !formIconPath
+                                ? ''
+                                : formIconPath.startsWith('data:') || formIconPath.startsWith('local-resource:')
+                                  ? translate('app_icon_extracted')
+                                  : formIconPath
+                            }
+                            placeholder=""
+                            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-slate-300"
+                          />
+                          {isElectron && (
+                            <button
+                              type="button"
+                              onClick={handleBrowseIcon}
+                              onMouseEnter={(e) => showTooltip(e, translate('app_browse'))}
+                              onMouseLeave={hideTooltip}
+                              className="flex items-center justify-center bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors border border-white/5 shrink-0"
+                            >
+                              <Upload className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div>
-                  <label className="block text-[9.5px] text-slate-500 mb-1.5 tracking-wider uppercase">{translate('modal_label_delay')}</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="60"
-                    value={formDelay}
-                    onChange={(e) => setFormDelay(Math.max(0, parseInt(e.target.value) || 0))}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleSaveShortcut(); }}
-                    className="w-full bg-slate-950 border border-slate-900 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-[var(--neon-glow-color)] text-xs"
-                  />
+                  <label className="text-xs font-bold text-slate-400 tracking-wider mb-2 block">{translate('app_field_folder')}</label>
+                  <div className="relative">
+                    <select
+                      value={formCategory}
+                      onChange={(e) => setFormCategory(e.target.value)}
+                      className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors appearance-none"
+                    >
+                      {folderOptions.map(folder => (
+                        <option key={folder.id} value={folder.id} className="bg-[#0f172a]">
+                          {getFolderPath(categories, folder.id).map(item => item.id === 'all' ? translate('explorer_all') : item.name).join(' / ')}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronRight className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none rotate-90" />
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[9.5px] text-slate-500 mb-1.5 tracking-wider uppercase">{translate('modal_label_args')}</label>
-                <input
-                  type="text"
-                  value={formArgs}
-                  onChange={(e) => setFormArgs(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveShortcut(); }}
-                  placeholder={translate('modal_placeholder_args')}
-                  className="w-full bg-slate-950 border border-slate-900 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-[var(--neon-glow-color)] text-xs font-mono"
-                />
-              </div>
-
-              <div className="flex items-center justify-between bg-slate-950/40 p-3 border border-slate-900 rounded-xl">
-                <div>
-                  <h5 className="font-ui font-bold text-white text-[11px] tracking-wider uppercase">{translate('modal_label_admin')}</h5>
-                  <p className="text-[9px] text-slate-500 mt-0.5">{translate('modal_admin_hint')}</p>
+              <div className="px-5 py-4 border-t border-[var(--neon-glow-border)] flex items-center justify-between gap-3 bg-black/20">
+                {isEdit ? (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteShortcut(shortcutModal.item.id)}
+                    className="px-3 py-2.5 rounded-xl text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20 transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {translate('app_delete')}
+                  </button>
+                ) : <div />}
+                <div className="flex gap-3 ml-auto">
+                  <button
+                    type="button"
+                    onClick={close}
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-white/10 border border-white/10 transition-colors cursor-pointer"
+                  >
+                    {translate('app_cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveShortcut}
+                    disabled={!canSave}
+                    className="px-4 py-2.5 bg-cyan-500/20 hover:bg-cyan-500/30 disabled:opacity-40 disabled:cursor-not-allowed text-cyan-300 border border-cyan-500/40 rounded-xl font-cyber font-bold text-sm shadow-[0_0_15px_rgba(34,211,238,0.2)] transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>{submitLabel}</span>
+                    <CornerDownLeft className="w-3.5 h-3.5 opacity-70" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setFormAdmin(!formAdmin)}
-                  className={`w-11 h-5.5 rounded-full p-0.5 transition-colors cursor-pointer ${formAdmin ? 'bg-amber-500' : 'bg-slate-800'}`}
-                >
-                  <div className={`w-4.5 h-4.5 bg-slate-950 rounded-full transition-transform ${formAdmin ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center mt-6 pt-4.5 border-t border-slate-900">
-              {shortcutModal.item ? (
-                <button
-                  onClick={() => handleDeleteShortcut(shortcutModal.item.id)}
-                  className="py-2 px-3 bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 hover:text-red-300 font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  {translate('modal_btn_delete')}
-                </button>
-              ) : <div />}
-
-              <div className="flex gap-2.5">
-                <button
-                  onClick={() => setShortcutModal({ open: false })}
-                  className="py-2 px-3.5 border border-slate-800 text-slate-400 hover:text-white rounded-lg transition-all cursor-pointer"
-                >
-                  {translate('modal_btn_cancel')}
-                </button>
-                <button
-                  onClick={handleSaveShortcut}
-                  className="py-2 px-4.5 bg-[var(--neon-glow-color-raw)] hover:bg-[var(--neon-glow-color)] text-[var(--neon-glow-color)] hover:text-slate-950 font-cyber font-bold tracking-widest text-[10px] rounded-lg border border-[var(--neon-glow-border)] transition-all cursor-pointer"
-                >
-                  {translate('modal_btn_save')}
-                </button>
               </div>
             </div>
           </motion.div>
