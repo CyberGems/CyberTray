@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { translate, setLocale } from './locales';
 import { motion, AnimatePresence } from 'motion/react';
 import ProcessMatrixModal from './components/ProcessMatrixModal';
@@ -219,11 +219,14 @@ export default function App() {
     y: number;
     placement: 'top' | 'bottom';
     visible: boolean;
-  }>({ text: '', x: 0, y: 0, placement: 'top', visible: false });
+    shiftX: number;
+  }>({ text: '', x: 0, y: 0, placement: 'top', visible: false, shiftX: 0 });
+  const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tooltipNodeRef = useRef<HTMLDivElement | null>(null);
 
   const showTooltip = useCallback((e: React.MouseEvent, text: string, subText?: string, borderColor?: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.max(160, Math.min(window.innerWidth - 160, rect.left + rect.width / 2));
+    const x = rect.left + rect.width / 2;
     const extraLines = subText ? subText.split('\n').length : 0;
     const estimatedHeight = 36 + extraLines * 16;
     let y = rect.bottom + 8;
@@ -234,19 +237,46 @@ export default function App() {
     }
     y = Math.max(8, Math.min(y, window.innerHeight - 8));
 
-    setGlobalTooltip({
-      text,
-      subText,
-      borderColor: borderColor || 'var(--neon-glow-border)',
-      x,
-      y,
-      placement,
-      visible: true
-    });
+    if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
+    tooltipTimerRef.current = setTimeout(() => {
+      tooltipTimerRef.current = null;
+      setGlobalTooltip({
+        text,
+        subText,
+        borderColor: borderColor || 'var(--neon-glow-border)',
+        x,
+        y,
+        placement,
+        visible: true,
+        shiftX: 0,
+      });
+    }, 450);
   }, []);
 
   const hideTooltip = useCallback(() => {
-    setGlobalTooltip(prev => ({ ...prev, visible: false }));
+    if (tooltipTimerRef.current) {
+      clearTimeout(tooltipTimerRef.current);
+      tooltipTimerRef.current = null;
+    }
+    setGlobalTooltip(prev => (prev.visible ? { ...prev, visible: false } : prev));
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!globalTooltip.visible) return;
+    const node = tooltipNodeRef.current;
+    if (!node) return;
+    const r = node.getBoundingClientRect();
+    const pad = 8;
+    let dx = 0;
+    if (r.right > window.innerWidth - pad) dx = (window.innerWidth - pad) - r.right;
+    if (r.left + dx < pad) dx = pad - r.left;
+    if (Math.abs(dx) > 0.5) {
+      setGlobalTooltip(prev => ({ ...prev, shiftX: prev.shiftX + dx }));
+    }
+  }, [globalTooltip.visible, globalTooltip.x, globalTooltip.y, globalTooltip.text, globalTooltip.subText, globalTooltip.shiftX]);
+
+  useEffect(() => () => {
+    if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
   }, []);
   
   const [confirmModal, setConfirmModal] = useState<{
@@ -2764,17 +2794,20 @@ export default function App() {
       {/* Root-Level Global Tooltip */}
       {globalTooltip.visible && (
         <div
-          className="fixed bg-slate-950 text-slate-300 text-[10px] font-mono rounded-lg p-2 shadow-2xl z-[999999] pointer-events-none transition-opacity duration-150 flex flex-col gap-0.5 border"
+          ref={tooltipNodeRef}
+          className="fixed bg-slate-950 text-slate-300 text-[10px] font-mono rounded-lg p-2 shadow-2xl z-[999999] pointer-events-none flex flex-col gap-0.5 border max-w-[240px] text-center"
           style={{
             borderColor: globalTooltip.borderColor,
             left: `${globalTooltip.x}px`,
             top: `${globalTooltip.y}px`,
-            transform: globalTooltip.placement === 'bottom' ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+            transform: globalTooltip.placement === 'bottom'
+              ? `translate(calc(-50% + ${globalTooltip.shiftX}px), 0)`
+              : `translate(calc(-50% + ${globalTooltip.shiftX}px), -100%)`,
           }}
         >
-          <div className="font-bold text-white uppercase tracking-wider">{globalTooltip.text}</div>
+          <div className="font-bold text-white uppercase tracking-wider leading-snug">{globalTooltip.text}</div>
           {globalTooltip.subText && (
-            <div className="text-slate-400 text-[9px] leading-relaxed max-w-[320px] whitespace-pre-line">
+            <div className="text-slate-400 text-[9px] leading-relaxed whitespace-pre-line">
               {globalTooltip.subText}
             </div>
           )}
