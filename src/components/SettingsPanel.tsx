@@ -1,9 +1,88 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sliders, Upload, Volume2, MousePointer2, Monitor, Grid, List as ListIcon, ArrowUpDown } from 'lucide-react';
+import {
+  AlertTriangle, ArrowUpDown, Droplets, Download, Eye, FolderOpen, Globe,
+  Grid, HardDrive, Image as ImageIcon, Keyboard, LayoutGrid, List as ListIcon,
+  Lock, Monitor, MousePointer2, Palette, Power, Shield, Sliders, Terminal,
+  Upload, Volume2, type LucideIcon,
+} from 'lucide-react';
 import { translate } from '../locales';
 import { isElectron, INITIAL_CATEGORIES } from '../lib/appUtils';
 import Toggle from './Toggle';
+
+const ICON_TONES = {
+  cyan: { wrap: 'bg-cyan-500/10 border-cyan-500/20', icon: 'text-cyan-400', toggle: 'bg-cyan-500', ring: 'focus-visible:ring-cyan-500/50' },
+  blue: { wrap: 'bg-blue-500/10 border-blue-500/20', icon: 'text-blue-400', toggle: 'bg-blue-500', ring: 'focus-visible:ring-blue-500/50' },
+  amber: { wrap: 'bg-amber-500/10 border-amber-500/20', icon: 'text-amber-400', toggle: 'bg-amber-500', ring: 'focus-visible:ring-amber-500/50' },
+  purple: { wrap: 'bg-purple-500/10 border-purple-500/20', icon: 'text-purple-400', toggle: 'bg-purple-500', ring: 'focus-visible:ring-purple-500/50' },
+  slate: { wrap: 'bg-slate-500/10 border-slate-500/20', icon: 'text-slate-400', toggle: 'bg-slate-500', ring: 'focus-visible:ring-slate-500/50' },
+  emerald: { wrap: 'bg-emerald-500/10 border-emerald-500/20', icon: 'text-emerald-400', toggle: 'bg-emerald-500', ring: 'focus-visible:ring-emerald-500/50' },
+  red: { wrap: 'bg-red-500/10 border-red-500/20', icon: 'text-red-400', toggle: 'bg-red-500', ring: 'focus-visible:ring-red-500/50' },
+} as const;
+
+type IconTone = keyof typeof ICON_TONES;
+
+function BadgeIcon({ icon: Icon, tone }: { icon: LucideIcon; tone: IconTone }) {
+  const t = ICON_TONES[tone];
+  return (
+    <div className={`p-2 rounded-lg border shrink-0 ${t.wrap}`}>
+      <Icon className={`w-4 h-4 ${t.icon}`} />
+    </div>
+  );
+}
+
+function SectionHead({
+  icon: Icon,
+  title,
+  desc,
+}: {
+  icon: LucideIcon;
+  title: string;
+  desc?: string;
+}) {
+  return (
+    <div className="flex items-start gap-2.5 mb-3">
+      <Icon className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
+      <div className="min-w-0">
+        <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{title}</h4>
+        {desc && <p className="text-xs text-slate-500 mt-1">{desc}</p>}
+      </div>
+    </div>
+  );
+}
+
+function ToggleCard({
+  icon,
+  tone,
+  title,
+  desc,
+  on,
+  onClick,
+  children,
+}: {
+  icon: LucideIcon;
+  tone: IconTone;
+  title: string;
+  desc: string;
+  on: boolean;
+  onClick: () => void;
+  children?: React.ReactNode;
+}) {
+  const t = ICON_TONES[tone];
+  return (
+    <div className="bg-black/20 p-3.5 rounded-xl border border-white/5 hover:border-white/10 transition-colors space-y-3">
+      <div className="flex items-start gap-3">
+        <BadgeIcon icon={icon} tone={tone} />
+        <div className="min-w-0 flex-1">
+          <h5 className="text-sm font-medium text-slate-200 leading-tight mb-0.5">{title}</h5>
+          <p className="text-xs text-slate-500 leading-snug">{desc}</p>
+        </div>
+        <Toggle on={on} onClick={onClick} colorClass={t.toggle} ringClass={t.ring} ariaLabel={title} className="mt-0.5" />
+      </div>
+      {children}
+    </div>
+  );
+}
 
 export interface SettingsPanelProps {
   showSettings: boolean;
@@ -148,34 +227,37 @@ export default function SettingsPanel({
                   
                   <button
                     onClick={() => { setSettingsTab('general'); playFolderSound(); }}
-                    className={`w-full py-2 px-3 text-left text-xs font-cyber font-bold tracking-wider rounded-lg border transition-all cursor-pointer ${
+                    className={`w-full py-2 px-3 text-left text-xs font-cyber font-bold tracking-wider rounded-lg border transition-all cursor-pointer flex items-center gap-2 ${
                       settingsTab === 'general'
                         ? 'border-[var(--neon-glow-color)] text-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10 shadow-[0_0_6px_var(--neon-glow-color-raw)]'
                         : 'border-transparent text-slate-500 hover:text-slate-300'
                     }`}
                   >
+                    <Keyboard className="w-3.5 h-3.5 shrink-0" />
                     {translate('tab_general')}
                   </button>
 
                   <button
                     onClick={() => { setSettingsTab('appearance'); playFolderSound(); }}
-                    className={`w-full py-2 px-3 text-left text-xs font-cyber font-bold tracking-wider rounded-lg border transition-all cursor-pointer ${
+                    className={`w-full py-2 px-3 text-left text-xs font-cyber font-bold tracking-wider rounded-lg border transition-all cursor-pointer flex items-center gap-2 ${
                       settingsTab === 'appearance'
                         ? 'border-purple-500/80 text-purple-400 bg-purple-950/10 shadow-[0_0_6px_rgba(168,85,247,0.25)]'
                         : 'border-transparent text-slate-500 hover:text-slate-300'
                     }`}
                   >
+                    <Palette className="w-3.5 h-3.5 shrink-0" />
                     {translate('tab_appearance')}
                   </button>
 
                   <button
                     onClick={() => { setSettingsTab('shortcuts'); playFolderSound(); }}
-                    className={`w-full py-2 px-3 text-left text-xs font-cyber font-bold tracking-wider rounded-lg border transition-all cursor-pointer ${
+                    className={`w-full py-2 px-3 text-left text-xs font-cyber font-bold tracking-wider rounded-lg border transition-all cursor-pointer flex items-center gap-2 ${
                       settingsTab === 'shortcuts'
                         ? 'border-amber-500/80 text-amber-500 bg-amber-950/10 shadow-[0_0_6px_rgba(245,158,11,0.25)]'
                         : 'border-transparent text-slate-500 hover:text-slate-300'
                     }`}
                   >
+                    <HardDrive className="w-3.5 h-3.5 shrink-0" />
                     {translate('tab_shortcuts')}
                   </button>
                 </div>
@@ -215,8 +297,7 @@ export default function SettingsPanel({
                     
                     {/* Idioma */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('general_language')}</h4>
-                      <p className="text-xs text-slate-500 mt-1 mb-3">{translate('general_language_desc')}</p>
+                      <SectionHead icon={Globe} title={translate('general_language')} desc={translate('general_language_desc')} />
                       <div className="flex gap-2">
                         <button 
                           onClick={() => handleChangeLanguage('en')}
@@ -235,8 +316,7 @@ export default function SettingsPanel({
 
                     {/* Monitor de Despliegue */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('general_monitor')}</h4>
-                      <p className="text-xs text-slate-500 mt-1 mb-3">{translate('general_monitor_desc')}</p>
+                      <SectionHead icon={Monitor} title={translate('general_monitor')} desc={translate('general_monitor_desc')} />
                       
                       <div className="space-y-1.5">
                         <button
@@ -265,8 +345,7 @@ export default function SettingsPanel({
 
                     {/* Atajo de Activación Global */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('general_shortcut')}</h4>
-                      <p className="text-xs text-slate-500 mt-1 mb-3">{translate('general_shortcut_desc')}</p>
+                      <SectionHead icon={Keyboard} title={translate('general_shortcut')} desc={translate('general_shortcut_desc')} />
                       
                       <div className="flex gap-3">
                         <input
@@ -291,83 +370,53 @@ export default function SettingsPanel({
                     </div>
 
                     {/* Toggles Rápidos */}
-                    <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
-                      
-                      {/* Ocultar al perder el foco */}
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('general_hide_on_blur')}</h5>
-                          <p className="text-xs text-slate-500 mt-0.5">{translate('general_hide_on_blur_desc')}</p>
-                        </div>
-                        <Toggle
-                          on={!!config.hideOnBlur}
-                          onClick={() => {
-                            const next = !config.hideOnBlur;
-                            handleUpdateConfigSetting('hideOnBlur', next);
-                            if (isElectron) window.electronAPI!.setHideOnBlur(next);
-                          }}
-                          colorClass="bg-[var(--neon-glow-color)]"
-                          ringClass="focus-visible:ring-[var(--neon-glow-color)]/40"
-                          ariaLabel={translate('general_hide_on_blur')}
-                        />
-                      </div>
-
-                      {/* Ocultar al clickear zona muerta */}
-                      <div className="flex items-center justify-between border-t border-slate-900 pt-3">
-                        <div>
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('general_hide_on_dead_zone')}</h5>
-                          <p className="text-xs text-slate-500 mt-0.5">{translate('general_hide_on_dead_zone_desc')}</p>
-                        </div>
-                        <Toggle
-                          on={!!config.hideOnDeadZoneClick}
-                          onClick={() => {
-                            const next = !config.hideOnDeadZoneClick;
-                            handleUpdateConfigSetting('hideOnDeadZoneClick', next);
-                          }}
-                          colorClass="bg-[var(--neon-glow-color)]"
-                          ringClass="focus-visible:ring-[var(--neon-glow-color)]/40"
-                          ariaLabel={translate('general_hide_on_dead_zone')}
-                        />
-                      </div>
-
-                      {/* Mostrar en barra de tareas */}
-                      <div className="flex items-center justify-between border-t border-slate-900 pt-3">
-                        <div>
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('general_show_taskbar')}</h5>
-                          <p className="text-xs text-slate-500 mt-0.5">{translate('general_show_taskbar_desc')}</p>
-                        </div>
-                        <Toggle
-                          on={!!config.showTaskbarIcon}
-                          onClick={() => {
-                            const next = !config.showTaskbarIcon;
-                            handleUpdateConfigSetting('showTaskbarIcon', next);
-                            if (isElectron) window.electronAPI!.setShowTaskbarIcon(next);
-                          }}
-                          colorClass="bg-[var(--neon-glow-color)]"
-                          ringClass="focus-visible:ring-[var(--neon-glow-color)]/40"
-                          ariaLabel={translate('general_show_taskbar')}
-                        />
-                      </div>
-
-                      {/* Ejecutar al iniciar Windows */}
-                      <div className="flex items-center justify-between border-t border-slate-900 pt-3">
-                        <div>
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('sys_startup')}</h5>
-                          <p className="text-xs text-slate-500 mt-0.5">{translate('sys_startup_desc')}</p>
-                        </div>
-                        <Toggle
-                          on={!!config.autoLaunch}
-                          onClick={() => {
-                            const next = !config.autoLaunch;
-                            handleUpdateConfigSetting('autoLaunch', next);
-                            if (isElectron) window.electronAPI!.setAutoLaunch(next);
-                          }}
-                          colorClass="bg-[var(--neon-glow-color)]"
-                          ringClass="focus-visible:ring-[var(--neon-glow-color)]/40"
-                          ariaLabel={translate('sys_startup')}
-                        />
-                      </div>
-
+                    <div className="space-y-2">
+                      <ToggleCard
+                        icon={Eye}
+                        tone="cyan"
+                        title={translate('general_hide_on_blur')}
+                        desc={translate('general_hide_on_blur_desc')}
+                        on={!!config.hideOnBlur}
+                        onClick={() => {
+                          const next = !config.hideOnBlur;
+                          handleUpdateConfigSetting('hideOnBlur', next);
+                          if (isElectron) window.electronAPI!.setHideOnBlur(next);
+                        }}
+                      />
+                      <ToggleCard
+                        icon={MousePointer2}
+                        tone="amber"
+                        title={translate('general_hide_on_dead_zone')}
+                        desc={translate('general_hide_on_dead_zone_desc')}
+                        on={!!config.hideOnDeadZoneClick}
+                        onClick={() => {
+                          handleUpdateConfigSetting('hideOnDeadZoneClick', !config.hideOnDeadZoneClick);
+                        }}
+                      />
+                      <ToggleCard
+                        icon={Monitor}
+                        tone="slate"
+                        title={translate('general_show_taskbar')}
+                        desc={translate('general_show_taskbar_desc')}
+                        on={!!config.showTaskbarIcon}
+                        onClick={() => {
+                          const next = !config.showTaskbarIcon;
+                          handleUpdateConfigSetting('showTaskbarIcon', next);
+                          if (isElectron) window.electronAPI!.setShowTaskbarIcon(next);
+                        }}
+                      />
+                      <ToggleCard
+                        icon={Power}
+                        tone="blue"
+                        title={translate('sys_startup')}
+                        desc={translate('sys_startup_desc')}
+                        on={!!config.autoLaunch}
+                        onClick={() => {
+                          const next = !config.autoLaunch;
+                          handleUpdateConfigSetting('autoLaunch', next);
+                          if (isElectron) window.electronAPI!.setAutoLaunch(next);
+                        }}
+                      />
                     </div>
 
                     {/* Hotspot Corners */}
@@ -452,24 +501,16 @@ export default function SettingsPanel({
                     </div>
 
                     {/* Sonidos del Sistema */}
-                    <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('settings_sounds_title')}</h4>
-                          <h5 className="font-cyber font-bold text-slate-300 text-xs tracking-wider mt-2.5">{translate('settings_sound_launch_enable')}</h5>
-                          <p className="text-xs text-slate-500 mt-0.5">{translate('settings_sound_launch_enable_desc')}</p>
-                        </div>
-                        <Toggle
-                          on={config.soundEnabled !== false}
-                          onClick={() => handleUpdateConfigSetting('soundEnabled', config.soundEnabled !== false ? false : true)}
-                          colorClass="bg-[var(--neon-glow-color)]"
-                          ringClass="focus-visible:ring-[var(--neon-glow-color)]/40"
-                          ariaLabel={translate('settings_sound_launch_enable')}
-                        />
-                      </div>
-
+                    <ToggleCard
+                      icon={Volume2}
+                      tone="emerald"
+                      title={translate('settings_sound_launch_enable')}
+                      desc={translate('settings_sound_launch_enable_desc')}
+                      on={config.soundEnabled !== false}
+                      onClick={() => handleUpdateConfigSetting('soundEnabled', config.soundEnabled !== false ? false : true)}
+                    >
                       {config.soundEnabled !== false && (
-                        <div className="border-t border-slate-900 pt-3.5 space-y-2">
+                        <div className="border-t border-white/5 pt-3 space-y-2">
                           <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('settings_sound_launch_path')}</h5>
                           <p className="text-xs text-slate-500">{translate('settings_sound_launch_path_desc')}</p>
                           <div className="flex flex-nowrap items-center gap-2 min-w-0">
@@ -517,19 +558,18 @@ export default function SettingsPanel({
                           </div>
                         </div>
                       )}
-                    </div>
+                    </ToggleCard>
 
                     {/* Cyber-Vault Security Options */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
-                      <div>
-                          <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('vault_settings_title')}</h4>
-                      </div>
+                      <SectionHead icon={Shield} title={translate('vault_settings_title')} />
 
                       {/* Enable PIN lock */}
-                      <div className="flex items-center justify-between border-t border-slate-900 pt-3">
-                        <div>
-                          <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('vault_settings_pin_enable')}</h5>
-                          <p className="text-xs text-slate-500 mt-0.5">{translate('vault_settings_pin_enable_desc')}</p>
+                      <div className="flex items-start gap-3">
+                        <BadgeIcon icon={Lock} tone="purple" />
+                        <div className="min-w-0 flex-1">
+                          <h5 className="text-sm font-medium text-slate-200 leading-tight mb-0.5">{translate('vault_settings_pin_enable')}</h5>
+                          <p className="text-xs text-slate-500 leading-snug">{translate('vault_settings_pin_enable_desc')}</p>
                         </div>
                         <Toggle
                           on={!!config.vaultPinEnabled}
@@ -550,6 +590,7 @@ export default function SettingsPanel({
                           colorClass="bg-purple-500"
                           ringClass="focus-visible:ring-purple-500/50"
                           ariaLabel={translate('vault_settings_pin_enable')}
+                          className="mt-0.5"
                         />
                       </div>
 
@@ -836,10 +877,7 @@ export default function SettingsPanel({
                   <div className="space-y-6 max-w-2xl text-xs">
 
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
-                      <div>
-                        <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('app_layout')}</h4>
-                        <p className="text-xs text-slate-500 mt-1">{translate('app_layout_desc')}</p>
-                      </div>
+                      <SectionHead icon={LayoutGrid} title={translate('app_layout')} desc={translate('app_layout_desc')} />
 
                       <div>
                         <div className="flex justify-between items-center mb-2">
@@ -914,8 +952,7 @@ export default function SettingsPanel({
                     
                     {/* Presets de Color */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('app_theme_presets')}</h4>
-                      <p className="text-xs text-slate-500 mt-1 mb-3">{translate('app_theme_presets_desc')}</p>
+                      <SectionHead icon={Palette} title={translate('app_theme_presets')} desc={translate('app_theme_presets_desc')} />
                       
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {[
@@ -939,22 +976,23 @@ export default function SettingsPanel({
 
                     {/* Selector de Tipo de Fondo */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('app_bg_type')}</h4>
-                      <div className="grid grid-cols-3 gap-2 mt-3">
+                      <SectionHead icon={ImageIcon} title={translate('app_bg_type')} />
+                      <div className="grid grid-cols-3 gap-2">
                         {[
-                          { id: 'solid', name: translate('app_bg_type_solid') },
-                          { id: 'gradient', name: translate('app_bg_type_gradient') },
-                          { id: 'image', name: translate('app_bg_type_image') }
+                          { id: 'solid', name: translate('app_bg_type_solid'), icon: Droplets },
+                          { id: 'gradient', name: translate('app_bg_type_gradient'), icon: Palette },
+                          { id: 'image', name: translate('app_bg_type_image'), icon: ImageIcon }
                         ].map((type) => (
                           <button
                             key={type.id}
                             onClick={() => { handleUpdateConfigSetting('bgType', type.id); playCyberBeep(); }}
-                            className={`py-2 px-3 border rounded-lg text-center text-xs font-cyber font-bold transition-all cursor-pointer ${
+                            className={`py-2 px-3 border rounded-lg text-center text-xs font-cyber font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                               config.bgType === type.id 
                                 ? 'border-[var(--neon-glow-color)] text-white bg-slate-900 shadow-[0_0_8px_var(--neon-glow-color-raw)]' 
                                 : 'border-slate-900 text-slate-500 hover:border-slate-800'
                             }`}
                           >
+                            <type.icon className="w-3.5 h-3.5" />
                             {type.name}
                           </button>
                         ))}
@@ -964,10 +1002,7 @@ export default function SettingsPanel({
                     {/* Controles Dinámicos Según Tipo de Fondo */}
                     {config.bgType === 'solid' && (
                       <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-3">
-                        <div>
-                          <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('app_bg_solid_color')}</h4>
-                          <p className="text-xs text-slate-500 mt-1 mb-2.5">{translate('app_bg_solid_color_desc')}</p>
-                        </div>
+                        <SectionHead icon={Droplets} title={translate('app_bg_solid_color')} desc={translate('app_bg_solid_color_desc')} />
                         <div className="flex items-center gap-3">
                           <input 
                             type="color" 
@@ -994,10 +1029,7 @@ export default function SettingsPanel({
 
                     {config.bgType === 'gradient' && (
                       <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-3">
-                        <div>
-                          <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('app_bg_gradients')}</h4>
-                          <p className="text-xs text-slate-500 mt-1 mb-2.5">{translate('app_bg_gradients_desc')}</p>
-                        </div>
+                        <SectionHead icon={Palette} title={translate('app_bg_gradients')} desc={translate('app_bg_gradients_desc')} />
                         <div className="grid grid-cols-2 gap-3">
                           {[
                             { id: 'preset-1', name: 'CYAN GRID', css: 'bg-gradient-to-br from-[#061826] via-[#070b13] to-[#042f40] border-cyan-800' },
@@ -1023,10 +1055,7 @@ export default function SettingsPanel({
 
                     {config.bgType === 'image' && (
                       <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
-                        <div>
-                          <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('app_bg_preset_images')}</h4>
-                          <p className="text-xs text-slate-500 mt-1 mb-2.5">{translate('app_bg_preset_images_desc')}</p>
-                        </div>
+                        <SectionHead icon={ImageIcon} title={translate('app_bg_preset_images')} desc={translate('app_bg_preset_images_desc')} />
                         
                         {/* Presets Grid */}
                         <div className="grid grid-cols-2 gap-3">
@@ -1134,41 +1163,49 @@ export default function SettingsPanel({
                     
                     {/* Persistencia y backups */}
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('sys_backup')}</h4>
-                      <p className="text-xs text-slate-500 mt-1 mb-3">{translate('sys_backup_desc')}</p>
+                      <SectionHead icon={HardDrive} title={translate('sys_backup')} desc={translate('sys_backup_desc')} />
                       
                       <div className="flex gap-2 flex-wrap">
                         <button
                           onClick={handleExportBackup}
-                          className="py-1.5 px-4 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+                          className="py-1.5 px-4 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer inline-flex items-center gap-1.5"
                         >
+                          <Download className="w-3.5 h-3.5" />
                           {translate('sys_export_btn')}
                         </button>
                         <button
                           onClick={handleImportBackup}
-                          className="py-1.5 px-4 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+                          className="py-1.5 px-4 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer inline-flex items-center gap-1.5"
                         >
+                          <Upload className="w-3.5 h-3.5" />
                           {translate('sys_import_btn')}
                         </button>
                         <button
                           onClick={() => isElectron && window.electronAPI!.openDataFolder()}
-                          className="py-1.5 px-4 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+                          className="py-1.5 px-4 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer inline-flex items-center gap-1.5"
                         >
+                          <FolderOpen className="w-3.5 h-3.5" />
                           {translate('sys_data_dir_btn')}
                         </button>
                         <button
                           onClick={() => isElectron && window.electronAPI!.openDevTools()}
-                          className="py-1.5 px-4 bg-purple-500/15 border border-purple-500/30 text-purple-400 hover:bg-purple-500/25 text-xs font-bold rounded-lg transition-all cursor-pointer"
+                          className="py-1.5 px-4 bg-purple-500/15 border border-purple-500/30 text-purple-400 hover:bg-purple-500/25 text-xs font-bold rounded-lg transition-all cursor-pointer inline-flex items-center gap-1.5"
                         >
+                          <Terminal className="w-3.5 h-3.5" />
                           {translate('sys_diag_btn')}
                         </button>
                       </div>
                     </div>
 
                     {/* Administrador de carpetas físicas indexadas */}
-                    <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <h4 className="font-cyber font-bold text-red-400 text-xs tracking-widest">DANGER ZONE / NÚCLEO FÍSICO</h4>
-                      <p className="text-xs text-slate-500 mt-1 mb-3">Vaciar completamente la memoria de accesos inyectados de CyberTray.</p>
+                    <div className="bg-slate-950/50 p-4 border border-red-950/40 rounded-xl">
+                      <div className="flex items-start gap-2.5 mb-3">
+                        <BadgeIcon icon={AlertTriangle} tone="red" />
+                        <div className="min-w-0">
+                          <h4 className="font-cyber font-bold text-red-400 text-xs tracking-widest">DANGER ZONE / NÚCLEO FÍSICO</h4>
+                          <p className="text-xs text-slate-500 mt-1">Vaciar completamente la memoria de accesos inyectados de CyberTray.</p>
+                        </div>
+                      </div>
                       
                       <button
                         onClick={() => {
