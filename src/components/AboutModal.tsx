@@ -7,6 +7,7 @@ import {
 import { translate, TranslationKey, getLocale } from '../locales';
 import { isElectron } from '../lib/appUtils';
 import CyberTrayLogo, { CyberTrayWordmark } from './CyberTrayLogo';
+import Toggle from './Toggle';
 
 const REPO_URL = 'https://github.com/CyberGems/CyberTray';
 
@@ -304,19 +305,13 @@ export default function AboutModal({
                       <span className="text-xs text-slate-200 font-medium leading-tight">{t('about_auto_updates')}</span>
                       <span className="text-[11px] text-slate-400 leading-snug mt-0.5">{t('about_auto_updates_desc')}</span>
                     </div>
-                    <button
-                      type="button"
+                    <Toggle
+                      on={!!autoUpdate}
                       onClick={() => { onAutoUpdateChange(!autoUpdate); playCyberBeep(); }}
-                      className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-500/40 ${
-                        autoUpdate ? 'bg-[var(--neon-glow-color-raw)]' : 'bg-slate-700'
-                      }`}
-                      aria-pressed={autoUpdate}
-                      aria-label={t('about_auto_updates')}
-                    >
-                      <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform shadow ${
-                        autoUpdate ? 'translate-x-5' : 'translate-x-0'
-                      }`} />
-                    </button>
+                      colorClass="bg-[var(--neon-glow-color)]"
+                      ringClass="focus-visible:ring-cyan-500/40"
+                      ariaLabel={t('about_auto_updates')}
+                    />
                   </div>
                 </div>
               </div>

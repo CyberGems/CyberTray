@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Sliders, Upload, Volume2, MousePointer2, Monitor, Grid, List as ListIcon, ArrowUpDown } from 'lucide-react';
 import { translate } from '../locales';
 import { isElectron, INITIAL_CATEGORIES } from '../lib/appUtils';
+import Toggle from './Toggle';
 
 export interface SettingsPanelProps {
   showSettings: boolean;
@@ -298,16 +299,17 @@ export default function SettingsPanel({
                           <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('general_hide_on_blur')}</h5>
                           <p className="text-xs text-slate-500 mt-0.5">{translate('general_hide_on_blur_desc')}</p>
                         </div>
-                        <button
+                        <Toggle
+                          on={!!config.hideOnBlur}
                           onClick={() => {
                             const next = !config.hideOnBlur;
                             handleUpdateConfigSetting('hideOnBlur', next);
                             if (isElectron) window.electronAPI!.setHideOnBlur(next);
                           }}
-                          className={`w-12 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${config.hideOnBlur ? 'bg-[var(--neon-glow-color)]' : 'bg-slate-800'}`}
-                        >
-                          <div className={`w-5 h-5 bg-slate-950 rounded-full transition-transform ${config.hideOnBlur ? 'translate-x-6' : 'translate-x-0'}`} />
-                        </button>
+                          colorClass="bg-[var(--neon-glow-color)]"
+                          ringClass="focus-visible:ring-[var(--neon-glow-color)]/40"
+                          ariaLabel={translate('general_hide_on_blur')}
+                        />
                       </div>
 
                       {/* Ocultar al clickear zona muerta */}
@@ -316,15 +318,16 @@ export default function SettingsPanel({
                           <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('general_hide_on_dead_zone')}</h5>
                           <p className="text-xs text-slate-500 mt-0.5">{translate('general_hide_on_dead_zone_desc')}</p>
                         </div>
-                        <button
+                        <Toggle
+                          on={!!config.hideOnDeadZoneClick}
                           onClick={() => {
                             const next = !config.hideOnDeadZoneClick;
                             handleUpdateConfigSetting('hideOnDeadZoneClick', next);
                           }}
-                          className={`w-12 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${config.hideOnDeadZoneClick ? 'bg-[var(--neon-glow-color)]' : 'bg-slate-800'}`}
-                        >
-                          <div className={`w-5 h-5 bg-slate-950 rounded-full transition-transform ${config.hideOnDeadZoneClick ? 'translate-x-6' : 'translate-x-0'}`} />
-                        </button>
+                          colorClass="bg-[var(--neon-glow-color)]"
+                          ringClass="focus-visible:ring-[var(--neon-glow-color)]/40"
+                          ariaLabel={translate('general_hide_on_dead_zone')}
+                        />
                       </div>
 
                       {/* Mostrar en barra de tareas */}
@@ -333,16 +336,17 @@ export default function SettingsPanel({
                           <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('general_show_taskbar')}</h5>
                           <p className="text-xs text-slate-500 mt-0.5">{translate('general_show_taskbar_desc')}</p>
                         </div>
-                        <button
+                        <Toggle
+                          on={!!config.showTaskbarIcon}
                           onClick={() => {
                             const next = !config.showTaskbarIcon;
                             handleUpdateConfigSetting('showTaskbarIcon', next);
                             if (isElectron) window.electronAPI!.setShowTaskbarIcon(next);
                           }}
-                          className={`w-12 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${config.showTaskbarIcon ? 'bg-[var(--neon-glow-color)]' : 'bg-slate-800'}`}
-                        >
-                          <div className={`w-5 h-5 bg-slate-950 rounded-full transition-transform ${config.showTaskbarIcon ? 'translate-x-6' : 'translate-x-0'}`} />
-                        </button>
+                          colorClass="bg-[var(--neon-glow-color)]"
+                          ringClass="focus-visible:ring-[var(--neon-glow-color)]/40"
+                          ariaLabel={translate('general_show_taskbar')}
+                        />
                       </div>
 
                       {/* Ejecutar al iniciar Windows */}
@@ -351,16 +355,17 @@ export default function SettingsPanel({
                           <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('sys_startup')}</h5>
                           <p className="text-xs text-slate-500 mt-0.5">{translate('sys_startup_desc')}</p>
                         </div>
-                        <button
+                        <Toggle
+                          on={!!config.autoLaunch}
                           onClick={() => {
                             const next = !config.autoLaunch;
                             handleUpdateConfigSetting('autoLaunch', next);
                             if (isElectron) window.electronAPI!.setAutoLaunch(next);
                           }}
-                          className={`w-12 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${config.autoLaunch ? 'bg-[var(--neon-glow-color)]' : 'bg-slate-800'}`}
-                        >
-                          <div className={`w-5 h-5 bg-slate-950 rounded-full transition-transform ${config.autoLaunch ? 'translate-x-6' : 'translate-x-0'}`} />
-                        </button>
+                          colorClass="bg-[var(--neon-glow-color)]"
+                          ringClass="focus-visible:ring-[var(--neon-glow-color)]/40"
+                          ariaLabel={translate('sys_startup')}
+                        />
                       </div>
 
                     </div>
@@ -454,12 +459,13 @@ export default function SettingsPanel({
                           <h5 className="font-cyber font-bold text-slate-300 text-xs tracking-wider mt-2.5">{translate('settings_sound_launch_enable')}</h5>
                           <p className="text-xs text-slate-500 mt-0.5">{translate('settings_sound_launch_enable_desc')}</p>
                         </div>
-                        <button
+                        <Toggle
+                          on={config.soundEnabled !== false}
                           onClick={() => handleUpdateConfigSetting('soundEnabled', config.soundEnabled !== false ? false : true)}
-                          className={`w-12 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${config.soundEnabled !== false ? 'bg-[var(--neon-glow-color)]' : 'bg-slate-800'}`}
-                        >
-                          <div className={`w-5 h-5 bg-slate-950 rounded-full transition-transform ${config.soundEnabled !== false ? 'translate-x-6' : 'translate-x-0'}`} />
-                        </button>
+                          colorClass="bg-[var(--neon-glow-color)]"
+                          ringClass="focus-visible:ring-[var(--neon-glow-color)]/40"
+                          ariaLabel={translate('settings_sound_launch_enable')}
+                        />
                       </div>
 
                       {config.soundEnabled !== false && (
@@ -525,16 +531,15 @@ export default function SettingsPanel({
                           <h5 className="font-cyber font-bold text-white text-xs tracking-wider">{translate('vault_settings_pin_enable')}</h5>
                           <p className="text-xs text-slate-500 mt-0.5">{translate('vault_settings_pin_enable_desc')}</p>
                         </div>
-                        <button
+                        <Toggle
+                          on={!!config.vaultPinEnabled}
                           onClick={async () => {
                             if (config.vaultPinEnabled) {
-                              // Requerir verificación del PIN antes de desactivarlo
                               setShowDisablePinPrompt(true);
                               setDisablePinInput('');
                               setDisablePinError('');
                               playCyberBeep();
                             } else {
-                              // Requerir configurar un PIN nuevo al activarlo
                               setShowEnablePinPrompt(true);
                               setEnablePinInput('');
                               setEnableConfirmPinInput('');
@@ -542,10 +547,10 @@ export default function SettingsPanel({
                               playCyberBeep();
                             }
                           }}
-                          className={`w-12 h-6 rounded-full p-0.5 transition-colors cursor-pointer ${config.vaultPinEnabled ? 'bg-purple-500' : 'bg-slate-800'}`}
-                        >
-                          <div className={`w-5 h-5 bg-slate-950 rounded-full transition-transform ${config.vaultPinEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
-                        </button>
+                          colorClass="bg-purple-500"
+                          ringClass="focus-visible:ring-purple-500/50"
+                          ariaLabel={translate('vault_settings_pin_enable')}
+                        />
                       </div>
 
                       {/* Confirmación para desactivar PIN */}

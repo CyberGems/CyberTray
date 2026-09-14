@@ -149,36 +149,45 @@
   pointer-events: none;
 }
 
-/* Estilización de Barra de Scroll Cyberpunk */
+/* Quiet overlay scrollbars: visible enough to use, not a neon accent */
 .custom-scrollbar::-webkit-scrollbar,
 [data-cyber-scroll]::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track,
 [data-cyber-scroll]::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
+  background: transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb,
 [data-cyber-scroll]::-webkit-scrollbar-thumb {
-  background: var(--neon-glow-border);
-  border-radius: 4px;
-  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: rgba(148, 163, 184, 0.22);
+  border-radius: 999px;
+  border: none;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover,
 [data-cyber-scroll]::-webkit-scrollbar-thumb:hover {
-  background: var(--neon-glow-color);
+  background: rgba(148, 163, 184, 0.42);
 }
 
-/* Firefox scrollbar support */
 .custom-scrollbar,
 [data-cyber-scroll] {
   scrollbar-width: thin;
-  scrollbar-color: var(--neon-glow-border) rgba(0, 0, 0, 0.3);
+  scrollbar-color: rgba(148, 163, 184, 0.28) transparent;
+}
+
+button:focus,
+button:focus-visible,
+input:focus,
+input:focus-visible,
+select:focus,
+select:focus-visible,
+textarea:focus,
+textarea:focus-visible {
+  outline: none;
 }
 
 /* Efectos de Cristal Neón */

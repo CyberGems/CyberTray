@@ -7,31 +7,11 @@ import {
 import { translate } from '../locales';
 import { getFolderPath, isElectron } from '../lib/appUtils';
 import { shortcutIconSrc } from '../lib/iconSrc';
+import Toggle from './Toggle';
 
 export type ShortcutDraft = { name: string; path: string; iconPath?: string };
 
 type ShowTooltipFn = (e: React.MouseEvent, text: string, subText?: string, borderColor?: string) => void;
-
-function Toggle({
-  on, onClick, colorClass, ringClass,
-}: {
-  on: boolean;
-  onClick: () => void;
-  colorClass: string;
-  ringClass: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`relative w-11 h-6 rounded-full transition-colors shrink-0 focus:outline-none focus:ring-2 ${ringClass} mt-0.5 ${on ? colorClass : 'bg-slate-700'}`}
-    >
-      <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform shadow flex items-center justify-center ${on ? 'translate-x-5' : 'translate-x-0'}`}>
-        <div className={`w-2 h-2 rounded-full ${on ? `${colorClass} shadow-[0_0_5px_currentColor]` : 'bg-slate-400'}`} />
-      </div>
-    </button>
-  );
-}
 
 interface ShortcutFormModalProps {
   shortcutModal: { open: boolean; item?: any; batchItems?: ShortcutDraft[] };
@@ -141,6 +121,27 @@ export default function ShortcutFormModal({
 
   const close = () => setShortcutModal({ open: false });
 
+  const submitForm = () => {
+    if (canSave) handleSaveShortcut();
+  };
+
+  const onEnterSubmit = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    submitForm();
+  };
+
+  const onBrowseKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    e.stopPropagation();
+    submitForm();
+  };
+
+  const afterBrowse = (btn: HTMLButtonElement) => {
+    btn.blur();
+  };
+
   const title = isEdit
     ? translate('app_edit_title')
     : isBatch
@@ -204,7 +205,7 @@ export default function ShortcutFormModal({
                         <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1">{translate('app_pin_fav_title')}</h4>
                         <p className="text-[11px] text-slate-500 leading-snug">{translate('app_pin_fav_desc')}</p>
                       </div>
-                      <Toggle on={formFavorite} onClick={() => setFormFavorite(!formFavorite)} colorClass="bg-blue-500" ringClass="focus:ring-blue-500/50" />
+                      <Toggle on={formFavorite} onClick={() => setFormFavorite(!formFavorite)} colorClass="bg-blue-500" ringClass="focus-visible:ring-blue-500/50" className="mt-0.5" />
                     </div>
                   </div>
 
@@ -217,7 +218,7 @@ export default function ShortcutFormModal({
                         <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1">{translate('app_pin_taskbar_title')}</h4>
                         <p className="text-[11px] text-slate-500 leading-snug">{translate('app_pin_taskbar_desc')}</p>
                       </div>
-                      <Toggle on={formPinToTaskbar} onClick={() => setFormPinToTaskbar(!formPinToTaskbar)} colorClass="bg-cyan-500" ringClass="focus:ring-cyan-500/50" />
+                      <Toggle on={formPinToTaskbar} onClick={() => setFormPinToTaskbar(!formPinToTaskbar)} colorClass="bg-cyan-500" ringClass="focus-visible:ring-cyan-500/50" className="mt-0.5" />
                     </div>
                   </div>
 
@@ -230,7 +231,7 @@ export default function ShortcutFormModal({
                         <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1">{translate('app_admin_title')}</h4>
                         <p className="text-[11px] text-slate-500 leading-snug">{translate('app_admin_desc')}</p>
                       </div>
-                      <Toggle on={formAdmin} onClick={() => setFormAdmin(!formAdmin)} colorClass="bg-amber-500" ringClass="focus:ring-amber-500/50" />
+                      <Toggle on={formAdmin} onClick={() => setFormAdmin(!formAdmin)} colorClass="bg-amber-500" ringClass="focus-visible:ring-amber-500/50" className="mt-0.5" />
                     </div>
                   </div>
 
@@ -248,6 +249,7 @@ export default function ShortcutFormModal({
                           max={60}
                           value={formDelay}
                           onChange={(e) => setFormDelay(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                          onKeyDown={onEnterSubmit}
                           className="mt-2 w-full bg-black/30 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-cyan-500/50"
                         />
                       </div>
@@ -263,6 +265,7 @@ export default function ShortcutFormModal({
                         value={formArgs}
                         onChange={(e) => setFormArgs(e.target.value)}
                         placeholder={translate('app_args_placeholder')}
+                        onKeyDown={onEnterSubmit}
                         className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-cyan-500/50"
                       />
                     </div>
@@ -350,6 +353,13 @@ export default function ShortcutFormModal({
                 </button>
               </div>
 
+              <form
+                className="flex flex-col flex-1 min-h-0"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submitForm();
+                }}
+              >
               <div className="p-5 overflow-y-auto custom-scrollbar flex-1 space-y-5">
                 {isBatch && (
                   <div className="space-y-2">
@@ -379,9 +389,9 @@ export default function ShortcutFormModal({
                         type="text"
                         value={formName}
                         onChange={(e) => setFormName(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' && canSave) handleSaveShortcut(); }}
                         placeholder={translate('app_name_placeholder')}
-                        className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors"
+                        autoFocus={!isEdit}
+                        className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-sm text-white outline-none focus:outline-none focus:border-cyan-500/50 transition-colors"
                       />
                     </div>
 
@@ -392,17 +402,21 @@ export default function ShortcutFormModal({
                           type="text"
                           value={formPath}
                           onChange={(e) => setFormPath(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter' && canSave) handleSaveShortcut(); }}
                           placeholder={translate('app_path_placeholder')}
-                          className="flex-1 bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors font-mono"
+                          className="flex-1 bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-sm text-white outline-none focus:outline-none focus:border-cyan-500/50 transition-colors font-mono"
                         />
                         {isElectron && (
                           <button
                             type="button"
-                            onClick={handleBrowseFile}
+                            onClick={async (e) => {
+                              const btn = e.currentTarget;
+                              await handleBrowseFile();
+                              afterBrowse(btn);
+                            }}
+                            onKeyDown={onBrowseKeyDown}
                             onMouseEnter={(e) => showTooltip(e, translate('app_browse'))}
                             onMouseLeave={hideTooltip}
-                            className="flex items-center justify-center bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors border border-white/5 shrink-0"
+                            className="flex items-center justify-center bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors border border-white/5 shrink-0 outline-none focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-500/40"
                           >
                             <Upload className="w-4 h-4 mr-2" />
                             {translate('app_browse')}
@@ -416,32 +430,31 @@ export default function ShortcutFormModal({
                       <div className="flex gap-3 items-center">
                         <div className="w-11 h-11 bg-black/40 border border-white/10 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
                           {formIconPath ? (
-                            <img src={shortcutIconSrc(formIconPath)} alt="" className="w-8 h-8 object-contain" />
+                            <img src={shortcutIconSrc(formIconPath)} alt="" className="w-8 h-8 object-contain" draggable={false} />
                           ) : (
                             <span className="text-[9px] font-cyber font-bold text-slate-500">&gt;_</span>
                           )}
                         </div>
-                        <div className="flex-1 flex gap-2">
-                          <input
-                            type="text"
-                            readOnly
-                            value={
-                              !formIconPath
-                                ? ''
-                                : formIconPath.startsWith('data:') || formIconPath.startsWith('local-resource:')
-                                  ? translate('app_icon_extracted')
-                                  : formIconPath
-                            }
-                            placeholder=""
-                            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-slate-300"
-                          />
+                        <div className="flex-1 flex gap-2 min-w-0">
+                          <div className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-slate-300 truncate select-none pointer-events-none">
+                            {!formIconPath
+                              ? '\u00a0'
+                              : formIconPath.startsWith('data:') || formIconPath.startsWith('local-resource:')
+                                ? translate('app_icon_extracted')
+                                : formIconPath}
+                          </div>
                           {isElectron && (
                             <button
                               type="button"
-                              onClick={handleBrowseIcon}
+                              onClick={async (e) => {
+                                const btn = e.currentTarget;
+                                await handleBrowseIcon();
+                                afterBrowse(btn);
+                              }}
+                              onKeyDown={onBrowseKeyDown}
                               onMouseEnter={(e) => showTooltip(e, translate('app_browse'))}
                               onMouseLeave={hideTooltip}
-                              className="flex items-center justify-center bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors border border-white/5 shrink-0"
+                              className="flex items-center justify-center bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors border border-white/5 shrink-0 outline-none focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-500/40"
                             >
                               <Upload className="w-4 h-4" />
                             </button>
@@ -458,7 +471,7 @@ export default function ShortcutFormModal({
                     <select
                       value={formCategory}
                       onChange={(e) => setFormCategory(e.target.value)}
-                      className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors appearance-none"
+                      className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-sm text-white outline-none focus:outline-none focus:border-cyan-500/50 transition-colors appearance-none"
                     >
                       {folderOptions.map(folder => (
                         <option key={folder.id} value={folder.id} className="bg-[#0f172a]">
@@ -476,7 +489,7 @@ export default function ShortcutFormModal({
                   <button
                     type="button"
                     onClick={() => handleDeleteShortcut(shortcutModal.item.id)}
-                    className="px-3 py-2.5 rounded-xl text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20 transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                    className="px-3 py-2.5 rounded-xl text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20 transition-colors cursor-pointer inline-flex items-center gap-1.5 outline-none focus:outline-none"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     {translate('app_delete')}
@@ -486,21 +499,21 @@ export default function ShortcutFormModal({
                   <button
                     type="button"
                     onClick={close}
-                    className="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-white/10 border border-white/10 transition-colors cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-white/10 border border-white/10 transition-colors cursor-pointer outline-none focus:outline-none"
                   >
                     {translate('app_cancel')}
                   </button>
                   <button
-                    type="button"
-                    onClick={handleSaveShortcut}
+                    type="submit"
                     disabled={!canSave}
-                    className="px-4 py-2.5 bg-cyan-500/20 hover:bg-cyan-500/30 disabled:opacity-40 disabled:cursor-not-allowed text-cyan-300 border border-cyan-500/40 rounded-xl font-cyber font-bold text-sm shadow-[0_0_15px_rgba(34,211,238,0.2)] transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                    className="px-4 py-2.5 bg-cyan-500/20 hover:bg-cyan-500/30 disabled:opacity-40 disabled:cursor-not-allowed text-cyan-300 border border-cyan-500/40 rounded-xl font-cyber font-bold text-sm shadow-[0_0_15px_rgba(34,211,238,0.2)] transition-all inline-flex items-center gap-1.5 cursor-pointer outline-none focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400/50"
                   >
                     <span>{submitLabel}</span>
                     <CornerDownLeft className="w-3.5 h-3.5 opacity-70" />
                   </button>
                 </div>
               </div>
+              </form>
             </div>
           </motion.div>
         </>
