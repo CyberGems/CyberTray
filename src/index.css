@@ -88,6 +88,8 @@
 
 /* Variables de Temas Tácticos */
 :root {
+  /* Solid cyan from the app icon, independent of the UI theme. */
+  --logo-accent: #22d3ee;
   --neon-glow-color: rgba(34, 211, 238, 0.8);
   --neon-glow-color-raw: rgba(34, 211, 238, 0.3);
   --neon-glow-border: rgba(34, 211, 238, 0.4);

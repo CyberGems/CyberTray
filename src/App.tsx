@@ -3,7 +3,7 @@ import { translate, setLocale } from './locales';
 import { motion, AnimatePresence } from 'motion/react';
 import ProcessMatrixModal from './components/ProcessMatrixModal';
 import ShortcutFormModal from './components/ShortcutFormModal';
-import CyberTrayLogo from './components/CyberTrayLogo';
+import CyberTrayLogo, { CyberTrayWordmark } from './components/CyberTrayLogo';
 import ShortcutGrid from './components/ShortcutGrid';
 import TelemetryBar from './components/TelemetryBar';
 import ToastStack from './components/ToastStack';
@@ -2185,7 +2185,17 @@ export default function App() {
 
       {/* ── BARRA SUPERIOR ── */}
       <header className="h-12 shrink-0 border-b border-[var(--neon-glow-border)] flex items-center gap-3 px-4 bg-slate-950/75 backdrop-blur-md z-10">
-        <CyberTrayLogo className="w-6 h-6 shrink-0" animated={activeTasksCount > 0} />
+        <button
+          type="button"
+          onClick={() => { setShowAboutModal(true); playCyberBeep(); hideTooltip(); }}
+          onMouseEnter={(e) => showTooltip(e, translate('tooltip_about'))}
+          onMouseLeave={hideTooltip}
+          className="flex items-center gap-2 shrink-0 rounded-lg px-1.5 py-0.5 -ml-1.5 hover:bg-white/5 transition-colors cursor-pointer"
+          aria-label={translate('tooltip_about')}
+        >
+          <CyberTrayLogo className="w-6 h-6 shrink-0" animated={activeTasksCount > 0} alt="" />
+          <CyberTrayWordmark className="text-[13px]" />
+        </button>
 
         <div className="relative w-52 shrink-0">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />

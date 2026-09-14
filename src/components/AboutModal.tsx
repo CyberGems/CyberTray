@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { translate, TranslationKey, getLocale } from '../locales';
 import { isElectron } from '../lib/appUtils';
-import CyberTrayLogo from './CyberTrayLogo';
+import CyberTrayLogo, { CyberTrayWordmark } from './CyberTrayLogo';
 
 const REPO_URL = 'https://github.com/CyberGems/CyberTray';
 
@@ -210,8 +210,8 @@ export default function AboutModal({
                 <CyberTrayLogo className="w-[72px] h-[72px]" animated={false} />
               </div>
 
-              <h1 className="text-[26px] font-cyber font-bold tracking-wide text-white mb-1">
-                Cyber<span className="text-[var(--neon-glow-color)]">Tray</span>
+              <h1 className="mb-1">
+                <CyberTrayWordmark className="text-[26px]" />
               </h1>
               <div className="text-[11px] font-digits font-bold text-slate-500 uppercase tracking-[0.12em] mb-3.5">
                 {t('about_version', { version: appVersion || '…' })}
