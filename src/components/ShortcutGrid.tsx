@@ -150,7 +150,14 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                   key={item.id}
                   data-shortcut-id={item.id}
                   onClick={(e) => selectionMode ? handleItemSelect(item, index, e) : handleLaunch(item)}
-                  onContextMenu={(e) => handleShortcutContextMenu(e, item)}
+                  onContextMenu={(e) => {
+                    if (selectionMode) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      return;
+                    }
+                    handleShortcutContextMenu(e, item);
+                  }}
                   draggable={!selectionMode}
                   onDragStart={(e) => handleShortcutDragStart(e, item)}
                   className={`cyber-panel-glow bg-slate-950/45 rounded-lg p-2 flex items-center justify-between gap-3 transition-all duration-300 hover:scale-102 hover:bg-slate-900/60 cursor-pointer relative group border ${
@@ -242,6 +249,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                       </span>
                     )}
 
+                    {!selectionMode && (
                     <button
                       onClick={(e) => handleOpenEditModal(item, e)}
                       onMouseEnter={(e) => showTooltip(e, translate('edit_launch_config'))}
@@ -250,6 +258,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                     >
                       <Edit className="w-2.5 h-2.5" />
                     </button>
+                    )}
                   </div>
                 </div>
               );
@@ -260,7 +269,14 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                   key={item.id}
                   data-shortcut-id={item.id}
                   onClick={(e) => selectionMode ? handleItemSelect(item, index, e) : handleLaunch(item)}
-                  onContextMenu={(e) => handleShortcutContextMenu(e, item)}
+                  onContextMenu={(e) => {
+                    if (selectionMode) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      return;
+                    }
+                    handleShortcutContextMenu(e, item);
+                  }}
                   draggable={!selectionMode}
                   onDragStart={(e) => handleShortcutDragStart(e, item)}
                   className={`cyber-panel-glow rounded-xl transition-all duration-300 hover:scale-103 cursor-pointer relative group ${
@@ -383,6 +399,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                     </span>
                   )}
 
+                  {!selectionMode && (
                   <button
                     onClick={(e) => handleOpenEditModal(item, e)}
                     onMouseEnter={(e) => showTooltip(e, translate('edit_launch_config'))}
@@ -398,6 +415,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                   >
                     <Edit style={{ width: isSmallGrid ? '10px' : '13px', height: isSmallGrid ? '10px' : '13px' }} />
                   </button>
+                  )}
                 </div>
               );
             }

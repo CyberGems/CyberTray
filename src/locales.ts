@@ -51,12 +51,13 @@ export const translations = {
 
     // Multi-selection / bulk delete
     selection_mode: "Selection mode",
-    selection_exit: "Exit selection",
-    selected_count: "{count} selected",
+    selection_exit: "Done selecting",
+    selection_mode_hint: "Click a shortcut to add or remove it. Shift-click selects a range.",
     select_all: "Select all",
     unselect_all: "Clear selection",
-    invert_selection: "Invert selection",
-    delete_selected: "Delete",
+    delete_selected: "Delete selected",
+    delete_selected_none: "Select shortcuts first",
+    delete_selected_n: "Delete {count} selected",
     delete_selected_confirm_title: "DELETE SHORTCUTS",
     delete_selected_confirm_desc: "You are about to delete {count} shortcut(s). This cannot be undone from disk, but you'll get an Undo option. Continue?",
 
@@ -419,12 +420,13 @@ export const translations = {
 
     // Selección múltiple / borrado en masa
     selection_mode: "Modo selección",
-    selection_exit: "Salir de selección",
-    selected_count: "{count} seleccionados",
+    selection_exit: "Listo",
+    selection_mode_hint: "Haz clic en un acceso para marcarlo o quitarlo. Mayús+clic selecciona un rango.",
     select_all: "Seleccionar todo",
     unselect_all: "Quitar selección",
-    invert_selection: "Invertir selección",
-    delete_selected: "Eliminar",
+    delete_selected: "Eliminar seleccionados",
+    delete_selected_none: "Selecciona accesos primero",
+    delete_selected_n: "Eliminar {count} seleccionados",
     delete_selected_confirm_title: "ELIMINAR ACCESOS",
     delete_selected_confirm_desc: "Vas a eliminar {count} acceso(s). Tendrás opción de Deshacer. ¿Continuar?",
 

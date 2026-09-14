@@ -30,7 +30,7 @@ import {
   Search, Plus, Settings, X, Trash2, Info,
   Pin, Play, ArrowDown, Shrink, MoreHorizontal,
   RefreshCw, Check, Activity, Lock, FolderOpen,
-  CheckSquare, FlipHorizontal2, Heart, BookOpen, HelpCircle, Tag, Globe, Sliders
+  CheckSquare, Heart, BookOpen, HelpCircle, Tag, Globe, Sliders
 } from 'lucide-react';
 
 declare global {
@@ -482,20 +482,25 @@ export default function App() {
     shortcutsRef.current = shortcuts;
   }, [shortcuts]);
 
-  // Atajos del modo selección: Esc sale, Ctrl/Cmd+A selecciona todo.
+  // Atajos del modo selección: Esc sale, Ctrl/Cmd+A selecciona todo, Delete borra.
   useEffect(() => {
     if (!selectionMode) return;
     const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const typing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
       if (e.key === 'Escape') {
         exitSelectionMode();
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         handleSelectAll();
+      } else if (!typing && (e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0) {
+        e.preventDefault();
+        handleDeleteSelected();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectionMode]);
+  }, [selectionMode, selectedIds]);
 
   // Preload and initialize audio objects to eliminate playback delay
   useEffect(() => {
@@ -1543,17 +1548,7 @@ export default function App() {
     lastSelectedIndex.current = null;
   };
 
-  const handleInvertSelection = () => {
-    setSelectedIds(prev => {
-      const next = new Set<number>();
-      for (const s of getFilteredShortcuts()) {
-        if (!prev.has(s.id)) next.add(s.id);
-      }
-      return next;
-    });
-  };
-
-  // Clic sobre un ítem en modo selección: toggle / rango (Shift) / aditivo (Ctrl/Cmd)
+  // Gallery-style: click toggles, Shift-click fills the range from the last item.
   const handleItemSelect = (item: any, index: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -1564,15 +1559,10 @@ export default function App() {
         const a = Math.min(lastSelectedIndex.current, index);
         const b = Math.max(lastSelectedIndex.current, index);
         for (let i = a; i <= b; i++) { if (list[i]) next.add(list[i].id); }
-      } else if (e.ctrlKey || e.metaKey) {
-        if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+      } else if (next.has(item.id)) {
+        next.delete(item.id);
       } else {
-        if (next.has(item.id) && next.size === 1) {
-          next.delete(item.id);
-        } else {
-          next.clear();
-          next.add(item.id);
-        }
+        next.add(item.id);
       }
       return next;
     });
@@ -1625,7 +1615,6 @@ export default function App() {
       y: e.clientY - rect.top + container.scrollTop,
     };
     lassoAdditive.current = e.shiftKey || e.ctrlKey || e.metaKey;
-    setLassoRect({ x: lassoStart.current.x, y: lassoStart.current.y, w: 0, h: 0 });
   };
 
   const handleLassoMouseMove = (e: React.MouseEvent) => {
@@ -1639,6 +1628,7 @@ export default function App() {
     const y = Math.min(lassoStart.current.y, curY);
     const w = Math.abs(curX - lassoStart.current.x);
     const h = Math.abs(curY - lassoStart.current.y);
+    if (w < 8 && h < 8) return;
     setLassoRect({ x, y, w, h });
 
     // Hit-test contra los ítems visibles.
@@ -2197,7 +2187,7 @@ export default function App() {
           <CyberTrayWordmark className="text-[13px]" />
         </button>
 
-        <div className="relative w-52 shrink-0">
+        <div className="relative w-52 shrink-0 ml-5">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
           <input
             ref={searchInputRef}
@@ -2243,61 +2233,79 @@ export default function App() {
           />
         </div>
 
-        <div className="ml-auto flex items-center gap-2 shrink-0">
-          {selectionMode && (
-            <div className="flex items-center gap-1 pr-2 border-r border-slate-700/50">
-              <span className="text-[10px] font-cyber font-bold tracking-wider text-[var(--neon-glow-color)] px-1 whitespace-nowrap">
-                {translate('selected_count', { count: String(selectedIds.size) })}
-              </span>
-              <button
-                onClick={handleSelectAll}
-                onMouseEnter={(e) => showTooltip(e, translate('select_all').toUpperCase(), '', 'rgba(56,189,248,0.5)')}
-                onMouseLeave={hideTooltip}
-                className="h-8 w-8 bg-slate-800/40 border border-slate-700/50 hover:border-[var(--neon-glow-border)] text-slate-300 hover:text-[var(--neon-glow-color)] rounded-lg flex items-center justify-center transition-all cursor-pointer"
-              >
-                <Check className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleInvertSelection}
-                onMouseEnter={(e) => showTooltip(e, translate('invert_selection').toUpperCase(), '', 'rgba(56,189,248,0.5)')}
-                onMouseLeave={hideTooltip}
-                className="h-8 w-8 bg-slate-800/40 border border-slate-700/50 hover:border-[var(--neon-glow-border)] text-slate-300 hover:text-[var(--neon-glow-color)] rounded-lg flex items-center justify-center transition-all cursor-pointer"
-              >
-                <FlipHorizontal2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleClearSelection}
-                onMouseEnter={(e) => showTooltip(e, translate('unselect_all').toUpperCase(), '', 'rgba(148,163,184,0.5)')}
-                onMouseLeave={hideTooltip}
-                className="h-8 w-8 bg-slate-800/40 border border-slate-700/50 hover:border-slate-500 text-slate-300 hover:text-white rounded-lg flex items-center justify-center transition-all cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleDeleteSelected}
-                disabled={selectedIds.size === 0}
-                onMouseEnter={(e) => showTooltip(e, translate('delete_selected').toUpperCase(), '', 'rgba(244,63,94,0.5)')}
-                onMouseLeave={hideTooltip}
-                className="h-8 px-3 bg-rose-500/15 border border-rose-500/40 hover:border-rose-400 hover:bg-rose-500/25 disabled:opacity-40 disabled:cursor-not-allowed text-rose-300 hover:text-rose-200 font-cyber font-bold tracking-widest text-[10px] rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                {translate('delete_selected')} ({selectedIds.size})
-              </button>
-            </div>
-          )}
-
+        <div className="ml-auto flex items-center gap-2 shrink-0 overflow-visible">
           <button
+            type="button"
             onClick={toggleSelectionMode}
-            onMouseEnter={(e) => showTooltip(e, translate('selection_mode').toUpperCase(), selectionMode ? translate('selection_exit') : translate('selection_mode'), 'rgba(56,189,248,0.5)')}
+            onMouseEnter={(e) => showTooltip(
+              e,
+              selectionMode ? translate('selection_exit') : translate('selection_mode'),
+              translate('selection_mode_hint'),
+              'rgba(56,189,248,0.5)'
+            )}
             onMouseLeave={hideTooltip}
             className={`h-8 w-8 rounded-lg flex items-center justify-center border transition-all cursor-pointer ${
               selectionMode
                 ? 'bg-[var(--neon-glow-color-raw)]/15 border-[var(--neon-glow-border)] text-[var(--neon-glow-color)] shadow-[0_0_8px_var(--neon-glow-color-raw)]'
                 : 'bg-slate-800/40 border-slate-700/50 text-slate-400 hover:text-slate-200 hover:border-slate-500'
             }`}
+            aria-label={selectionMode ? translate('selection_exit') : translate('selection_mode')}
+            aria-pressed={selectionMode}
           >
             <CheckSquare className="w-4 h-4" />
           </button>
+
+          {selectionMode && (
+            <>
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                onMouseEnter={(e) => showTooltip(e, translate('select_all'), '', 'rgba(56,189,248,0.5)')}
+                onMouseLeave={hideTooltip}
+                className="h-8 w-8 bg-slate-800/40 border border-slate-700/50 hover:border-[var(--neon-glow-border)] text-slate-300 hover:text-[var(--neon-glow-color)] rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                aria-label={translate('select_all')}
+              >
+                <Check className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleClearSelection}
+                onMouseEnter={(e) => showTooltip(e, translate('unselect_all'), '', 'rgba(148,163,184,0.5)')}
+                onMouseLeave={hideTooltip}
+                className="h-8 w-8 bg-slate-800/40 border border-slate-700/50 hover:border-slate-500 text-slate-300 hover:text-white rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                aria-label={translate('unselect_all')}
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteSelected}
+                disabled={selectedIds.size === 0}
+                onMouseEnter={(e) => showTooltip(
+                  e,
+                  selectedIds.size > 0
+                    ? translate('delete_selected_n', { count: String(selectedIds.size) })
+                    : translate('delete_selected_none'),
+                  '',
+                  'rgba(244,63,94,0.5)'
+                )}
+                onMouseLeave={hideTooltip}
+                className="relative h-8 w-8 bg-rose-500/10 border border-rose-500/40 hover:border-rose-400 hover:bg-rose-500/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-rose-500/40 disabled:hover:bg-rose-500/10 text-rose-300 hover:text-rose-200 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                aria-label={
+                  selectedIds.size > 0
+                    ? translate('delete_selected_n', { count: String(selectedIds.size) })
+                    : translate('delete_selected')
+                }
+              >
+                <Trash2 className="w-4 h-4" />
+                {selectedIds.size > 0 && (
+                  <span className="absolute -bottom-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold leading-4 text-center shadow-[0_0_6px_rgba(244,63,94,0.55)]">
+                    {selectedIds.size}
+                  </span>
+                )}
+              </button>
+            </>
+          )}
 
           <button
             onClick={handleLaunchAll}
