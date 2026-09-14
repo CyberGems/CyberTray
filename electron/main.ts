@@ -20,6 +20,24 @@ process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 // Forzar nombre único para userData
 app.setName('CyberTray');
 
+const START_MINIMIZED_ARG = '--start-minimized';
+
+function applyAutoLaunchSettings(enabled: boolean) {
+  app.setLoginItemSettings({
+    openAtLogin: enabled,
+    path: app.getPath('exe'),
+    args: enabled ? [START_MINIMIZED_ARG] : [],
+  });
+}
+
+function shouldStartHiddenThisSession(): boolean {
+  if (process.argv.includes(START_MINIMIZED_ARG)) return true;
+  try {
+    if (app.getLoginItemSettings().wasOpenedAtLogin) return true;
+  } catch { /* ignore */ }
+  return false;
+}
+
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
@@ -818,6 +836,10 @@ function createWindows() {
 
   applyOverlayBounds(targetDisplay);
 
+  shelfWindow.once('ready-to-show', () => {
+    if (!shouldStartHiddenThisSession()) showShelf();
+  });
+
   shelfWindow.on('blur', () => {
     if (!shelfWindow || shelfWindow.isDestroyed()) return;
     
@@ -1465,10 +1487,7 @@ function registerIpcHandlers() {
 
   ipcMain.handle('set-auto-launch', async (_, enabled) => {
     saveConfig({ autoLaunch: enabled });
-    app.setLoginItemSettings({
-      openAtLogin: enabled,
-      path: app.getPath('exe'),
-    });
+    applyAutoLaunchSettings(enabled);
     return { success: true, enabled };
   });
 
@@ -2027,6 +2046,7 @@ function registerLocalResourceProtocol() {
 app.whenReady().then(() => {
   if (!gotTheLock) return;
   loadConfig();
+  if (app.isPackaged) applyAutoLaunchSettings(!!config.autoLaunch);
   migrateConfigIconsToDisk();
   registerLocalResourceProtocol();
   registerIpcHandlers();

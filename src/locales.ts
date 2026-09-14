@@ -122,7 +122,7 @@ export const translations = {
 
     // System Settings
     sys_startup: "LAUNCH AUTO WITH WINDOWS",
-    sys_startup_desc: "Starts CyberTray automatically when Windows boots.",
+    sys_startup_desc: "Starts CyberTray in the tray when Windows boots. Opening the app yourself still shows the panel.",
     sys_backup: "BACKUP & RESTORE",
     sys_backup_desc: "Export your shortcuts, custom categories, and configuration to a backup file, or restore them on another PC.",
     sys_export_btn: "Export Backup",
@@ -491,7 +491,7 @@ export const translations = {
 
     // System Settings
     sys_startup: "INICIO AUTOMÁTICO CON WINDOWS",
-    sys_startup_desc: "Inicia CyberTray automáticamente al arrancar Windows.",
+    sys_startup_desc: "Inicia CyberTray en la bandeja al arrancar Windows. Si lo abres tú, el panel se muestra.",
     sys_backup: "RESPALDO Y RESTAURACIÓN",
     sys_backup_desc: "Exporta tus accesos directos, categorías personalizadas y configuración a un archivo de respaldo, o restáuralos en otra PC.",
     sys_export_btn: "Exportar Respaldo",
