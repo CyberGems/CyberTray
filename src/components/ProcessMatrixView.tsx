@@ -24,6 +24,8 @@ interface ProcessMatrixViewProps {
   showToolbar?: boolean;
   onScan?: () => void;
   isScanning?: boolean;
+  showTooltip: (e: React.MouseEvent, text: string, subText?: string, borderColor?: string) => void;
+  hideTooltip: () => void;
 }
 
 const ROW_HEIGHT = 56;
@@ -42,6 +44,8 @@ export default function ProcessMatrixView({
   showToolbar = true,
   onScan,
   isScanning = false,
+  showTooltip,
+  hideTooltip,
 }: ProcessMatrixViewProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isElectron = !!window.electronAPI;
@@ -212,10 +216,18 @@ export default function ProcessMatrixView({
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <span className="text-emerald-500 font-bold w-12 flex-shrink-0">PID {proc.pid}</span>
                     <div className="min-w-0 flex-1">
-                      <span className="text-white font-bold truncate block" title={proc.name}>
+                      <span
+                        className="text-white font-bold truncate block"
+                        onMouseEnter={(e) => showTooltip(e, proc.name)}
+                        onMouseLeave={hideTooltip}
+                      >
                         {proc.name}
                       </span>
-                      <span className="text-[9px] text-slate-500 truncate block font-sans" title={proc.path}>
+                      <span
+                        className="text-[9px] text-slate-500 truncate block font-sans"
+                        onMouseEnter={(e) => showTooltip(e, proc.path || translate('process_system_kernel'))}
+                        onMouseLeave={hideTooltip}
+                      >
                         {proc.path || translate('process_system_kernel')}
                       </span>
                     </div>

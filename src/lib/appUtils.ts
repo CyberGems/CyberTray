@@ -152,6 +152,28 @@ export const getFolderDepth = (folders: CyberFolder[], folderId: string) =>
   Math.max(0, getFolderPath(folders, folderId).length - 1);
 
 /** Compare semver strings (supports optional leading v). Returns >0 if a>b. */
+export const ICON_SIZE_MIN = 40;
+export const ICON_SIZE_MAX = 90;
+
+export function densityFromIconSize(iconSize: number) {
+  const size = Math.max(ICON_SIZE_MIN, Math.min(ICON_SIZE_MAX, Number(iconSize) || 60));
+  const t = (size - ICON_SIZE_MIN) / (ICON_SIZE_MAX - ICON_SIZE_MIN);
+  const lerp = (a: number, b: number) => a + (b - a) * t;
+  return {
+    iconSize: size,
+    folderWidth: Math.round(lerp(168, 248)),
+    folderLabelPx: Number(lerp(10, 13.5).toFixed(1)),
+    folderIconPx: Number(lerp(13, 17).toFixed(1)),
+    folderHeaderPx: Number(lerp(9, 11.5).toFixed(1)),
+    folderRowPy: Number(lerp(4, 8).toFixed(1)),
+    breadcrumbPx: Number(lerp(9.5, 12).toFixed(1)),
+    childChipPx: Number(lerp(9.5, 12).toFixed(1)),
+    titlePx: Number(lerp(10, 15).toFixed(1)),
+    pathPx: Number(lerp(8, 11.5).toFixed(1)),
+    listIconPx: Math.round(lerp(28, 40)),
+  };
+}
+
 export function compareSemver(a: string, b: string): number {
   const parse = (v: string) =>
     v.replace(/^v/i, '').split(/[.+-]/).map((part) => {

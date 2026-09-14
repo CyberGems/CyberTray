@@ -22,12 +22,15 @@ import {
   getChildFolders,
   getDescendantFolderIds,
   getFolderPath,
+  densityFromIconSize,
+  ICON_SIZE_MIN,
+  ICON_SIZE_MAX,
 } from './lib/appUtils';
 import {
   Search, Plus, Settings, X, Trash2, Info,
   Pin, Play, ArrowDown, Shrink, MoreHorizontal,
   RefreshCw, Check, Activity, Lock, FolderOpen,
-  CheckSquare, FlipHorizontal2, Heart, BookOpen, HelpCircle, Tag, Globe
+  CheckSquare, FlipHorizontal2, Heart, BookOpen, HelpCircle, Tag, Globe, Sliders
 } from 'lucide-react';
 
 declare global {
@@ -416,6 +419,7 @@ export default function App() {
   // Refs
   const configRef = useRef<any>(config);
   const usagePersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const iconSizeSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingUsageRef = useRef<{ shortcuts: any[]; totalLaunches: number } | null>(null);
   const shortcutsRef = useRef<any[]>(shortcuts);
   const launchAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -1820,7 +1824,23 @@ export default function App() {
     } else {
       updated = { ...current, ...keyOrUpdates };
     }
+    configRef.current = updated;
     setConfig(updated);
+
+    const onlyIconSize =
+      (typeof keyOrUpdates === 'string' && keyOrUpdates === 'iconSize') ||
+      (typeof keyOrUpdates === 'object' &&
+        keyOrUpdates !== null &&
+        Object.keys(keyOrUpdates).length === 1 &&
+        Object.prototype.hasOwnProperty.call(keyOrUpdates, 'iconSize'));
+
+    if (onlyIconSize) {
+      if (iconSizeSaveTimerRef.current) clearTimeout(iconSizeSaveTimerRef.current);
+      iconSizeSaveTimerRef.current = setTimeout(() => {
+        if (isElectron) void window.electronAPI!.saveConfig(configRef.current);
+      }, 280);
+      return;
+    }
 
     if (isElectron) {
       await window.electronAPI!.saveConfig(updated);
@@ -2074,6 +2094,7 @@ export default function App() {
   const visibleChildFolders = activeCategory === 'all'
     ? getChildFolders(categories, null)
     : getChildFolders(categories, activeCategory);
+  const density = densityFromIconSize(config.iconSize);
 
   if (!isShelfVisible) {
     return <div className={`theme-${config.theme} w-full h-screen bg-[#070b13]`} />;
@@ -2162,6 +2183,24 @@ export default function App() {
               <X className="w-3.5 h-3.5" />
             </button>
           )}
+        </div>
+
+        <div
+          className="flex items-center gap-2 h-8 px-2.5 rounded-lg border border-slate-800/80 bg-slate-950/50 shrink-0"
+          onMouseEnter={(e) => showTooltip(e, translate('tooltip_size_slider'))}
+          onMouseLeave={hideTooltip}
+        >
+          <Sliders className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+          <input
+            type="range"
+            min={ICON_SIZE_MIN}
+            max={ICON_SIZE_MAX}
+            value={config.iconSize ?? 60}
+            onChange={(e) => handleUpdateConfigSetting('iconSize', parseInt(e.target.value, 10))}
+            onMouseDown={hideTooltip}
+            className="w-24 accent-[var(--neon-glow-color)] h-1 bg-slate-900 rounded-full cursor-pointer"
+            aria-label={translate('tooltip_size_slider')}
+          />
         </div>
 
         <div className="ml-auto flex items-center gap-2 shrink-0">
@@ -2467,6 +2506,7 @@ export default function App() {
         <FolderTree
           folders={categories}
           activeFolderId={activeCategory}
+          density={density}
           onSelect={handleTabClick}
           onContextMenu={handleCategoryContextMenu}
           onCreateFolder={handleCreateFolder}
@@ -2476,11 +2516,16 @@ export default function App() {
           draggingFolderId={draggingCategoryId}
           dropFolderId={dragOverCategoryId}
           onDropFolderChange={setDragOverCategoryId}
+          showTooltip={showTooltip}
+          hideTooltip={hideTooltip}
         />
 
         <main className="min-w-0 flex-1 min-h-0 flex flex-col">
           <div className="h-10 shrink-0 flex items-center gap-1.5 px-5 border-b border-slate-900/80 bg-slate-950/25 overflow-x-auto">
-            <span className="text-[10px] text-slate-600 font-mono uppercase tracking-wider shrink-0">
+            <span
+              className="text-slate-600 font-mono uppercase tracking-wider shrink-0"
+              style={{ fontSize: `${density.breadcrumbPx}px` }}
+            >
               {translate('explorer_folder_contents')}:
             </span>
             {(activeFolderPath.length > 0
@@ -2488,13 +2533,14 @@ export default function App() {
               : [{ id: activeCategory, name: activeCategory === 'favorites' ? translate('explorer_favorites') : translate('explorer_vault'), color: '', parentId: null, order: 0 }]
             ).map((folder, index, path) => (
               <React.Fragment key={folder.id}>
-                {index > 0 && <span className="text-slate-700 text-[10px]">/</span>}
+                {index > 0 && <span className="text-slate-700" style={{ fontSize: `${density.breadcrumbPx}px` }}>/</span>}
                 <button
                   type="button"
                   onClick={() => handleTabClick(folder.id)}
-                  className={`text-[10px] font-ui tracking-wide uppercase truncate max-w-44 cursor-pointer ${
+                  className={`font-ui tracking-wide uppercase truncate max-w-44 cursor-pointer ${
                     index === path.length - 1 ? 'text-[var(--neon-glow-color)]' : 'text-slate-500 hover:text-slate-200'
                   }`}
+                  style={{ fontSize: `${density.breadcrumbPx}px` }}
                 >
                   {folder.id === 'all' ? translate('explorer_all') : folder.name}
                 </button>
@@ -2511,8 +2557,8 @@ export default function App() {
                   onClick={() => handleTabClick(folder.id)}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-slate-800 bg-slate-950/40 hover:border-[var(--neon-glow-border)] hover:bg-slate-900/80 text-slate-400 hover:text-white transition-all cursor-pointer"
                 >
-                  <FolderOpen className="w-3.5 h-3.5" style={{ color: folder.color }} />
-                  <span className="font-ui text-[10px] tracking-wide truncate max-w-36">{folder.name}</span>
+                  <FolderOpen style={{ width: density.folderIconPx, height: density.folderIconPx, color: folder.color }} />
+                  <span className="font-ui tracking-wide truncate max-w-36" style={{ fontSize: `${density.childChipPx}px` }}>{folder.name}</span>
                 </button>
               ))}
             </div>
@@ -2545,6 +2591,8 @@ export default function App() {
               handleUpdateConfigSetting={handleUpdateConfigSetting}
               playFolderSound={playFolderSound}
               playCyberBeep={playCyberBeep}
+              showTooltip={showTooltip}
+              hideTooltip={hideTooltip}
             />
           </div>
         </main>
@@ -2633,6 +2681,8 @@ export default function App() {
         showConfirm={showConfirm}
         playCyberBeep={playCyberBeep}
         systemInfo={systemInfo}
+        showTooltip={showTooltip}
+        hideTooltip={hideTooltip}
       />
 
       <ShortcutFormModal
@@ -2707,6 +2757,8 @@ export default function App() {
         onAutoUpdateChange={handleAutoUpdateChange}
         playCyberBeep={playCyberBeep}
         autoCheckSeq={aboutAutoCheckSeq}
+        showTooltip={showTooltip}
+        hideTooltip={hideTooltip}
       />
 
       {/* Root-Level Global Tooltip */}

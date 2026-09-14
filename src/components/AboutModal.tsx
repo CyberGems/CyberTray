@@ -66,6 +66,8 @@ interface AboutModalProps {
   onAutoUpdateChange: (enabled: boolean) => void;
   playCyberBeep: () => void;
   autoCheckSeq?: number;
+  showTooltip: (e: React.MouseEvent, text: string, subText?: string, borderColor?: string) => void;
+  hideTooltip: () => void;
 }
 
 function platformLabel(platform: string): string {
@@ -84,6 +86,8 @@ export default function AboutModal({
   onAutoUpdateChange,
   playCyberBeep,
   autoCheckSeq,
+  showTooltip,
+  hideTooltip,
 }: AboutModalProps) {
   const [versions, setVersions] = useState<AppVersions | null>(null);
   const [status, setStatus] = useState<UpdateStatus>({ state: 'idle' });
@@ -194,7 +198,8 @@ export default function AboutModal({
                 onClick={() => setShowAboutModal(false)}
                 className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                 aria-label={t('close_btn')}
-                title={t('close_btn')}
+                onMouseEnter={(e) => showTooltip(e, t('close_btn'))}
+                onMouseLeave={hideTooltip}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -322,31 +327,33 @@ export default function AboutModal({
                 type="button"
                 onClick={() => openUrl('https://cybergems.org')}
                 className="text-[11px] font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer select-none"
-                title={t('about_website_tooltip')}
+                onMouseEnter={(e) => showTooltip(e, t('about_website_tooltip'))}
+                onMouseLeave={hideTooltip}
               >
                 {t('about_footer')}
               </button>
               <div className="flex items-center gap-1">
-                <FooterIconButton label={t('about_website_tooltip')} onClick={() => openUrl('https://cybergems.org')}>
+                <FooterIconButton label={t('about_website_tooltip')} onClick={() => openUrl('https://cybergems.org')} showTooltip={showTooltip} hideTooltip={hideTooltip}>
                   <Globe className="w-4 h-4" />
                 </FooterIconButton>
-                <FooterIconButton label={t('about_docs_tooltip')} onClick={() => openUrl(`${REPO_URL}/wiki`)}>
+                <FooterIconButton label={t('about_docs_tooltip')} onClick={() => openUrl(`${REPO_URL}/wiki`)} showTooltip={showTooltip} hideTooltip={hideTooltip}>
                   <BookOpen className="w-4 h-4" />
                 </FooterIconButton>
-                <FooterIconButton label={t('about_github_tooltip')} onClick={() => openUrl(REPO_URL)}>
+                <FooterIconButton label={t('about_github_tooltip')} onClick={() => openUrl(REPO_URL)} showTooltip={showTooltip} hideTooltip={hideTooltip}>
                   <Github className="w-4 h-4" />
                 </FooterIconButton>
-                <FooterIconButton label={t('about_issues_tooltip')} onClick={() => openUrl(`${REPO_URL}/issues`)}>
+                <FooterIconButton label={t('about_issues_tooltip')} onClick={() => openUrl(`${REPO_URL}/issues`)} showTooltip={showTooltip} hideTooltip={hideTooltip}>
                   <Bug className="w-4 h-4" />
                 </FooterIconButton>
-                <FooterIconButton label={t('about_releases_tooltip')} onClick={() => openUrl(`${REPO_URL}/releases`)}>
+                <FooterIconButton label={t('about_releases_tooltip')} onClick={() => openUrl(`${REPO_URL}/releases`)} showTooltip={showTooltip} hideTooltip={hideTooltip}>
                   <Tag className="w-4 h-4" />
                 </FooterIconButton>
                 <button
                   type="button"
                   onClick={() => openUrl(`${REPO_URL}#%EF%B8%8F-donate`)}
+                  onMouseEnter={(e) => showTooltip(e, t('about_donate_tooltip'))}
+                  onMouseLeave={hideTooltip}
                   className="group flex items-center justify-center w-[30px] h-[30px] rounded-md hover:bg-white/10 transition-colors cursor-pointer"
-                  title={t('about_donate_tooltip')}
                   aria-label={t('about_donate_tooltip')}
                 >
                   <Heart className="w-4 h-4 fill-[#F43F5E] text-[#F43F5E] transition-transform group-hover:scale-110" />
@@ -364,17 +371,22 @@ function FooterIconButton({
   label,
   onClick,
   children,
+  showTooltip,
+  hideTooltip,
 }: {
   label: string;
   onClick: () => void;
   children: ReactNode;
+  showTooltip: (e: React.MouseEvent, text: string, subText?: string, borderColor?: string) => void;
+  hideTooltip: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      onMouseEnter={(e) => showTooltip(e, label)}
+      onMouseLeave={hideTooltip}
       className="group flex items-center justify-center w-[30px] h-[30px] rounded-md hover:bg-white/10 text-slate-400 hover:text-[var(--neon-glow-color)] transition-colors cursor-pointer"
-      title={label}
       aria-label={label}
     >
       {children}

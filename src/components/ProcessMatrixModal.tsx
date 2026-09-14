@@ -20,6 +20,8 @@ interface ProcessMatrixModalProps {
   showConfirm: (title: string, message: string, onConfirm: () => void, danger?: boolean) => void;
   playCyberBeep: () => void;
   systemInfo: any;
+  showTooltip: (e: React.MouseEvent, text: string, subText?: string, borderColor?: string) => void;
+  hideTooltip: () => void;
 }
 
 export default function ProcessMatrixModal({
@@ -37,6 +39,8 @@ export default function ProcessMatrixModal({
   showConfirm,
   playCyberBeep,
   systemInfo,
+  showTooltip,
+  hideTooltip,
 }: ProcessMatrixModalProps) {
   const filteredCount = runningProcesses.filter(p =>
     p.name.toLowerCase().includes(processSearchQuery.toLowerCase()) ||
@@ -81,7 +85,8 @@ export default function ProcessMatrixModal({
                     onClick={handleScanProcesses}
                     disabled={isScanningProcesses}
                     className="px-2 py-1 text-[9px] rounded border border-slate-800 hover:border-[var(--neon-glow-border)] bg-slate-950 hover:bg-slate-900 text-slate-300 hover:text-white flex items-center gap-1 transition-all cursor-pointer font-cyber disabled:opacity-50"
-                    title={translate('process_scan_tooltip')}
+                    onMouseEnter={(e) => showTooltip(e, translate('process_scan_tooltip'))}
+                    onMouseLeave={hideTooltip}
                   >
                     <RefreshCw className={`w-2.5 h-2.5 ${isScanningProcesses ? 'animate-spin' : ''}`} />
                     {isScanningProcesses
@@ -92,7 +97,8 @@ export default function ProcessMatrixModal({
                 <button
                   onClick={() => setShowProcessMatrixModal(false)}
                   className="w-7 h-7 rounded-lg border border-slate-800 hover:border-red-500/50 text-slate-500 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-all cursor-pointer flex-shrink-0"
-                  title={translate('close_btn')}
+                  onMouseEnter={(e) => showTooltip(e, translate('close_btn'))}
+                  onMouseLeave={hideTooltip}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -113,6 +119,8 @@ export default function ProcessMatrixModal({
                 showToolbar={false}
                 onScan={handleScanProcesses}
                 isScanning={isScanningProcesses}
+                showTooltip={showTooltip}
+                hideTooltip={hideTooltip}
               />
             </div>
 

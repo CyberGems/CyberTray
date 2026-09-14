@@ -843,8 +843,8 @@ export default function SettingsPanel({
                         </div>
                         <input
                           type="range"
-                          min="40"
-                          max="90"
+                          min={40}
+                          max={90}
                           value={config.iconSize}
                           onChange={(e) => handleUpdateConfigSetting('iconSize', parseInt(e.target.value, 10))}
                           className="w-full accent-[var(--neon-glow-color)] h-1 bg-slate-900 rounded-full cursor-pointer"

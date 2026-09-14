@@ -2,7 +2,10 @@ import React from 'react';
 import { Check, Clock, Edit, Search, Upload } from 'lucide-react';
 import { translate } from '../locales';
 import { shortcutIconSrc } from '../lib/iconSrc';
+import { densityFromIconSize } from '../lib/appUtils';
 import VaultPanel from './VaultPanel';
+
+type ShowTooltipFn = (e: React.MouseEvent, text: string, subText?: string, borderColor?: string) => void;
 
 interface ShortcutGridProps {
   gridScrollRef: React.RefObject<HTMLElement | null>;
@@ -30,6 +33,8 @@ interface ShortcutGridProps {
   handleUpdateConfigSetting: (key: string, value: any) => void;
   playFolderSound: () => void;
   playCyberBeep: () => void;
+  showTooltip: ShowTooltipFn;
+  hideTooltip: () => void;
 }
 
 export default function ShortcutGrid(props: ShortcutGridProps) {
@@ -59,7 +64,11 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
     handleUpdateConfigSetting,
     playFolderSound,
     playCyberBeep,
+    showTooltip,
+    hideTooltip,
   } = props;
+
+  const density = densityFromIconSize(config.iconSize);
 
   return (
     <main
@@ -164,7 +173,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div
                       className="flex-shrink-0 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:border-[var(--neon-glow-color)] group-hover:shadow-[0_0_6px_var(--neon-glow-color-raw)]"
-                      style={{ width: '32px', height: '32px' }}
+                      style={{ width: `${density.listIconPx}px`, height: `${density.listIconPx}px` }}
                     >
                       {item.iconPath ? (
                         <img src={shortcutIconSrc(item.iconPath)} alt={item.name} className="w-[85%] h-[85%] object-contain" />
@@ -176,10 +185,18 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                     </div>
 
                     <div className="min-w-0 flex-1 text-left">
-                      <h4 className="font-ui font-bold text-white text-[12px] truncate tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1">
+                      <h4
+                        className="font-ui font-bold text-white truncate tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1"
+                        style={{ fontSize: `${density.titlePx}px` }}
+                      >
                         <span className="truncate">{item.name}</span>
                       </h4>
-                      <p className={`font-mono text-[9px] truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`} title={item.path}>
+                      <p
+                        className={`font-mono truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
+                        style={{ fontSize: `${density.pathPx}px` }}
+                        onMouseEnter={(e) => showTooltip(e, item.path)}
+                        onMouseLeave={hideTooltip}
+                      >
                         {item.category === 'vault' ? translate('vault_real_path', { path: item.path }) : item.path}
                       </p>
                     </div>
@@ -203,10 +220,18 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                       );
                     })()}
                     {item.isFavorite && (
-                      <span className="text-[10px] text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]" title={translate('favorite_badge')}>★</span>
+                      <span
+                        className="text-[10px] text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]"
+                        onMouseEnter={(e) => showTooltip(e, translate('favorite_badge'))}
+                        onMouseLeave={hideTooltip}
+                      >★</span>
                     )}
                     {item.isAdmin && (
-                      <span className="text-[7.5px] font-ui font-bold bg-amber-500/10 border border-amber-500/30 text-amber-500 px-1 py-0.2 rounded" title={translate('shortcut_run_admin')}>
+                      <span
+                        className="text-[7.5px] font-ui font-bold bg-amber-500/10 border border-amber-500/30 text-amber-500 px-1 py-0.2 rounded"
+                        onMouseEnter={(e) => showTooltip(e, translate('shortcut_run_admin'))}
+                        onMouseLeave={hideTooltip}
+                      >
                         {translate('shortcut_admin_tag')}
                       </span>
                     )}
@@ -219,8 +244,9 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
 
                     <button
                       onClick={(e) => handleOpenEditModal(item, e)}
+                      onMouseEnter={(e) => showTooltip(e, translate('edit_launch_config'))}
+                      onMouseLeave={hideTooltip}
                       className="opacity-0 group-hover:opacity-100 rounded border border-slate-700 hover:border-[var(--neon-glow-color)] bg-slate-950 hover:bg-slate-900 text-slate-400 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer h-5 w-5 p-0"
-                      title={translate('edit_launch_config')}
                     >
                       <Edit className="w-2.5 h-2.5" />
                     </button>
@@ -273,7 +299,8 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                     {item.isFavorite && isSmallGrid && (
                       <span
                         className="absolute -top-0.5 -right-0.5 text-[8px] text-amber-400 bg-slate-950/90 border border-amber-500/30 rounded-full w-3.5 h-3.5 flex items-center justify-center shadow-[0_0_4px_rgba(251,191,36,0.5)] z-10 font-sans"
-                        title={translate('favorite_badge')}
+                        onMouseEnter={(e) => showTooltip(e, translate('favorite_badge'))}
+                        onMouseLeave={hideTooltip}
                       >
                         ★
                       </span>
@@ -284,7 +311,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                     <h4
                       className="font-ui font-bold text-white truncate tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1"
                       style={{
-                        fontSize: `${Math.max(9, Math.min(14, config.iconSize * 0.22))}px`,
+                        fontSize: `${density.titlePx}px`,
                         justifyContent: isSmallGrid ? 'center' : 'flex-start',
                         width: '100%'
                       }}
@@ -295,8 +322,9 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                     {!isSmallGrid && (
                       <p
                         className={`font-mono truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
-                        title={item.path}
-                        style={{ fontSize: `${Math.max(8, Math.min(11, config.iconSize * 0.17))}px` }}
+                        onMouseEnter={(e) => showTooltip(e, item.path)}
+                        onMouseLeave={hideTooltip}
+                        style={{ fontSize: `${density.pathPx}px` }}
                       >
                         {item.category === 'vault' ? translate('vault_real_path', { path: item.path }) : item.path}
                       </p>
@@ -322,7 +350,11 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                           );
                         })()}
                         {item.isAdmin && !isSmallGrid && (
-                          <span className="text-[7.5px] font-ui font-bold bg-amber-500/10 border border-amber-500/30 text-amber-500 px-1 py-0.2 rounded" title={translate('shortcut_run_admin')}>
+                          <span
+                            className="text-[7.5px] font-ui font-bold bg-amber-500/10 border border-amber-500/30 text-amber-500 px-1 py-0.2 rounded"
+                            onMouseEnter={(e) => showTooltip(e, translate('shortcut_run_admin'))}
+                            onMouseLeave={hideTooltip}
+                          >
                             {translate('shortcut_admin_tag')}
                           </span>
                         )}
@@ -344,7 +376,8 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                   {item.isFavorite && !isSmallGrid && (
                     <span
                       className="absolute right-2 top-2 text-[10px] text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)] z-10"
-                      title={translate('favorite_badge')}
+                      onMouseEnter={(e) => showTooltip(e, translate('favorite_badge'))}
+                      onMouseLeave={hideTooltip}
                     >
                       ★
                     </span>
@@ -352,6 +385,8 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
 
                   <button
                     onClick={(e) => handleOpenEditModal(item, e)}
+                    onMouseEnter={(e) => showTooltip(e, translate('edit_launch_config'))}
+                    onMouseLeave={hideTooltip}
                     className="absolute opacity-0 group-hover:opacity-100 rounded border border-slate-700 hover:border-[var(--neon-glow-color)] bg-slate-950 hover:bg-slate-900 text-slate-400 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer"
                     style={{
                       width: isSmallGrid ? '18px' : '24px',
@@ -360,7 +395,6 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                       top: isSmallGrid ? '4px' : '8px',
                       padding: 0
                     }}
-                    title={translate('edit_launch_config')}
                   >
                     <Edit style={{ width: isSmallGrid ? '10px' : '13px', height: isSmallGrid ? '10px' : '13px' }} />
                   </button>
