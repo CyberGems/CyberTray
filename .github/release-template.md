@@ -1,10 +1,20 @@
 ## 🚀 CyberTray {{VERSION}} — Release Notes
 
-Welcome to the official **CyberTray {{VERSION}}** release! CyberTray is a Windows system tray launcher and dock for organizing and opening apps, files, and URLs.
+Welcome to the official **CyberTray {{VERSION}}** release! CyberTray is a Windows system tray launcher for organizing and opening apps, files, and URLs from a work-area overlay — the taskbar stays visible, and the panel fills the rest of the monitor.
 
 ---
 
 ### ✨ Key Features & Highlights
+
+- 🖥️ **Work-area overlay**:
+  - The panel fills the monitor work area instead of a thin top or bottom shelf, so menus and tooltips are no longer clipped by the window.
+  - The window is not resizable; show/hide, hotkey, tray, and hotspot activation are unchanged.
+
+- 🎚️ **Density slider**:
+  - Scale shortcut cards, titles, and the folder tree from the header bar (Appearance stays in sync).
+
+- 💬 **In-app tooltips**:
+  - Folder, grid, About, and process controls use the CyberTray tooltip instead of the native Windows balloon.
 
 - 🔄 **In-app updates**:
   - Check, download, and install new versions from About without opening a browser.

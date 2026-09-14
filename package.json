@@ -1,7 +1,7 @@
 {
   "name": "cyber-tray",
   "private": true,
-  "version": "1.5.2",
+  "version": "1.6.0",
   "author": "CyberGems",
   "description": "CyberTray — Cybernetic shortcut shelf and system tray companion by CyberGems.",
   "type": "module",
