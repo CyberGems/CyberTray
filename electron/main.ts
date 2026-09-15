@@ -366,10 +366,12 @@ function setTrayRecents(items: unknown[]): void {
 }
 
 function getBrandMenuIcon(): Electron.NativeImage | undefined {
+  const brand = loadMenuIcon('brand.png');
+  if (brand) return brand;
   const iconPath = getAppIconPath();
   if (!fs.existsSync(iconPath)) return undefined;
-  const sized = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
-  return sized.isEmpty() ? undefined : sized;
+  const img = nativeImage.createFromPath(iconPath);
+  return img.isEmpty() ? undefined : img;
 }
 
 async function launchAppInternal(
@@ -545,13 +547,21 @@ function rebuildTrayMenu(): void {
   tray.setContextMenu(Menu.buildFromTemplate(getTrayMenuTemplate()));
 }
 
+// On Windows, pass the ICO as-is so Electron can pick the DPI-matching layer
+// (16 at 100%, 20 at 125%, 24 at 150%, 32 at 200%). Resizing to 16x16 first
+// throws those layers away and looks soft in the tray.
+function getTrayIcon(): Electron.NativeImage {
+  const iconPath = getAppIconPath();
+  if (fs.existsSync(iconPath)) {
+    const img = nativeImage.createFromPath(iconPath);
+    if (!img.isEmpty()) return img;
+  }
+  return nativeImage.createEmpty();
+}
+
 // ── SYSTEM TRAY (Bandeja del sistema) ──
 function createTray() {
-  const iconPath = getAppIconPath();
-  let trayIcon = nativeImage.createEmpty();
-  if (fs.existsSync(iconPath)) {
-    trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
-  }
+  const trayIcon = getTrayIcon();
 
   if (!tray) {
     tray = new Tray(trayIcon);
