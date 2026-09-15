@@ -1,10 +1,10 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  AlertTriangle, ArrowUpDown, Droplets, Download, Eye, FolderOpen, Globe,
+  AlertTriangle, ArrowUpDown, Droplets, Download, Eye, FileJson, FolderOpen, Globe,
   Grid, HardDrive, Image as ImageIcon, Keyboard, LayoutGrid, List as ListIcon,
   Lock, Monitor, MousePointer2, Palette, Power, Shield, Sliders, Terminal,
-  Upload, Volume2, type LucideIcon,
+  Trash2, Upload, Volume2, type LucideIcon,
 } from 'lucide-react';
 import { translate } from '../locales';
 import { isElectron, INITIAL_CATEGORIES } from '../lib/appUtils';
@@ -78,6 +78,33 @@ function ToggleCard({
           <p className="text-xs text-slate-500 leading-snug">{desc}</p>
         </div>
         <Toggle on={on} onClick={onClick} colorClass={t.toggle} ringClass={t.ring} ariaLabel={title} className="mt-0.5" />
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function ActionRow({
+  icon,
+  tone,
+  title,
+  desc,
+  children,
+}: {
+  icon: LucideIcon;
+  tone: IconTone;
+  title: string;
+  desc: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 bg-black/20 p-4 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+      <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
+        <BadgeIcon icon={icon} tone={tone} />
+        <div className="min-w-0">
+          <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1">{title}</h4>
+          <p className="text-xs text-slate-500 leading-relaxed">{desc}</p>
+        </div>
       </div>
       {children}
     </div>
@@ -227,7 +254,7 @@ export default function SettingsPanel({
                   
                   <button
                     onClick={() => { setSettingsTab('general'); playFolderSound(); }}
-                    className={`w-full py-2 px-3 text-left text-xs font-cyber font-bold tracking-wider rounded-lg border transition-all cursor-pointer flex items-center gap-2 ${
+                    className={`w-full py-2 px-3 text-left text-xs font-cyber font-bold tracking-wider rounded-lg border transition-all cursor-pointer flex items-center gap-2 leading-snug ${
                       settingsTab === 'general'
                         ? 'border-[var(--neon-glow-color)] text-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10 shadow-[0_0_6px_var(--neon-glow-color-raw)]'
                         : 'border-transparent text-slate-500 hover:text-slate-300'
@@ -239,7 +266,7 @@ export default function SettingsPanel({
 
                   <button
                     onClick={() => { setSettingsTab('appearance'); playFolderSound(); }}
-                    className={`w-full py-2 px-3 text-left text-xs font-cyber font-bold tracking-wider rounded-lg border transition-all cursor-pointer flex items-center gap-2 ${
+                    className={`w-full py-2 px-3 text-left text-xs font-cyber font-bold tracking-wider rounded-lg border transition-all cursor-pointer flex items-center gap-2 leading-snug ${
                       settingsTab === 'appearance'
                         ? 'border-purple-500/80 text-purple-400 bg-purple-950/10 shadow-[0_0_6px_rgba(168,85,247,0.25)]'
                         : 'border-transparent text-slate-500 hover:text-slate-300'
@@ -251,7 +278,7 @@ export default function SettingsPanel({
 
                   <button
                     onClick={() => { setSettingsTab('shortcuts'); playFolderSound(); }}
-                    className={`w-full py-2 px-3 text-left text-xs font-cyber font-bold tracking-wider rounded-lg border transition-all cursor-pointer flex items-center gap-2 ${
+                    className={`w-full py-2 px-3 text-left text-xs font-cyber font-bold tracking-wider rounded-lg border transition-all cursor-pointer flex items-center gap-2 leading-snug ${
                       settingsTab === 'shortcuts'
                         ? 'border-amber-500/80 text-amber-500 bg-amber-950/10 shadow-[0_0_6px_rgba(245,158,11,0.25)]'
                         : 'border-transparent text-slate-500 hover:text-slate-300'
@@ -1160,74 +1187,123 @@ export default function SettingsPanel({
                 {/* 3. SYSTEM LAUNCH & SPEC SETTINGS */}
                 {settingsTab === 'shortcuts' && (
                   <div className="space-y-6 max-w-2xl text-xs">
-                    
-                    {/* Persistencia y backups */}
-                    <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
-                      <SectionHead icon={HardDrive} title={translate('sys_backup')} desc={translate('sys_backup_desc')} />
-                      
-                      <div className="flex gap-2 flex-wrap">
-                        <button
-                          onClick={handleExportBackup}
-                          className="py-1.5 px-4 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer inline-flex items-center gap-1.5"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          {translate('sys_export_btn')}
-                        </button>
-                        <button
-                          onClick={handleImportBackup}
-                          className="py-1.5 px-4 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer inline-flex items-center gap-1.5"
-                        >
-                          <Upload className="w-3.5 h-3.5" />
-                          {translate('sys_import_btn')}
-                        </button>
-                        <button
-                          onClick={() => isElectron && window.electronAPI!.openDataFolder()}
-                          className="py-1.5 px-4 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer inline-flex items-center gap-1.5"
-                        >
-                          <FolderOpen className="w-3.5 h-3.5" />
-                          {translate('sys_data_dir_btn')}
-                        </button>
-                        <button
-                          onClick={() => isElectron && window.electronAPI!.openDevTools()}
-                          className="py-1.5 px-4 bg-purple-500/15 border border-purple-500/30 text-purple-400 hover:bg-purple-500/25 text-xs font-bold rounded-lg transition-all cursor-pointer inline-flex items-center gap-1.5"
-                        >
-                          <Terminal className="w-3.5 h-3.5" />
-                          {translate('sys_diag_btn')}
-                        </button>
+                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                      <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0">
+                        <HardDrive className="w-5 h-5 text-cyan-400" />
+                      </div>
+                      <div className="min-w-0 text-left">
+                        <h3 className="text-sm font-cyber font-bold text-slate-200 tracking-wider">{translate('sys_backup')}</h3>
+                        <p className="text-[10px] text-slate-500 mt-0.5">{translate('sys_backup_desc')}</p>
                       </div>
                     </div>
 
-                    {/* Administrador de carpetas físicas indexadas */}
-                    <div className="bg-slate-950/50 p-4 border border-red-950/40 rounded-xl">
-                      <div className="flex items-start gap-2.5 mb-3">
-                        <BadgeIcon icon={AlertTriangle} tone="red" />
-                        <div className="min-w-0">
-                          <h4 className="font-cyber font-bold text-red-400 text-xs tracking-widest">{translate('sys_danger_title')}</h4>
-                          <p className="text-xs text-slate-500 mt-1">{translate('sys_danger_desc')}</p>
-                        </div>
+                    <div className="space-y-3">
+                      <label className="text-xs font-cyber font-bold text-slate-400 tracking-widest drop-shadow-sm flex items-center gap-2">
+                        <FileJson className="w-4 h-4 text-emerald-400" />
+                        {translate('backup_section_backup')}
+                      </label>
+                      <div className="flex flex-col gap-2">
+                        <ActionRow
+                          icon={FileJson}
+                          tone="emerald"
+                          title={translate('sys_export_title')}
+                          desc={translate('sys_export_desc')}
+                        >
+                          <button
+                            onClick={handleExportBackup}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg transition-colors text-sm font-medium border border-emerald-500/30 shrink-0 cursor-pointer"
+                          >
+                            <Download className="w-4 h-4" />
+                            {translate('sys_export_btn')}
+                          </button>
+                        </ActionRow>
+                        <ActionRow
+                          icon={Upload}
+                          tone="purple"
+                          title={translate('sys_import_title')}
+                          desc={translate('sys_import_desc')}
+                        >
+                          <button
+                            onClick={handleImportBackup}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded-lg transition-colors text-sm font-medium border border-purple-500/30 shrink-0 cursor-pointer"
+                          >
+                            <Upload className="w-4 h-4" />
+                            {translate('sys_import_btn')}
+                          </button>
+                        </ActionRow>
                       </div>
-                      
-                      <button
-                        onClick={() => {
-                          showConfirm(
-                            translate('sys_purge_confirm_title'),
-                            translate('sys_purge_confirm_desc'),
-                            async () => {
-                              await saveDataToConfig([], INITIAL_CATEGORIES);
-                              showAlert(
-                                translate('sys_purge_done_title'),
-                                translate('sys_purge_done_desc')
-                              );
-                            },
-                            true
-                          );
-                        }}
-                        className="py-1.5 px-4 bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 text-xs font-bold rounded-lg transition-all cursor-pointer"
+                    </div>
+
+                    <div className="space-y-3 pt-2">
+                      <label className="text-xs font-cyber font-bold text-slate-400 tracking-widest drop-shadow-sm flex items-center gap-2">
+                        <FolderOpen className="w-4 h-4 text-cyan-400" />
+                        {translate('backup_section_storage')}
+                      </label>
+                      <div className="flex flex-col gap-2">
+                        <ActionRow
+                          icon={FolderOpen}
+                          tone="cyan"
+                          title={translate('sys_data_dir_title')}
+                          desc={translate('sys_data_dir_desc')}
+                        >
+                          <button
+                            onClick={() => isElectron && window.electronAPI!.openDataFolder()}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-cyan-900/40 hover:bg-cyan-800/60 text-cyan-200 rounded-lg transition-colors text-sm font-medium border border-cyan-700/50 shrink-0 cursor-pointer"
+                          >
+                            <FolderOpen className="w-4 h-4" />
+                            {translate('sys_data_dir_btn')}
+                          </button>
+                        </ActionRow>
+                        <ActionRow
+                          icon={Terminal}
+                          tone="slate"
+                          title={translate('sys_diag_title')}
+                          desc={translate('sys_diag_desc')}
+                        >
+                          <button
+                            onClick={() => isElectron && window.electronAPI!.openDevTools()}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors text-sm font-medium border border-slate-700 shrink-0 cursor-pointer"
+                          >
+                            <Terminal className="w-4 h-4" />
+                            {translate('sys_diag_btn')}
+                          </button>
+                        </ActionRow>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 pt-2">
+                      <label className="text-xs font-cyber font-bold text-red-400/80 tracking-widest drop-shadow-sm flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-red-400" />
+                        {translate('sys_danger_title')}
+                      </label>
+                      <ActionRow
+                        icon={Trash2}
+                        tone="red"
+                        title={translate('sys_purge_title')}
+                        desc={translate('sys_danger_desc')}
                       >
-                        {translate('sys_purge_btn')}
-                      </button>
+                        <button
+                          onClick={() => {
+                            showConfirm(
+                              translate('sys_purge_confirm_title'),
+                              translate('sys_purge_confirm_desc'),
+                              async () => {
+                                await saveDataToConfig([], INITIAL_CATEGORIES);
+                                showAlert(
+                                  translate('sys_purge_done_title'),
+                                  translate('sys_purge_done_desc')
+                                );
+                              },
+                              true
+                            );
+                          }}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors text-sm font-medium border border-red-500/30 shrink-0 cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          {translate('sys_purge_btn')}
+                        </button>
+                      </ActionRow>
                     </div>
-
                   </div>
                 )}
 
