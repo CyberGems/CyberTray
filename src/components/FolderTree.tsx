@@ -109,6 +109,7 @@ export default function FolderTree({
             onDropFolderChange(null);
           }}
           onContextMenu={(event) => onContextMenu(event, folder)}
+          onClick={() => onSelect(folder.id)}
           className={`group flex items-center gap-1.5 rounded-md border transition-all cursor-pointer ${
             selected
               ? 'bg-[var(--neon-glow-color-raw)]/15 border-[var(--neon-glow-border)] text-white'
@@ -144,14 +145,12 @@ export default function FolderTree({
           ) : (
             <Folder className="shrink-0" style={{ width: density.folderIconPx, height: density.folderIconPx, color: folder.color }} />
           )}
-          <button
-            type="button"
-            onClick={() => onSelect(folder.id)}
-            className="min-w-0 flex-1 text-left truncate font-ui tracking-wide cursor-pointer"
+          <span
+            className="min-w-0 flex-1 text-left truncate font-ui tracking-wide"
             style={{ fontSize: `${density.folderLabelPx}px` }}
           >
             {folder.name}
-          </button>
+          </span>
           <button
             type="button"
             onClick={(event) => {
@@ -182,6 +181,7 @@ export default function FolderTree({
 
   return (
     <aside
+      data-no-dead-zone
       className="shrink-0 border-r border-slate-900/80 bg-slate-950/45 p-2.5 flex flex-col gap-1 overflow-y-auto custom-scrollbar"
       style={{ width: density.folderWidth }}
     >
@@ -204,14 +204,15 @@ export default function FolderTree({
         </button>
       </div>
 
-      <div
+      <button
+        type="button"
         onDragOver={(event) => handleDragOver(event, ROOT_FOLDER_ID)}
         onDragLeave={() => onDropFolderChange(null)}
         onDrop={(event) => {
           onFolderDrop(event, rootFolder);
           onDropFolderChange(null);
         }}
-        className={`flex items-center gap-2 px-2 rounded-md border cursor-pointer transition-all ${
+        className={`flex items-center gap-2 w-full text-left px-2 rounded-md border cursor-pointer transition-all bg-transparent ${
           activeFolderId === ROOT_FOLDER_ID
             ? 'bg-[var(--neon-glow-color-raw)]/15 border-[var(--neon-glow-border)] text-white'
             : 'border-transparent text-slate-400 hover:bg-slate-900/80 hover:text-slate-200'
@@ -221,10 +222,11 @@ export default function FolderTree({
       >
         <Home className="text-slate-500" style={{ width: density.folderIconPx, height: density.folderIconPx }} />
         <span className="font-ui tracking-wide truncate" style={{ fontSize: `${density.folderLabelPx}px` }}>{translate('explorer_all')}</span>
-      </div>
+      </button>
 
-      <div
-        className={`flex items-center gap-2 px-2 rounded-md border cursor-pointer transition-all ${
+      <button
+        type="button"
+        className={`flex items-center gap-2 w-full text-left px-2 rounded-md border cursor-pointer transition-all bg-transparent ${
           activeFolderId === 'favorites'
             ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
             : 'border-transparent text-slate-400 hover:bg-slate-900/80 hover:text-slate-200'
@@ -234,10 +236,11 @@ export default function FolderTree({
       >
         <Star className="text-amber-400" style={{ width: density.folderIconPx, height: density.folderIconPx }} />
         <span className="font-ui tracking-wide truncate" style={{ fontSize: `${density.folderLabelPx}px` }}>{translate('explorer_favorites')}</span>
-      </div>
+      </button>
 
-      <div
-        className={`flex items-center gap-2 px-2 rounded-md border cursor-pointer transition-all ${
+      <button
+        type="button"
+        className={`flex items-center gap-2 w-full text-left px-2 rounded-md border cursor-pointer transition-all bg-transparent ${
           activeFolderId === 'vault'
             ? 'bg-purple-500/10 border-purple-500/30 text-purple-300'
             : 'border-transparent text-slate-400 hover:bg-slate-900/80 hover:text-slate-200'
@@ -247,7 +250,7 @@ export default function FolderTree({
       >
         <Shield className="text-purple-400" style={{ width: density.folderIconPx, height: density.folderIconPx }} />
         <span className="font-ui tracking-wide truncate" style={{ fontSize: `${density.folderLabelPx}px` }}>{translate('explorer_vault')}</span>
-      </div>
+      </button>
 
       <div className="border-t border-slate-900/80 my-1" />
       {(childrenByParent.get(null) || []).map(folder => renderFolder(folder, 0))}

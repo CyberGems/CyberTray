@@ -68,7 +68,7 @@ export default function TelemetryBar({
   };
 
   return (
-    <footer className="h-12 shrink-0 border-t border-[var(--neon-glow-border)] flex items-center gap-4 px-5 bg-slate-950/80 z-10">
+    <footer data-no-dead-zone className="h-12 shrink-0 border-t border-[var(--neon-glow-border)] flex items-center gap-4 px-5 bg-slate-950/80 z-10">
       <div
         className="flex items-center gap-2 min-w-0 flex-1"
         onDragOver={acceptDrop}
