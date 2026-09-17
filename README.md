@@ -5,7 +5,7 @@
 <h1 align="center">CyberTray: System Tray Launcher</h1>
 
 <p align="center">
-  <strong>A shortcut launcher and dock</strong>: animated shelf that slides out from your screen edge, with system monitoring, process management, and a secure file vault.
+  <strong>A high-performance tray launcher with hotspots, system monitoring, process manager, and PIN-protected file vault</strong>
 </p>
 
 <p align="center">
@@ -19,7 +19,7 @@
   <a href="https://github.com/CyberGems/CyberTray/wiki"><img src="https://img.shields.io/badge/%F0%9F%93%96_Wiki-Documentation-222222?style=flat-square&logo=github&logoColor=white" alt="Wiki" height="24" /></a>
 </p>
 
-A **system tray shortcut launcher and dock** for Windows. CyberTray provides a sleek, animated shelf that slides out from the top or bottom of the screen, allowing you to organize, search, and launch applications, files, and URLs, all wrapped in a stunning neon glassmorphic interface.
+A high-performance **system tray shortcut launcher and dock** for Windows, serving as a sleek Start Menu alternative and launchpad. CyberTray provides a fast launchpad to organize, search, and launch applications, files, and URLs, with hotspots, real-time system monitoring, process management, and a PIN-protected file vault.
 
 *Free and open source: no ads, no tracking, and no data collection. Just enjoy it.*
 
@@ -27,11 +27,11 @@ A **system tray shortcut launcher and dock** for Windows. CyberTray provides a s
 
 ## 🎯 Why CyberTray?
 
-Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTray gives you a **dedicated launchpad** that stays out of the way until you need it, then slides out with a smooth animation, ready to launch anything in milliseconds.
+Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTray gives you a **dedicated launchpad** that stays out of the way until you need it, deploying instantly to launch anything in milliseconds.
 
 | Need | Solution |
 |---|---|
-| Quick access to apps & files | Animated shelf with search, categories, and drag-and-drop import |
+| Quick access to apps & files | Shortcut shelf with search, categories, and drag-and-drop import |
 | Save taskbar space | System tray icon + auto-hiding shelf |
 | Launch from anywhere | Global hotkey (`Alt+T`) and hot corners |
 | Monitor your system | Real-time RAM, CPU, disk, and VRAM telemetry |
@@ -44,55 +44,55 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 ## ✨ Key Features
 
 ### 🚀 Shortcut Launcher
-- **Shortcut Management** — Register, edit, and launch applications, files, and URLs
-- **Drag & Drop Import** — Drag files or executables directly into the shelf
-- **Categories & Folders** — Organize shortcuts with nested folder support
-- **Favorites System** — Mark shortcuts for quick access
-- **Group Launch** — Launch all shortcuts in a category at once
-- **Multi-Selection** — Bulk delete with selection mode (`Ctrl+A`, `Escape`)
-- **Real-Time Search** — Instant filtering across all shortcuts
-- **Sort Options** — Alphabetical, most used, recently added
+- **Shortcut Management**: Register, edit, and launch applications, files, and URLs
+- **Drag & Drop Import**: Drag files or executables directly into the shelf
+- **Categories & Folders**: Organize shortcuts with nested folder support
+- **Favorites System**: Mark shortcuts for quick access
+- **Group Launch**: Launch all shortcuts in a category at once
+- **Multi-Selection**: Bulk delete with selection mode (`Ctrl+A`, `Escape`)
+- **Real-Time Search**: Instant filtering across all shortcuts
+- **Sort Options**: Alphabetical, most used, recently added
 
 ### 🔲 Hotspots (Screen Corners)
-- **Corner activation** — Trigger CyberTray by dwelling cursor in any screen corner
+- **Corner activation**: Trigger CyberTray by dwelling cursor in any screen corner
 - **Configurable delay** before activation
-- **UAC secure desktop guard** — Auto-hides when UAC prompt appears
+- **UAC secure desktop guard**: Auto-hides when UAC prompt appears
 
 ### 📊 Neural Telemetry (System Monitoring)
-- **RAM Usage** — Real-time progress bar with percentage
-- **CPU Info** — Model and core count
-- **Disk Space** — Per-drive monitoring via WMI
-- **VRAM Detection** — Background GPU memory fetch
-- **System Uptime** — Track since last boot
+- **RAM Usage**: Real-time progress bar with percentage
+- **CPU Info**: Model and core count
+- **Disk Space**: Per-drive monitoring via WMI
+- **VRAM Detection**: Background GPU memory fetch
+- **System Uptime**: Track since last boot
 
 ### ⚙️ Process Matrix
-- **Running Processes** — View PID, name, and memory usage
-- **Kill Processes** — Terminate directly from the list
-- **Search & Sort** — Find processes quickly
+- **Running Processes**: View PID, name, and memory usage
+- **Kill Processes**: Terminate directly from the list
+- **Search & Sort**: Find processes quickly
 
 ### 🔐 Cyber-Vault (Secure Files)
-- **PIN Protection** — 4-digit PIN to lock/unlock the vault
-- **Desktop Sweep** — Move all desktop files/folders to the secure vault
-- **Auto-Lock Timeout** — Configurable (immediate, 1min, 5min, 15min, session)
-- **Custom Vault Path** — Store vault files in any location
+- **PIN Protection**: 4-digit PIN to lock/unlock the vault
+- **Desktop Sweep**: Move all desktop files/folders to the secure vault
+- **Auto-Lock Timeout**: Configurable (immediate, 1min, 5min, 15min, session)
+- **Custom Vault Path**: Store vault files in any location
 
 ### 🎨 Appearance Customization
 - **5 accent colors**: Cyan, Purple, Amber, Crimson, Emerald
-- **Background Types** — Solid color, gradient presets, 4 built-in image presets, custom image
-- **Blur Level** — Adjustable backdrop blur intensity
-- **Opacity** — Background transparency control
-- **Icon Size** — Adjustable grid icon sizing
-- **View Modes** — Grid or list layout
+- **Background Types**: Solid color, gradient presets, 4 built-in image presets, custom image
+- **Blur Level**: Adjustable backdrop blur intensity
+- **Opacity**: Background transparency control
+- **Icon Size**: Adjustable grid icon sizing
+- **View Modes**: Grid or list layout
 
 ### 🔊 Sound System
-- **Launch Sound** — Default chime on shortcut launch
-- **Custom Audio** — MP3, WAV, OGG, AAC, M4A support
-- **Folder Navigation Sounds** — Audio feedback when browsing categories
+- **Launch Sound**: Default chime on shortcut launch
+- **Custom Audio**: MP3, WAV, OGG, AAC, M4A support
+- **Folder Navigation Sounds**: Audio feedback when browsing categories
 
 ### 💾 Data Management
-- **Backup & Restore** — Export/import configuration as JSON (with embedded icons)
-- **In-app Updates** — Check, download, and install from About via GitHub Releases (`electron-updater`). Auto-check on boot notifies you; install is always confirmed.
-- **Bilingual UI** — Full English and Spanish interface
+- **Backup & Restore**: Export/import configuration as JSON (with embedded icons)
+- **In-app Updates**: Check, download, and install from About via GitHub Releases (`electron-updater`). Auto-check on boot notifies you; install is always confirmed.
+- **Bilingual UI**: Full English and Spanish interface
 
 ---
 
@@ -135,7 +135,7 @@ CyberTray/
 
 | Window | Purpose | Behavior |
 |---|---|---|
-| **Shelf** | Main shortcut panel | Resizable, always-on-top, slide animation |
+| **Shelf** | Main shortcut panel | Resizable, always-on-top, instant deployment |
 
 Communication between frontend and backend uses Electron IPC via `contextBridge`. Hotspot polling runs at 200ms intervals. UAC guard monitors for `consent.exe` to auto-hide during secure desktop sessions.
 
@@ -208,7 +208,7 @@ If you’d like to support future updates, I’d truly appreciate it. Your donat
 <div align="center">
 
 <details>
-<summary><b>Crypto donations (BTC, ETH, USDT, LTC) — click to view addresses</b></summary>
+<summary><b>Crypto donations (BTC, ETH, USDT, LTC): click to view addresses</b></summary>
 
 <div align="left">
 
