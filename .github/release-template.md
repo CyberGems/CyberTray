@@ -24,9 +24,11 @@ Welcome to the official **CyberTray {{VERSION}}** release! CyberTray is a Window
 
 ### 📦 Download
 
+> ⬇️ **Direct download:** click the file name to download it now. Same file as in **Assets** at the bottom of this page.
+
 | File | Description | Platform |
 | :--- | :--- | :--- |
-| **`CyberTray-Setup-{{VERSION_NUM}}.exe`** | 🚀 **Recommended Installer** (NSIS Setup with Start Menu & Desktop shortcuts) | Windows 10 / 11 (x64) |
+| **[`CyberTray-Setup-{{VERSION_NUM}}.exe`](https://github.com/CyberGems/CyberTray/releases/download/{{VERSION}}/CyberTray-Setup-{{VERSION_NUM}}.exe)** | 🚀 **Recommended Installer** (NSIS Setup with Start Menu & Desktop shortcuts) | Windows 10 / 11 (x64) |
 
 ---
 
