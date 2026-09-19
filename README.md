@@ -2,7 +2,7 @@
   <img src="public/icon.png" width="128" height="128" alt="CyberTray icon / icono de CyberTray" />
 </p>
 
-<h1 align="center">CyberTray: System Tray Launcher</h1>
+<h1 align="center">CyberTray: Shortcut Manager and Launcher</h1>
 
 <p align="center">
   <strong>A high-performance shortcut manager and launcher with hotspots, system monitoring, process manager, and PIN-protected file vault</strong>
