@@ -5,7 +5,7 @@
 <h1 align="center">CyberTray: System Tray Launcher</h1>
 
 <p align="center">
-  <strong>A high-performance tray launcher with hotspots, system monitoring, process manager, and PIN-protected file vault</strong>
+  <strong>A high-performance shortcut manager and launcher with hotspots, system monitoring, process manager, and PIN-protected file vault</strong>
 </p>
 
 <p align="center">
