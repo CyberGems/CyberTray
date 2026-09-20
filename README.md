@@ -20,7 +20,11 @@
   <a href="https://github.com/CyberGems/CyberTray/wiki"><img src="https://img.shields.io/badge/Wiki-Documentation-1F2428?style=flat-square&logo=gitbook&logoColor=white&color=C2410C" alt="Wiki" /></a>
 </p>
 
-A high-performance **system tray shortcut launcher and dock** for Windows, serving as a sleek Start Menu alternative and launchpad. CyberTray provides a fast launchpad to organize, search, and launch applications, files, and URLs, with hotspots, real-time system monitoring, process management, and a PIN-protected file vault.
+---
+
+## What is CyberTray?
+
+CyberTray is a high-performance **system tray shortcut launcher and dock** for Windows that keeps frequently used tools close without crowding the taskbar. Organize, search, and launch applications, files, folders, and URLs from a shelf that stays hidden until needed. Global shortcuts and screen-corner hotspots provide instant access, while real-time system monitoring, process controls, customizable layouts, and a PIN-protected file vault turn the tray into a compact desktop command center.
 
 *Free and open source: no ads, no tracking, and no data collection. Just enjoy it.*
 
