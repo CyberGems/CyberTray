@@ -1,23 +1,19 @@
 <p align="center">
-  <img src="public/icon.png" width="128" height="128" alt="CyberTray icon / icono de CyberTray" />
-</p>
-
-<h1 align="center">CyberTray: Shortcut Manager and Launcher</h1>
-
-<p align="center">
-  <strong>A high-performance shortcut manager and launcher with hotspots, system monitoring, process manager, and PIN-protected file vault</strong>
+  <a href="https://cybergems.org/apps/cybertray/">
+    <img src="https://cybergems.org/banners/cybertray.png" alt="CyberTray, an instant-access tray launcher and desktop command center" />
+  </a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/CyberGems/CyberTray/releases/latest"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FCyberGems%2FCyberTray%2Fmain%2Fpackage.json&query=%24.version&prefix=%20Download%20CyberTray%20v&suffix=%20&style=for-the-badge&label=&labelColor=C2410C&color=C2410C" alt="Download Latest Release" /><img src="https://img.shields.io/badge/Windows_64--bit-0078D4?style=for-the-badge" alt="Windows 64-bit" /></a>
-  &nbsp;<a href="https://github.com/CyberGems/CyberTray/releases"><img src="https://img.shields.io/badge/All_releases-2B3137?style=for-the-badge&logo=github&logoColor=white" alt="All Releases" /><img src="https://img.shields.io/badge/Changelog-3B444B?style=for-the-badge" alt="Changelog" /></a>
+  <a href="https://github.com/CyberGems/CyberTray/releases/latest"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FCyberGems%2FCyberTray%2Fmain%2Fpackage.json&query=%24.version&prefix=%20Download%20CyberTray%20v&suffix=%20&style=for-the-badge&label=&labelColor=0891B2&color=0891B2" alt="Download Latest Release" /><img src="https://img.shields.io/badge/Windows_10%2F11_(64--bit)-2563EB?style=for-the-badge" alt="Windows 10/11 (64-bit)" /></a>
+  &nbsp;<a href="https://github.com/CyberGems/CyberTray/releases"><img src="https://img.shields.io/badge/All_releases-30363D?style=for-the-badge&logo=github&logoColor=white" alt="All Releases" /><img src="https://img.shields.io/badge/Changelog-475569?style=for-the-badge" alt="Changelog" /></a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/License-GPL--3.0-1F2428.svg?style=flat-square&color=C2410C" alt="License" />&nbsp;
-  <img src="https://img.shields.io/badge/Platform-Windows-1F2428.svg?style=flat-square&color=0078D4" alt="Platform" />&nbsp;
-  <img src="https://img.shields.io/badge/Electron-42-1F2428.svg?style=flat-square&logo=electron&logoColor=white&color=47848F" alt="Electron" />&nbsp;
-  <a href="https://github.com/CyberGems/CyberTray/wiki"><img src="https://img.shields.io/badge/Wiki-Documentation-1F2428?style=flat-square&logo=gitbook&logoColor=white&color=C2410C" alt="Wiki" /></a>
+  <img src="https://img.shields.io/badge/License-GPL--3.0-1F2428.svg?style=flat-square&color=334155" alt="License" />&nbsp;
+  <img src="https://img.shields.io/badge/Platform-Windows_10%2F11-1F2428.svg?style=flat-square&color=334155" alt="Platform" />&nbsp;
+  <img src="https://img.shields.io/badge/Electron-42-1F2428.svg?style=flat-square&logo=electron&logoColor=white&color=334155" alt="Electron" />&nbsp;
+  <a href="https://github.com/CyberGems/CyberTray/wiki"><img src="https://img.shields.io/badge/Wiki-Documentation-1F2428?style=flat-square&logo=gitbook&logoColor=white&color=334155" alt="Wiki" /></a>
 </p>
 
 ---
