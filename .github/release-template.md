@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/CyberGems/CyberTray/main/public/icon.png" width="120" alt="CyberTray">
+</p>
+
 ## 🚀 CyberTray {{VERSION}}: Release Notes
 
 ### 🚀 What's new in this release
