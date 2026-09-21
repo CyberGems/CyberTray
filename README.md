@@ -34,7 +34,7 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 |---|---|
 | Quick access to apps & files | Shortcut shelf with search, categories, and drag-and-drop import |
 | Save taskbar space | System tray icon + auto-hiding shelf |
-| Launch from anywhere | Global hotkey (`Alt+T`) and hot corners |
+| Launch from anywhere | Global hotkey (`Alt+Shift+T`) and hot corners |
 | Monitor your system | Real-time RAM, CPU, disk, and VRAM telemetry |
 | Manage running processes | Process viewer with kill functionality |
 | Secure sensitive files | PIN-protected vault with desktop sweep |
@@ -198,7 +198,7 @@ You can verify the file independently: compare the SHA with the GitHub release, 
 
 | Key | Action | Scope |
 |---|---|---|
-| `Alt+T` (default) | Toggle CyberTray shelf | Global |
+| `Alt+Shift+T` (default) | Toggle CyberTray shelf | Global |
 | `Escape` | Exit selection mode | Application |
 | `Ctrl+A` | Select all shortcuts | Selection mode |
 

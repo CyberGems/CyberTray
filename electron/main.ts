@@ -92,7 +92,7 @@ interface CyberTrayConfig {
 
 const DEFAULT_CONFIG: CyberTrayConfig = {
   monitorId: '',
-  shortcut: 'Alt+T', // Atajo CyberTray por defecto
+  shortcut: 'Alt+Shift+T', // Atajo CyberTray por defecto
   hideOnBlur: true,
   language: 'en',
   hotspotCorners: [],

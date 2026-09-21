@@ -117,7 +117,7 @@ export default function App() {
   // Configuración de la App
   const [config, setConfig] = useState<any>({
     monitorId: '',
-    shortcut: 'Alt+T',
+    shortcut: 'Alt+Shift+T',
     hideOnBlur: true,
     hotspotCorners: [],
     hotspotDelay: 300,
