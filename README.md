@@ -1,4 +1,8 @@
 <p align="center">
+  English · <a href="./README.es.md">Español</a>
+</p>
+
+<p align="center">
   <a href="https://cybergems.org/apps/cybertray/">
     <img src="https://cybergems.org/banners/cybertray.png" alt="CyberTray, an instant-access tray launcher and desktop command center" />
   </a>
@@ -97,6 +101,41 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 
 ---
 
+## 🚀 Getting Started
+
+### Install (Recommended)
+
+1. Download the latest installer from [Releases](https://github.com/CyberGems/CyberTray/releases/latest)
+2. Run the `.exe` installer and follow the setup wizard
+3. Launch CyberTray and press `Alt+Shift+T` to toggle the shelf from anywhere. No other requirements needed: you do **not** need Node.js or npm
+
+### 🛡️ Windows SmartScreen
+
+Windows may show a SmartScreen warning the first time you run the CyberTray installer: this is an unsigned hobby app, so Windows hasn't built reputation for the file yet. This is expected; the source is public so you can inspect exactly what it does.
+
+To continue:
+
+<details>
+<summary><strong>See how to run the installer (step by step)</strong></summary>
+
+Windows shows this warning for any installer without a paid code-signing certificate; it does not mean the file is unsafe. Do <strong>not</strong> click "Don't run":
+
+1. Run the installer. Windows may show the blue "Windows protected your PC" dialog.
+
+![Windows SmartScreen warning](https://cybergems.org/branding/smartscreen-warning.svg)
+
+2. Click the small **More info** link.
+
+![SmartScreen dialog after More info](https://cybergems.org/branding/smartscreen-runanyway.svg)
+
+3. Click **Run anyway**. The installer starts normally.
+
+You can verify the file independently: compare the SHA with the GitHub release, scan it on VirusTotal, or build from source. More details: [SmartScreen guide on the website](https://cybergems.org/download#smartscreen).
+
+</details>
+
+---
+
 ## 🛠️ Tech Stack & Architecture
 
 - **Platform:** Windows 10 / 11
@@ -140,16 +179,16 @@ CyberTray/
 
 Communication between frontend and backend uses Electron IPC via `contextBridge`. Hotspot polling runs at 200ms intervals. UAC guard monitors for `consent.exe` to auto-hide during secure desktop sessions.
 
----
+### Building from Source (Developers)
 
-## 🚀 Getting Started
+Only needed if you want to work on CyberTray or build it yourself; regular users can skip this section.
 
-### Prerequisites
+#### Prerequisites
 
 - [Node.js](https://nodejs.org/) v22+
 - npm
 
-### Development
+#### Development
 
 ```bash
 git clone https://github.com/CyberGems/CyberTray.git
@@ -158,7 +197,7 @@ npm install
 npm run dev
 ```
 
-### Build for Production
+#### Build for Production
 
 ```bash
 npm run build
@@ -166,31 +205,6 @@ npm run build:electron
 ```
 
 The installer will be in the `release/` directory.
-
-### 🛡️ Windows SmartScreen
-
-Windows may show a SmartScreen warning the first time you run the CyberTray installer: this is an unsigned hobby app, so Windows hasn't built reputation for the file yet. This is expected; the source is public so you can inspect exactly what it does.
-
-To continue:
-
-<details>
-<summary><strong>See how to run the installer (step by step)</strong></summary>
-
-Windows shows this warning for any installer without a paid code-signing certificate; it does not mean the file is unsafe. Do <strong>not</strong> click "Don't run":
-
-1. Run the installer. Windows may show the blue "Windows protected your PC" dialog.
-
-![Windows SmartScreen warning](https://cybergems.org/branding/smartscreen-warning.svg)
-
-2. Click the small **More info** link.
-
-![SmartScreen dialog after More info](https://cybergems.org/branding/smartscreen-runanyway.svg)
-
-3. Click **Run anyway**. The installer starts normally.
-
-You can verify the file independently: compare the SHA with the GitHub release, scan it on VirusTotal, or build from source. More details: [SmartScreen guide on the website](https://cybergems.org/download#smartscreen).
-
-</details>
 
 ---
 
