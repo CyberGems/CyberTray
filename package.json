@@ -13,7 +13,8 @@
     "build:electron": "vite build && electron-builder",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "installer-graphics": "node scripts/generate-installer-graphics.mjs"
   },
   "build": {
     "appId": "com.cybertray.app",
@@ -36,6 +37,13 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "installerIcon": "public/icon.ico",
+      "uninstallerIcon": "public/icon.ico",
+      "installerSidebar": "public/installerSidebar.bmp",
+      "uninstallerSidebar": "public/installerSidebar.bmp",
+      "installerHeaderIcon": "public/icon.ico",
+      "include": "electron/installer.nsh",
       "createDesktopShortcut": "always",
       "runAfterFinish": true,
       "perMachine": true,

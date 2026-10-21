@@ -211,7 +211,7 @@ function registerUpdateIpc(): void {
   });
 
   ipcMain.handle('update:install', () => {
-    autoUpdater.quitAndInstall(false, true);
+    autoUpdater.quitAndInstall(true, true);
   });
 
   ipcMain.handle('app:get-versions', () => ({
