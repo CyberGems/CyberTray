@@ -11,6 +11,7 @@ declare global {
       selectFile: (options?: { filters?: Array<{ name: string; extensions: string[] }> }) => Promise<{ name: string; path: string; iconPath?: string } | null>;
       selectImage: () => Promise<string | null>;
       selectAudio: () => Promise<string | null>;
+      selectFolder: () => Promise<string | null>;
       getImageData: (filePath: string) => Promise<string | null>;
       getBundledAssetUrl: (relativePath: string) => Promise<string | null>;
       getMonitors: () => Promise<Array<{ id: string; label: string; isPrimary: boolean; bounds: any; size: any }>>;
@@ -26,6 +27,9 @@ declare global {
       killProcess: (pid: number) => Promise<{ success: boolean; error?: string }>;
       resolveFilePath: (filePath: string) => Promise<{ name: string; path: string; ext: string; exists: boolean; iconPath: string; arguments?: string; cwd?: string } | null>;
       openFileLocation: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+      copyToClipboard: (text: string) => Promise<{ success: boolean; error?: string }>;
+      openFolder: (targetPath: string) => Promise<{ success: boolean; error?: string }>;
+      openInTerminal: (targetPath: string) => Promise<{ success: boolean; error?: string }>;
       getPathForFile: (file: File) => string;
       setHotspots: (corners: string[], delay: number) => Promise<{ success: boolean }>;
       openDevTools: () => Promise<{ success: boolean }>;
@@ -43,6 +47,7 @@ declare global {
       onOpenAbout: (callback: (opts?: { checkUpdates?: boolean }) => void) => () => void;
       onOpenAddShortcut: (callback: () => void) => () => void;
       onShortcutLaunched: (callback: (payload: { path: string; name: string }) => void) => () => void;
+      onHotkeyConflict: (callback: (payload: { name: string; hotkey: string }) => void) => () => void;
       setTrayRecents: (items: Array<{ name: string; path: string; isAdmin?: boolean; iconPath?: string; arguments?: string; cwd?: string }>) => Promise<{ success: boolean }>;
       getAppVersions: () => Promise<{
         app: string; electron: string; chrome: string; node: string;

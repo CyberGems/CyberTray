@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('select-file', options),
   selectImage: () => ipcRenderer.invoke('select-image'),
   selectAudio: () => ipcRenderer.invoke('select-audio'),
+  selectFolder: () => ipcRenderer.invoke('select-folder'),
   getImageData: (filePath: string) => ipcRenderer.invoke('get-image-data', filePath),
   getBundledAssetUrl: (relativePath: string) => ipcRenderer.invoke('get-bundled-asset-url', relativePath),
 
@@ -40,6 +41,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // --- Drag & Drop helpers ---
   resolveFilePath: (filePath: string) => ipcRenderer.invoke('resolve-file-path', filePath),
   openFileLocation: (filePath: string) => ipcRenderer.invoke('open-file-location', filePath),
+  copyToClipboard: (text: string) => ipcRenderer.invoke('copy-to-clipboard', text),
+  openFolder: (targetPath: string) => ipcRenderer.invoke('open-folder', targetPath),
+  openInTerminal: (targetPath: string) => ipcRenderer.invoke('open-in-terminal', targetPath),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
 
   // --- Hotspots (Esquinas activas) ---
@@ -96,6 +100,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const handler = (_event: any, payload: { path: string; name: string }) => callback(payload);
     ipcRenderer.on('shortcut-launched', handler);
     return () => { ipcRenderer.removeListener('shortcut-launched', handler); };
+  },
+  onHotkeyConflict: (callback: (payload: { name: string; hotkey: string }) => void) => {
+    const handler = (_event: any, payload: { name: string; hotkey: string }) => callback(payload);
+    ipcRenderer.on('hotkey-conflict', handler);
+    return () => { ipcRenderer.removeListener('hotkey-conflict', handler); };
   },
   setTrayRecents: (items: Array<{ name: string; path: string; isAdmin?: boolean; iconPath?: string; arguments?: string; cwd?: string }>) =>
     ipcRenderer.invoke('tray:set-recents', items),

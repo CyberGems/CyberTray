@@ -30,13 +30,13 @@ import {
 } from './lib/appUtils';
 import { hashPin, verifyPin } from './lib/pin';
 import { createDefaultConfig } from './lib/configDefaults';
-import { localResourceUrl } from './lib/iconSrc';
+import { localResourceUrl, shortcutIconSrc } from './lib/iconSrc';
 import { useBundledAssetUrl } from './lib/useBundledAsset';
 import {
   Search, Plus, Settings, X, Trash2, Info,
   Pin, Play, ArrowDown, Shrink, MoreHorizontal,
   RefreshCw, Check, Activity, Lock, FolderOpen,
-  CheckSquare, Heart, BookOpen, HelpCircle, Tag, Globe, Sliders
+  CheckSquare, Heart, BookOpen, HelpCircle, Tag, Globe, Sliders, History
 } from 'lucide-react';
 
 let globalAudioCtx: AudioContext | null = null;
@@ -485,6 +485,7 @@ export default function App() {
   const [formName, setFormName] = useState<string>('');
   const [formPath, setFormPath] = useState<string>('');
   const [formArgs, setFormArgs] = useState<string>('');
+  const [formCwd, setFormCwd] = useState<string>('');
   const [formDelay, setFormDelay] = useState<number>(0);
   const [formCategory, setFormCategory] = useState<string>('utils');
   const [formAdmin, setFormAdmin] = useState<boolean>(false);
@@ -750,7 +751,8 @@ export default function App() {
     const unsub = window.electronAPI.onOpenAddShortcut(() => {
       setFormName('');
       setFormPath('');
-      setFormArgs('');
+    setFormArgs('');
+    setFormCwd('');
       setFormDelay(0);
       setFormCategory('utils');
       setFormAdmin(false);
@@ -778,6 +780,18 @@ export default function App() {
       };
       setConfig(configRef.current);
       scheduleUsagePersist(updated, nextTotal);
+    });
+    return () => unsub();
+  }, []);
+
+  // Un atajo por acceso directo no se pudo registrar (ya está en uso).
+  useEffect(() => {
+    if (!isElectron || !window.electronAPI?.onHotkeyConflict) return;
+    const unsub = window.electronAPI.onHotkeyConflict((payload) => {
+      pushToast('error', translate('toast_hotkey_conflict', {
+        name: payload.name || translate('toast_hotkey_conflict_generic'),
+        hotkey: payload.hotkey,
+      }));
     });
     return () => unsub();
   }, []);
@@ -1534,6 +1548,7 @@ export default function App() {
     setFormName(item.name);
     setFormPath(item.path);
     setFormArgs(item.arguments || '');
+    setFormCwd(item.cwd || '');
     setFormDelay(item.delay || 0);
     setFormCategory(item.category);
     setFormAdmin(!!item.isAdmin);
@@ -1606,6 +1621,7 @@ export default function App() {
           path: finalPath,
           category: formCategory,
           arguments: formArgs,
+          cwd: formCwd.trim(),
           delay: formDelay,
           isAdmin: formAdmin,
           hotkey: formHotkey,
@@ -1664,6 +1680,7 @@ export default function App() {
         path: finalPath,
         category: formCategory,
         arguments: formArgs,
+        cwd: formCwd.trim(),
         delay: formDelay,
         isAdmin: formAdmin,
         hotkey: formHotkey,
@@ -1685,6 +1702,21 @@ export default function App() {
     await saveDataToConfig(updated, categories);
     setShortcutModal({ open: false });
     playCyberBeep();
+  };
+
+  // Borrado desde la rejilla (tecla Supr): pide confirmación, no borra en seco.
+  const handleRequestDeleteShortcut = (id: number) => {
+    const item = (shortcutsRef.current || []).find(s => s.id === id);
+    if (!item) return;
+    showConfirm(
+      translate('delete_one_confirm_title'),
+      translate('delete_one_confirm_desc', { name: String(item.name || '') }),
+      async () => {
+        await handleDeleteShortcut(id);
+        pushToast('success', translate('toast_deleted_one'));
+      },
+      true
+    );
   };
 
   // ── Selección múltiple / borrado en masa ──
@@ -2258,6 +2290,14 @@ export default function App() {
     } catch {}
   };
 
+  // Accesos usados hace poco, para la tira de "Recientes".
+  const recentShortcuts = useMemo(() => {
+    return shortcuts
+      .filter(s => s && s.lastLaunchAt)
+      .sort((a, b) => (b.lastLaunchAt || 0) - (a.lastLaunchAt || 0))
+      .slice(0, 8);
+  }, [shortcuts]);
+
   const filteredShortcutsList = useMemo(() => {
     const vaultLocked = isVaultLockedState({
       pinEnabled: config.vaultPinEnabled,
@@ -2394,6 +2434,16 @@ export default function App() {
             placeholder={translate('search_placeholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              // Esc o la flecha abajo llevan el foco a la rejilla de accesos.
+              if (e.key === 'Escape' || e.key === 'ArrowDown') {
+                const first = document.querySelector<HTMLElement>('[data-shortcut-id][tabindex="0"]');
+                if (first) {
+                  e.preventDefault();
+                  first.focus();
+                }
+              }
+            }}
             className="w-full bg-slate-950/70 border border-[var(--neon-glow-border)] hover:border-[var(--neon-glow-color)] rounded-lg py-1.5 pl-8 pr-7 text-[11px] font-sans tracking-wide text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-[var(--neon-glow-color)] transition-all"
           />
           {searchQuery && (
@@ -2811,6 +2861,39 @@ export default function App() {
             </div>
           )}
 
+          {recentShortcuts.length > 0 && activeCategory === 'all' && !searchQuery.trim() && (
+            <div className="shrink-0 flex items-center gap-2 px-5 py-2 border-b border-slate-900/60 overflow-x-auto">
+              <span className="flex items-center gap-1.5 text-slate-500 shrink-0">
+                <History className="w-3.5 h-3.5" />
+                <span className="font-ui tracking-wide uppercase" style={{ fontSize: `${density.childChipPx}px` }}>
+                  {translate('recent_shortcuts')}
+                </span>
+              </span>
+              {recentShortcuts.map((item: any) => (
+                <button
+                  key={`recent-${item.id}`}
+                  type="button"
+                  onClick={() => handleLaunch(item)}
+                  onContextMenu={(e) => handleShortcutContextMenu(e, item)}
+                  onMouseEnter={(e) => showTooltip(e, item.name, item.path)}
+                  onMouseLeave={hideTooltip}
+                  className="flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-md border border-slate-800 bg-slate-950/40 hover:border-[var(--neon-glow-border)] hover:bg-slate-900/80 text-slate-400 hover:text-white transition-all cursor-pointer shrink-0"
+                >
+                  <span className="w-5 h-5 rounded bg-slate-900/80 border border-white/5 flex items-center justify-center overflow-hidden shrink-0">
+                    {item.iconPath ? (
+                      <img src={shortcutIconSrc(item.iconPath)} alt="" className="w-3.5 h-3.5 object-contain" draggable={false} />
+                    ) : (
+                      <span className="text-[8px] font-cyber font-bold text-slate-500">&gt;_</span>
+                    )}
+                  </span>
+                  <span className="font-ui tracking-wide truncate max-w-28" style={{ fontSize: `${density.childChipPx}px` }}>
+                    {item.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="flex-1 min-h-0">
             <ShortcutGrid
               gridScrollRef={gridScrollRef}
@@ -2835,6 +2918,7 @@ export default function App() {
               handleShortcutContextMenu={handleShortcutContextMenu}
               handleShortcutDragStart={handleShortcutDragStart}
               handleOpenEditModal={handleOpenEditModal}
+              handleDeleteShortcut={handleRequestDeleteShortcut}
               handleUpdateConfigSetting={handleUpdateConfigSetting}
               playFolderSound={playFolderSound}
               playCyberBeep={playCyberBeep}
@@ -2950,6 +3034,8 @@ export default function App() {
         setFormPath={setFormPath}
         formArgs={formArgs}
         setFormArgs={setFormArgs}
+        formCwd={formCwd}
+        setFormCwd={setFormCwd}
         formDelay={formDelay}
         setFormDelay={setFormDelay}
         formCategory={formCategory}
@@ -2988,6 +3074,7 @@ export default function App() {
         shortcuts={shortcuts}
         categories={categories}
         playCyberBeep={playCyberBeep}
+        showToast={(message: string) => pushToast('success', message)}
         showConfirm={showConfirm}
         saveDataToConfig={saveDataToConfig}
         newCatModal={newCatModal}

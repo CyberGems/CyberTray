@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Edit, ExternalLink, FolderOpen, Pin, Play, Power, Shield, Trash2 } from 'lucide-react';
+import { Copy, Edit, ExternalLink, Folder, FolderOpen, Pin, Play, Power, Shield, Terminal, Trash2 } from 'lucide-react';
 import { translate } from '../locales';
 import { getFolderPath, isElectron } from '../lib/appUtils';
 
@@ -9,6 +9,7 @@ interface ShelfOverlaysProps {
   shortcuts: any[];
   categories: any[];
   playCyberBeep: () => void;
+  showToast?: (message: string) => void;
   showConfirm: (title: string, message: string, onConfirm: () => void, danger?: boolean) => void;
   saveDataToConfig: (nextShortcuts: any[], nextCategories: any[]) => Promise<void> | void;
   newCatModal: boolean;
@@ -71,6 +72,7 @@ export default function ShelfOverlays({
   onToggleTaskbarPin,
   confirmModal,
   setConfirmModal,
+  showToast,
 }: ShelfOverlaysProps) {
   return (
     <>
@@ -282,7 +284,7 @@ export default function ShelfOverlays({
             </button>
 
             {isElectron && shortcutMenu.item.path && !/^(https?:\/\/)/i.test(shortcutMenu.item.path) && (
-              <button 
+              <button
                 onClick={async () => {
                   const item = shortcutMenu.item;
                   setShortcutMenu(null);
@@ -294,6 +296,47 @@ export default function ShelfOverlays({
                 {translate('menu_open_location')}
               </button>
             )}
+
+            {isElectron && shortcutMenu.item.path && !/^(https?:\/\/)/i.test(shortcutMenu.item.path) && (
+              <button
+                onClick={async () => {
+                  const item = shortcutMenu.item;
+                  setShortcutMenu(null);
+                  await window.electronAPI!.openFolder(item.path);
+                }}
+                className="w-full py-1.5 px-3 text-left text-xs rounded hover:bg-slate-900 hover:text-white text-slate-300 flex items-center gap-2 cursor-pointer border-0 bg-transparent"
+              >
+                <Folder className="w-3.5 h-3.5 text-slate-500" />
+                {translate('menu_open_folder')}
+              </button>
+            )}
+
+            {isElectron && shortcutMenu.item.path && !/^(https?:\/\/)/i.test(shortcutMenu.item.path) && (
+              <button
+                onClick={async () => {
+                  const item = shortcutMenu.item;
+                  setShortcutMenu(null);
+                  await window.electronAPI!.openInTerminal(item.path);
+                }}
+                className="w-full py-1.5 px-3 text-left text-xs rounded hover:bg-slate-900 hover:text-white text-slate-300 flex items-center gap-2 cursor-pointer border-0 bg-transparent"
+              >
+                <Terminal className="w-3.5 h-3.5 text-slate-500" />
+                {translate('menu_open_terminal')}
+              </button>
+            )}
+
+            <button
+              onClick={async () => {
+                const item = shortcutMenu.item;
+                setShortcutMenu(null);
+                await window.electronAPI!.copyToClipboard(item.path);
+                showToast?.(translate('menu_copy_path_done'));
+              }}
+              className="w-full py-1.5 px-3 text-left text-xs rounded hover:bg-slate-900 hover:text-white text-slate-300 flex items-center gap-2 cursor-pointer border-0 bg-transparent"
+            >
+              <Copy className="w-3.5 h-3.5 text-slate-500" />
+              {translate('menu_copy_path')}
+            </button>
 
             <button
               onClick={(e) => {

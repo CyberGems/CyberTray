@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, Tray, Menu, globalShortcut, screen, nativeImage, dialog, protocol, net, powerMonitor } from 'electron';
+import { app, BrowserWindow, clipboard, ipcMain, shell, Tray, Menu, globalShortcut, screen, nativeImage, dialog, protocol, net, powerMonitor } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { exec, execFile } from 'node:child_process';
@@ -246,6 +246,7 @@ const NATIVE_TRANSLATIONS = {
     importTitle: 'Import Configuration',
     selectBackground: 'Select background image',
     selectSound: 'Select sound file',
+    selectFolder: 'Select folder',
     vaultFolder: 'Select vault folder',
   },
   es: {
@@ -262,6 +263,7 @@ const NATIVE_TRANSLATIONS = {
     importTitle: 'Importar Configuración',
     selectBackground: 'Seleccionar imagen de fondo',
     selectSound: 'Seleccionar archivo de sonido',
+    selectFolder: 'Seleccionar carpeta',
     vaultFolder: 'Seleccionar carpeta de la bóveda',
   },
 } as const;
@@ -635,6 +637,14 @@ function saveConfig(
     const previous = config;
     config = { ...config, ...newConfig };
     configRevision += 1;
+
+    // Los atajos por acceso dependen de la lista de accesos: se re-registran
+    // solo cuando algún atajo (o su destino) ha cambiado.
+    const hotkeySignature = (list: any[]) =>
+      JSON.stringify((list || []).map((s: any) => `${s?.id ?? ''}:${s?.hotkey || ''}:${s?.path || ''}`));
+    if (hotkeySignature(previous.shortcutsList) !== hotkeySignature(config.shortcutsList)) {
+      registerShortcutHotkeys(config.shortcutsList || []);
+    }
     // Salvaguarda: si un cliente antiguo o un import intenta escribir el PIN
     // en claro, se descarta antes de tocar el disco.
     delete (config as { vaultPin?: unknown }).vaultPin;
@@ -1128,6 +1138,70 @@ function registerGlobalShortcutKey(shortcut: string): boolean {
   return true;
 }
 
+// ── ATAJOS POR ACCESO DIRECTO ──
+/**
+ * Cada acceso puede tener su propio atajo global. Se registran y liberan
+ * junto con la lista de accesos, y si uno está ocupado por otra aplicación se
+ * avisa al renderer en lugar de fallar en silencio.
+ */
+const registeredShortcutHotkeys = new Map<string, any>();
+
+function normalizeAccelerator(shortcut: string): string {
+  return String(shortcut || '').replace(/Meta/g, 'Super').replace(/Ctrl/g, 'CommandOrControl').trim();
+}
+
+function unregisterShortcutHotkeys(): void {
+  for (const accelerator of registeredShortcutHotkeys.keys()) {
+    globalShortcut.unregister(accelerator);
+  }
+  registeredShortcutHotkeys.clear();
+}
+
+function registerShortcutHotkeys(shortcuts: any[]): void {
+  unregisterShortcutHotkeys();
+  if (!Array.isArray(shortcuts)) return;
+
+  for (const item of shortcuts) {
+    if (!item || !item.hotkey) continue;
+    const accelerator = normalizeAccelerator(item.hotkey);
+    if (!accelerator) continue;
+
+    try {
+      const registered = globalShortcut.register(accelerator, () => {
+        void launchShortcutByHotkey(item);
+      });
+      if (registered) {
+        registeredShortcutHotkeys.set(accelerator, item);
+      } else {
+        notifyHotkeyConflict(item, item.hotkey);
+      }
+    } catch (err) {
+      console.warn(`No se pudo registrar el atajo ${accelerator}:`, err);
+      notifyHotkeyConflict(item, item.hotkey);
+    }
+  }
+}
+
+function notifyHotkeyConflict(item: any, hotkey: string): void {
+  console.warn(`Atajo ocupado: ${hotkey} (${item?.name || 'acceso'})`);
+  if (shelfWindow && !shelfWindow.isDestroyed()) {
+    shelfWindow.webContents.send('hotkey-conflict', {
+      name: item?.name || '',
+      hotkey: String(hotkey || ''),
+    });
+  }
+}
+
+async function launchShortcutByHotkey(item: any): Promise<void> {
+  const res = await launchAppInternal(item.path, item.isAdmin, item.arguments, item.cwd);
+  if (!res || res.success === false) return;
+
+  // El renderer lleva la cuenta de usos, igual que con el menú del tray.
+  if (shelfWindow && !shelfWindow.isDestroyed()) {
+    shelfWindow.webContents.send('shortcut-launched', { path: item.path, name: item.name });
+  }
+}
+
 // ── FILE RESOLUTION & POWERSHELL LNK RESOLVER ──
 async function resolveFullFileInfo(filePath: string) {
   try {
@@ -1570,6 +1644,20 @@ function registerIpcHandlers() {
     return null;
   });
 
+  ipcMain.handle('select-folder', async () => {
+    isDialogOpen = true;
+    const res = await dialog.showOpenDialog(shelfWindow!, {
+      title: nativeStrings().selectFolder,
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    isDialogOpen = false;
+    showShelf();
+    if (!res.canceled && res.filePaths.length > 0) {
+      return res.filePaths[0];
+    }
+    return null;
+  });
+
   ipcMain.handle('get-image-data', async (_, filePath) => {
     try {
       if (fs.existsSync(filePath)) {
@@ -1810,6 +1898,48 @@ function registerIpcHandlers() {
         return { success: true };
       }
       return { success: false, error: 'File does not exist' };
+    } catch (e: any) {
+      return { success: false, error: e?.message || e };
+    }
+  });
+
+  ipcMain.handle('copy-to-clipboard', async (_, text) => {
+    try {
+      clipboard.writeText(String(text ?? ''));
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || e };
+    }
+  });
+
+  ipcMain.handle('open-folder', async (_, targetPath) => {
+    try {
+      const dir = path.dirname(String(targetPath || ''));
+      if (!fs.existsSync(dir)) {
+        return { success: false, error: 'Folder does not exist' };
+      }
+      const failure = await shell.openPath(dir);
+      return failure ? { success: false, error: failure } : { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || e };
+    }
+  });
+
+  ipcMain.handle('open-in-terminal', async (_, targetPath) => {
+    try {
+      const dir = path.dirname(String(targetPath || ''));
+      if (!fs.existsSync(dir)) {
+        return { success: false, error: 'Folder does not exist' };
+      }
+      // Windows Terminal si está instalado; si no, la consola clásica.
+      execFile('where.exe', ['wt.exe'], { windowsHide: true }, (err) => {
+        if (!err) {
+          exec(`wt.exe -d "${dir}"`, { windowsHide: true });
+        } else {
+          exec(`cmd.exe /c start "" /d "${dir}" cmd.exe`, { windowsHide: true });
+        }
+      });
+      return { success: true };
     } catch (e: any) {
       return { success: false, error: e?.message || e };
     }
@@ -2196,6 +2326,10 @@ app.whenReady().then(() => {
   createWindows();
   createTray();
   registerGlobalShortcutKey(config.shortcut);
+  registerShortcutHotkeys(config.shortcutsList || []);
+  // Se repite el registro unos segundos después: el renderer todavía no está
+  // escuchando al arrancar, y así los conflictos de atajo se pueden notificar.
+  setTimeout(() => registerShortcutHotkeys(config.shortcutsList || []), 2500);
   updateCachedDisplays();
   startHotspotPolling();
   startUACGuard();
@@ -2259,5 +2393,6 @@ app.on('window-all-closed', () => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
+  unregisterShortcutHotkeys();
   stopHotspotPolling();
 });

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  ChevronLeft, ChevronRight, Clock, CornerDownLeft, Keyboard, Lock, Pin,
+  ChevronLeft, ChevronRight, Clock, CornerDownLeft, FolderOpen, Keyboard, Lock, Pin,
   SlidersHorizontal, Star, Trash2, Upload, X,
 } from 'lucide-react';
 import { translate } from '../locales';
@@ -24,6 +24,8 @@ interface ShortcutFormModalProps {
   setFormPath: (v: string) => void;
   formArgs: string;
   setFormArgs: (v: string) => void;
+  formCwd: string;
+  setFormCwd: (v: string) => void;
   formDelay: number;
   setFormDelay: (v: number) => void;
   formCategory: string;
@@ -56,6 +58,8 @@ export default function ShortcutFormModal({
   setFormPath,
   formArgs,
   setFormArgs,
+  formCwd,
+  setFormCwd,
   formDelay,
   setFormDelay,
   formCategory,
@@ -254,6 +258,36 @@ export default function ShortcutFormModal({
                         onKeyDown={onEnterSubmit}
                         className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-cyan-500/50"
                       />
+                    </div>
+                  )}
+
+                  {!isBatch && (
+                    <div className="bg-black/20 p-3.5 rounded-xl border border-white/5 hover:border-white/10 transition-colors space-y-2">
+                      <h4 className="text-sm font-medium text-slate-200 leading-tight">{translate('app_cwd_title')}</h4>
+                      <p className="text-[11px] text-slate-500 leading-snug">{translate('app_cwd_desc')}</p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={formCwd}
+                          onChange={(e) => setFormCwd(e.target.value)}
+                          placeholder={translate('app_cwd_placeholder')}
+                          onKeyDown={onEnterSubmit}
+                          className="flex-1 min-w-0 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-cyan-500/50"
+                        />
+                        {isElectron && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const selected = await window.electronAPI!.selectFolder();
+                              if (selected) setFormCwd(selected);
+                            }}
+                            className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-slate-300 hover:text-white hover:border-cyan-500/30 transition-all cursor-pointer shrink-0"
+                            title={translate('app_cwd_browse')}
+                          >
+                            <FolderOpen className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
 

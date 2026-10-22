@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Clock, Edit, Search, Upload } from 'lucide-react';
 import { translate } from '../locales';
 import { shortcutIconSrc } from '../lib/iconSrc';
@@ -30,6 +30,7 @@ interface ShortcutGridProps {
   handleShortcutContextMenu: (e: React.MouseEvent, item: any) => void;
   handleShortcutDragStart: (e: React.DragEvent, item: any) => void;
   handleOpenEditModal: (item: any, e: React.MouseEvent) => void;
+  handleDeleteShortcut: (id: number) => void;
   handleUpdateConfigSetting: (key: string, value: any) => void;
   playFolderSound: () => void;
   playCyberBeep: () => void;
@@ -61,6 +62,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
     handleShortcutContextMenu,
     handleShortcutDragStart,
     handleOpenEditModal,
+    handleDeleteShortcut,
     handleUpdateConfigSetting,
     playFolderSound,
     playCyberBeep,
@@ -69,6 +71,119 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
   } = props;
 
   const density = densityFromIconSize(config.iconSize);
+
+  // ── Navegación por teclado ──
+  // La rejilla se puede recorrer entera con el teclado: flechas para moverse,
+  // Intro para lanzar, Supr para borrar y escritura directa para buscar por
+  // nombre. El foco se gestiona con un único elemento activo (roving tabindex).
+  const [activeId, setActiveId] = useState<number | null>(null);
+  const itemRefs = useRef<Map<number, HTMLElement>>(new Map());
+  const typeaheadRef = useRef<{ text: string; at: number }>({ text: '', at: 0 });
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  const registerItem = useCallback((id: number, node: HTMLElement | null) => {
+    if (node) itemRefs.current.set(id, node);
+    else itemRefs.current.delete(id);
+  }, []);
+
+  // Si el elemento activo deja de estar visible, se suelta el foco.
+  useEffect(() => {
+    if (activeId === null) return;
+    if (!filteredShortcutsList.some((item: any) => item.id === activeId)) {
+      setActiveId(null);
+    }
+  }, [filteredShortcutsList, activeId]);
+
+  const focusItem = useCallback((item: any) => {
+    if (!item) return;
+    setActiveId(item.id);
+    const node = itemRefs.current.get(item.id);
+    node?.focus();
+    node?.scrollIntoView({ block: 'nearest' });
+  }, []);
+
+  const getColumnCount = useCallback(() => {
+    const grid = gridRef.current;
+    if (!grid) return 1;
+    const tracks = window.getComputedStyle(grid).gridTemplateColumns;
+    if (!tracks || tracks === 'none') return 1;
+    const count = tracks.split(/\s+/).filter(Boolean).length;
+    return Math.max(1, count);
+  }, []);
+
+  // Roving tabindex: solo un elemento es alcanzable con Tab, el resto se
+  // recorre con las flechas. Si no hay ninguno activo, lo es el primero.
+  const isTabbable = useCallback((item: any, index: number) => {
+    if (activeId !== null) return item.id === activeId;
+    return index === 0;
+  }, [activeId]);
+
+  const handleGridKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = filteredShortcutsList;
+    if (!items || items.length === 0) return;
+
+    const currentIndex = activeId !== null ? items.findIndex((item: any) => item.id === activeId) : -1;
+
+    // Escritura directa: salta al primer acceso que empiece por lo tecleado.
+    if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey && e.key !== ' ') {
+      const now = Date.now();
+      const state = typeaheadRef.current;
+      const text = now - state.at > 800 ? e.key : state.text + e.key;
+      typeaheadRef.current = { text, at: now };
+      const match = items.find((item: any) =>
+        String(item.name || '').toLowerCase().startsWith(text.toLowerCase())
+      );
+      if (match) {
+        e.preventDefault();
+        focusItem(match);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowRight':
+      case 'ArrowLeft':
+      case 'ArrowDown':
+      case 'ArrowUp': {
+        e.preventDefault();
+        const columns = getColumnCount();
+        const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowDown' ? columns : -columns;
+        const nextIndex = currentIndex < 0
+          ? (e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? items.length - 1 : 0)
+          : Math.max(0, Math.min(items.length - 1, currentIndex + step));
+        focusItem(items[nextIndex]);
+        return;
+      }
+      case 'Home': {
+        e.preventDefault();
+        focusItem(items[0]);
+        return;
+      }
+      case 'End': {
+        e.preventDefault();
+        focusItem(items[items.length - 1]);
+        return;
+      }
+      case 'Enter':
+      case ' ': {
+        if (currentIndex < 0) return;
+        e.preventDefault();
+        const item = items[currentIndex];
+        if (selectionMode) handleItemSelect(item, currentIndex, e as unknown as React.MouseEvent);
+        else handleLaunch(item);
+        return;
+      }
+      case 'Delete':
+      case 'Backspace': {
+        if (currentIndex < 0 || selectionMode) return;
+        e.preventDefault();
+        handleDeleteShortcut(items[currentIndex].id);
+        return;
+      }
+      default:
+        return;
+    }
+  };
 
   return (
     <main
@@ -106,7 +221,12 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
         </div>
       ) : (
         <div
-          className="grid gap-4 transition-all"
+          ref={gridRef}
+          role="group"
+          aria-label={translate('shortcut_grid_label')}
+          tabIndex={-1}
+          onKeyDown={handleGridKeyDown}
+          className="grid gap-4 transition-all focus:outline-none"
           style={{
             gridTemplateColumns: viewMode === 'list'
               ? 'repeat(auto-fill, minmax(280px, 1fr))'
@@ -149,6 +269,11 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                 <div
                   key={item.id}
                   data-shortcut-id={item.id}
+                  ref={(node) => registerItem(item.id, node)}
+                  role="button"
+                  tabIndex={isTabbable(item, index) ? 0 : -1}
+                  aria-label={item.name}
+                  onFocus={() => setActiveId(item.id)}
                   onClick={(e) => selectionMode ? handleItemSelect(item, index, e) : handleLaunch(item)}
                   onContextMenu={(e) => {
                     if (selectionMode) {
@@ -160,7 +285,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                   }}
                   draggable={!selectionMode}
                   onDragStart={(e) => handleShortcutDragStart(e, item)}
-                  className={`cyber-panel-glow bg-slate-950/45 rounded-lg p-2 flex items-center justify-between gap-3 transition-all duration-300 hover:scale-102 hover:bg-slate-900/60 cursor-pointer relative group border ${
+                  className={`cyber-panel-glow bg-slate-950/45 rounded-lg p-2 flex items-center justify-between gap-3 transition-all duration-300 hover:scale-102 hover:bg-slate-900/60 cursor-pointer relative group border focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--neon-glow-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                     selectedIds.has(item.id)
                       ? 'border-[var(--neon-glow-color)] ring-1 ring-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10'
                       : 'border-slate-900/30 hover:border-[var(--neon-glow-border)]'
@@ -268,6 +393,11 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                 <div
                   key={item.id}
                   data-shortcut-id={item.id}
+                  ref={(node) => registerItem(item.id, node)}
+                  role="button"
+                  tabIndex={isTabbable(item, index) ? 0 : -1}
+                  aria-label={item.name}
+                  onFocus={() => setActiveId(item.id)}
                   onClick={(e) => selectionMode ? handleItemSelect(item, index, e) : handleLaunch(item)}
                   onContextMenu={(e) => {
                     if (selectionMode) {
@@ -279,7 +409,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                   }}
                   draggable={!selectionMode}
                   onDragStart={(e) => handleShortcutDragStart(e, item)}
-                  className={`cyber-panel-glow rounded-xl transition-all duration-300 hover:scale-103 cursor-pointer relative group ${
+                  className={`cyber-panel-glow rounded-xl transition-all duration-300 hover:scale-103 cursor-pointer relative group focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--neon-glow-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                     selectedIds.has(item.id)
                       ? 'bg-[var(--neon-glow-color-raw)]/10 ring-1 ring-[var(--neon-glow-color)]'
                       : 'bg-slate-950/45'
