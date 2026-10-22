@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import { initUpdater } from './updater';
-import { createDefaultConfig, type CyberTrayConfig } from '../src/lib/configDefaults';
+import { createDefaultConfig, sanitizeConfig, type CyberTrayConfig } from '../src/lib/configDefaults';
 
 // Versiones asíncronas: nunca usar execSync en el proceso main, bloquea el
 // tray, la ventana y todo el IPC mientras el hijo de PowerShell corre.
@@ -613,7 +613,7 @@ function loadConfig() {
   try {
     if (fs.existsSync(CONFIG_FILE)) {
       const data = fs.readFileSync(CONFIG_FILE, 'utf-8');
-      config = { ...createDefaultConfig(), ...JSON.parse(data) };
+      config = { ...createDefaultConfig(), ...sanitizeConfig(JSON.parse(data)) };
       delete (config as { dockPosition?: unknown }).dockPosition;
       // El PIN de la bóveda solo existe hasheado: nunca se persiste en claro.
       delete (config as { vaultPin?: unknown }).vaultPin;
@@ -635,9 +635,8 @@ function saveConfig(
       };
     }
     const previous = config;
-    config = { ...config, ...newConfig };
+    config = sanitizeConfig({ ...config, ...newConfig }) as CyberTrayConfig;
     configRevision += 1;
-
     // Los atajos por acceso dependen de la lista de accesos: se re-registran
     // solo cuando algún atajo (o su destino) ha cambiado.
     const hotkeySignature = (list?: any[]) =>
@@ -645,9 +644,6 @@ function saveConfig(
     if (hotkeySignature(previous.shortcutsList) !== hotkeySignature(config.shortcutsList)) {
       registerShortcutHotkeys(config.shortcutsList || []);
     }
-    // Salvaguarda: si un cliente antiguo o un import intenta escribir el PIN
-    // en claro, se descarta antes de tocar el disco.
-    delete (config as { vaultPin?: unknown }).vaultPin;
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
 
     // Quiet saves (e.g. usageCount ticks) skip reload IPC

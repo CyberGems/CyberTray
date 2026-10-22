@@ -163,6 +163,10 @@ export default function AboutModal({
       `Locale: ${getLocale()}`,
     ];
     try {
+      const configPath = await window.electronAPI?.getConfigPath?.();
+      if (configPath) lines.push(`Config: ${configPath}`);
+    } catch { /* ignore */ }
+    try {
       await navigator.clipboard.writeText(lines.join('\n'));
       setDiagCopied(true);
       playCyberBeep();

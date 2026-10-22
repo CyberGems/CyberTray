@@ -46,6 +46,59 @@ export interface CyberTrayConfig {
 }
 
 /**
+ * Claves que la app entiende. Cualquier otra cosa que quedara en el archivo
+ * de configuración (restos de versiones anteriores) se descarta al guardar,
+ * para que el archivo no se llene de campos muertos.
+ */
+const KNOWN_CONFIG_KEYS = new Set<keyof CyberTrayConfig>([
+  'monitorId',
+  'shortcut',
+  'hideOnBlur',
+  'hotspotCorners',
+  'hotspotDelay',
+  'alwaysOnTop',
+  'iconSize',
+  'showTaskbarIcon',
+  'autoLaunch',
+  'hideOnDeadZoneClick',
+  'theme',
+  'blurLevel',
+  'opacity',
+  'bgType',
+  'bgSolidColor',
+  'bgGradient',
+  'bgImage',
+  'bgCustomPath',
+  'language',
+  'soundEnabled',
+  'soundPath',
+  'monitorBounds',
+  'vaultPath',
+  'vaultPinEnabled',
+  'vaultPinHash',
+  'vaultPinSalt',
+  'vaultLockTimeout',
+  'shortcutsList',
+  'categoriesList',
+  'folderSchemaVersion',
+  'totalLaunches',
+  'autoUpdate',
+  'autoCheckUpdates',
+  'taskbarIds',
+]);
+
+/** Devuelve la configuración sin las claves desconocidas. */
+export function sanitizeConfig<T extends Record<string, unknown>>(config: T): T {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(config || {})) {
+    if (KNOWN_CONFIG_KEYS.has(key as keyof CyberTrayConfig)) {
+      result[key] = value;
+    }
+  }
+  return result as T;
+}
+
+/**
  * Devuelve una copia nueva de los valores por defecto.
  * Se usa una factory (y no una constante) para que los arrays y objetos
  * anidados nunca se compartan entre la config en memoria y el default.
