@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Shield } from 'lucide-react';
 import { translate } from '../locales';
@@ -10,7 +10,7 @@ interface PinPadModalProps {
   setPinInput: (v: string) => void;
   pinError: boolean;
   setPinError: (v: boolean) => void;
-  handlePinSubmit: (enteredPin: string) => void;
+  handlePinSubmit: (enteredPin: string) => void | Promise<void>;
   playCyberBeep: () => void;
 }
 
@@ -24,23 +24,63 @@ export default function PinPadModal({
   handlePinSubmit,
   playCyberBeep,
 }: PinPadModalProps) {
+  // El PIN se envía con un pequeño retardo para que se vea el último dígito.
+  // Si el modal se cierra antes, el envío se cancela: si no, un PIN válido
+  // desbloquearía la bóveda después de que el usuario la cancelara.
+  const submitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelPendingSubmit = useCallback(() => {
+    if (submitTimerRef.current) {
+      clearTimeout(submitTimerRef.current);
+      submitTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => cancelPendingSubmit, [cancelPendingSubmit]);
+
+  useEffect(() => {
+    if (!showPinModal) cancelPendingSubmit();
+  }, [showPinModal, cancelPendingSubmit]);
+
+  const scheduleSubmit = useCallback((value: string) => {
+    cancelPendingSubmit();
+    submitTimerRef.current = setTimeout(() => {
+      submitTimerRef.current = null;
+      void handlePinSubmit(value);
+    }, 250);
+  }, [cancelPendingSubmit, handlePinSubmit]);
+
+  const handleDigit = (digit: string) => {
+    if (pinInput.length >= 4) return;
+    const val = pinInput + digit;
+    setPinInput(val);
+    setPinError(false);
+    playCyberBeep();
+    if (val.length === 4) {
+      scheduleSubmit(val);
+    }
+  };
+
   return (
     <>
 {/* ── MODAL: PIN PAD PARA DESBLOQUEAR BÓVEDA ── */}
       <AnimatePresence>
         {showPinModal && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowPinModal(false)}
+              onClick={() => { cancelPendingSubmit(); setShowPinModal(false); }}
               className="fixed inset-0 z-[1000] bg-black/80 backdrop-blur-sm"
             />
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.92, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.92, opacity: 0, y: 20 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="vault-pin-title"
               className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] z-[1001] bg-[#070b13]/95 border border-purple-500/50 shadow-[0_0_25px_rgba(168,85,247,0.3)] rounded-2xl p-6 font-mono text-center flex flex-col gap-4"
               onClick={e => e.stopPropagation()}
             >
@@ -49,9 +89,9 @@ export default function PinPadModal({
                   <Shield className="w-6 h-6 animate-pulse" />
                 </div>
               </div>
-              
+
               <div>
-                <h3 className="font-ui font-bold text-white text-xs tracking-widest">
+                <h3 id="vault-pin-title" className="font-ui font-bold text-white text-xs tracking-widest">
                   {translate('vault_locked_title')}
                 </h3>
                 <p className="text-[9px] text-slate-500 mt-1 uppercase tracking-wider">
@@ -62,13 +102,13 @@ export default function PinPadModal({
               {/* Dots display for digits entered */}
               <div className="flex justify-center gap-3 my-2.5">
                 {[0, 1, 2, 3].map(idx => (
-                  <div 
+                  <div
                     key={idx}
                     className={`w-3.5 h-3.5 rounded-full border transition-all duration-300 ${
-                      pinInput.length > idx 
-                        ? 'bg-purple-500 border-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.8)] scale-110' 
-                        : pinError 
-                          ? 'border-red-500 bg-red-500/30 shadow-[0_0_8px_rgba(239,68,68,0.5)]' 
+                      pinInput.length > idx
+                        ? 'bg-purple-500 border-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.8)] scale-110'
+                        : pinError
+                          ? 'border-red-500 bg-red-500/30 shadow-[0_0_8px_rgba(239,68,68,0.5)]'
                           : 'border-slate-800 bg-slate-950'
                     }`}
                   />
@@ -76,7 +116,7 @@ export default function PinPadModal({
               </div>
 
               {pinError && (
-                <div className="text-[10px] text-red-500 font-bold uppercase tracking-wider animate-pulse">
+                <div role="alert" className="text-[10px] text-red-500 font-bold uppercase tracking-wider animate-pulse">
                   {translate('vault_pin_error')}
                 </div>
               )}
@@ -86,55 +126,34 @@ export default function PinPadModal({
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
                   <button
                     key={num}
-                    onClick={() => {
-                      if (pinInput.length < 4) {
-                        const val = pinInput + num;
-                        setPinInput(val);
-                        setPinError(false);
-                        playCyberBeep();
-                        if (val.length === 4) {
-                          // Auto check PIN code
-                          setTimeout(() => handlePinSubmit(val), 250);
-                        }
-                      }
-                    }}
+                    onClick={() => handleDigit(String(num))}
                     disabled={pinInput.length >= 4}
                     className="py-2.5 bg-slate-950/60 border border-slate-900 hover:border-purple-500/40 text-slate-200 hover:text-white rounded-lg text-sm font-bold transition-all cursor-pointer select-none active:scale-95 disabled:opacity-50"
                   >
                     {num}
                   </button>
                 ))}
-                
+
                 {/* Clear Button */}
                 <button
-                  onClick={() => { setPinInput(''); setPinError(false); playCyberBeep(); }}
+                  onClick={() => { cancelPendingSubmit(); setPinInput(''); setPinError(false); playCyberBeep(); }}
                   className="py-2.5 bg-slate-950/40 border border-slate-900 hover:border-red-500/40 text-red-500 hover:text-red-400 rounded-lg text-xs font-bold transition-all cursor-pointer select-none active:scale-95"
                 >
                   {translate('vault_pin_clear')}
                 </button>
-                
+
                 {/* 0 Button */}
                 <button
-                  onClick={() => {
-                    if (pinInput.length < 4) {
-                      const val = pinInput + '0';
-                      setPinInput(val);
-                      setPinError(false);
-                      playCyberBeep();
-                      if (val.length === 4) {
-                        setTimeout(() => handlePinSubmit(val), 250);
-                      }
-                    }
-                  }}
+                  onClick={() => handleDigit('0')}
                   disabled={pinInput.length >= 4}
                   className="py-2.5 bg-slate-950/60 border border-slate-900 hover:border-purple-500/40 text-slate-200 hover:text-white rounded-lg text-sm font-bold transition-all cursor-pointer select-none active:scale-95 disabled:opacity-50"
                 >
                   0
                 </button>
-                
+
                 {/* Cancel Button */}
                 <button
-                  onClick={() => { setShowPinModal(false); playCyberBeep(); }}
+                  onClick={() => { cancelPendingSubmit(); setShowPinModal(false); playCyberBeep(); }}
                   className="py-2.5 bg-slate-950/40 border border-slate-900 hover:border-slate-800 text-slate-500 hover:text-slate-400 rounded-lg text-xs font-bold transition-all cursor-pointer select-none active:scale-95"
                 >
                   {translate('vault_pin_abort')}

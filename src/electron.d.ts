@@ -1,19 +1,21 @@
 export {};
 
+/**
+ * Contrato único de la API IPC expuesta por electron/preload.ts.
+ * Cualquier cambio en el preload debe reflejarse aquí.
+ */
 declare global {
   interface Window {
     electronAPI?: {
       launchApp: (path: string, isAdmin?: boolean, args?: string, cwd?: string) => Promise<{ success: boolean; error?: string }>;
-      getUwpApps: () => Promise<Array<{ name: string; aumid: string; icon: string }>>;
       selectFile: (options?: { filters?: Array<{ name: string; extensions: string[] }> }) => Promise<{ name: string; path: string; iconPath?: string } | null>;
       selectImage: () => Promise<string | null>;
       selectAudio: () => Promise<string | null>;
+      getImageData: (filePath: string) => Promise<string | null>;
+      getBundledAssetUrl: (relativePath: string) => Promise<string | null>;
       getMonitors: () => Promise<Array<{ id: string; label: string; isPrimary: boolean; bounds: any; size: any }>>;
       setMonitor: (monitorId: string) => Promise<void>;
       registerShortcut: (shortcut: string) => Promise<{ success: boolean; shortcut: string }>;
-      windowMinimize: () => Promise<void>;
-      windowMaximizeToggle: () => Promise<void>;
-      windowClose: () => Promise<void>;
       windowHideToTray: () => Promise<void>;
       setAutoLaunch: (enabled: boolean) => Promise<{ success: boolean; enabled: boolean }>;
       setHideOnBlur: (enabled: boolean) => Promise<{ success: boolean; enabled: boolean }>;
@@ -24,14 +26,7 @@ declare global {
       killProcess: (pid: number) => Promise<{ success: boolean; error?: string }>;
       resolveFilePath: (filePath: string) => Promise<{ name: string; path: string; ext: string; exists: boolean; iconPath: string; arguments?: string; cwd?: string } | null>;
       openFileLocation: (filePath: string) => Promise<{ success: boolean; error?: string }>;
-      searchSystemFiles: (query: string) => Promise<Array<{ name: string; path: string; ext: string; type: 'app' | 'file' | 'folder'; icon?: string }>>;
-      getIndexerSettings: () => Promise<{ enabled: boolean; maxDepth: number; paths: string[] }>;
-      saveIndexerSettings: (settings: { enabled: boolean; maxDepth: number; paths: string[] }) => Promise<boolean>;
-      getIndexerStats: () => Promise<{ status: 'ONLINE' | 'OFFLINE' | 'INDEXING'; totalFiles: number }>;
-      selectIndexerFolder: () => Promise<string | null>;
-      getSystemDrives: () => Promise<string[]>;
       getPathForFile: (file: File) => string;
-      getImageData: (filePath: string) => Promise<string | null>;
       setHotspots: (corners: string[], delay: number) => Promise<{ success: boolean }>;
       openDevTools: () => Promise<{ success: boolean }>;
       exportConfig: (jsonData: string) => Promise<string | null>;
@@ -43,9 +38,6 @@ declare global {
       onReloadConfig: (callback: () => void) => () => void;
       showTextContextMenu: (x: number, y: number) => Promise<void>;
       setAlwaysOnTop: (enabled: boolean) => Promise<{ success: boolean }>;
-      runShellCommand: (command: string) => Promise<{ success: boolean; cmdId?: string; error?: string }>;
-      onShellOutput: (callback: (data: { id: string; type: 'stdout' | 'stderr'; text: string }) => void) => () => void;
-      onShellExit: (callback: (data: { id: string; exitCode: number }) => void) => () => void;
       onAlwaysOnTopBlurAttempt: (callback: () => void) => () => void;
       onOpenSettings: (callback: () => void) => () => void;
       onOpenAbout: (callback: (opts?: { checkUpdates?: boolean }) => void) => () => void;
@@ -63,7 +55,6 @@ declare global {
       setAutoUpdate: (enabled: boolean) => Promise<{ success: boolean; enabled: boolean }>;
       openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
       onUpdateStatus: (callback: (status: any) => void) => () => void;
-      toggleShelf: () => Promise<void>;
       setDragActive: (active: boolean) => Promise<void>;
       onShelfStateChange: (callback: (visible: boolean) => void) => () => void;
       onPlayLaunchSound: (callback: () => void) => () => void;

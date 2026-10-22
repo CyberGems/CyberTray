@@ -7,7 +7,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // --- Launch App ---
   launchApp: (appPath: string, isAdmin?: boolean, args?: string, cwd?: string) =>
     ipcRenderer.invoke('launch-app', appPath, isAdmin, args, cwd),
-  getUwpApps: () => ipcRenderer.invoke('get-uwp-apps'),
 
   // --- Native File Dialogs ---
   selectFile: (options?: { filters?: Array<{ name: string; extensions: string[] }> }) =>
@@ -15,6 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectImage: () => ipcRenderer.invoke('select-image'),
   selectAudio: () => ipcRenderer.invoke('select-audio'),
   getImageData: (filePath: string) => ipcRenderer.invoke('get-image-data', filePath),
+  getBundledAssetUrl: (relativePath: string) => ipcRenderer.invoke('get-bundled-asset-url', relativePath),
 
   // --- Monitors ---
   getMonitors: () => ipcRenderer.invoke('get-monitors'),
@@ -24,9 +24,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   registerShortcut: (shortcut: string) => ipcRenderer.invoke('register-shortcut', shortcut),
 
   // --- Window Controls ---
-  windowMinimize: () => ipcRenderer.invoke('window-minimize'),
-  windowMaximizeToggle: () => ipcRenderer.invoke('window-maximize-toggle'),
-  windowClose: () => ipcRenderer.invoke('window-close'),
   windowHideToTray: () => ipcRenderer.invoke('window-hide-to-tray'),
 
   // --- Settings Binders ---
@@ -43,13 +40,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // --- Drag & Drop helpers ---
   resolveFilePath: (filePath: string) => ipcRenderer.invoke('resolve-file-path', filePath),
   openFileLocation: (filePath: string) => ipcRenderer.invoke('open-file-location', filePath),
-  searchSystemFiles: (query: string) => ipcRenderer.invoke('search-system-files', query),
-  getIndexerSettings: () => ipcRenderer.invoke('get-indexer-settings'),
-  saveIndexerSettings: (settings: { enabled: boolean; maxDepth: number; paths: string[] }) =>
-    ipcRenderer.invoke('save-indexer-settings', settings),
-  getIndexerStats: () => ipcRenderer.invoke('get-indexer-stats'),
-  selectIndexerFolder: () => ipcRenderer.invoke('select-indexer-folder'),
-  getSystemDrives: () => ipcRenderer.invoke('get-system-drives'),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
 
   // --- Hotspots (Esquinas activas) ---
@@ -83,18 +73,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // --- Pinning (Always on Top) ---
   setAlwaysOnTop: (enabled: boolean) => ipcRenderer.invoke('set-always-on-top', enabled),
 
-  // --- Shell runner ---
-  runShellCommand: (command: string) => ipcRenderer.invoke('run-shell-command', command),
-  onShellOutput: (callback: (data: { id: string; type: 'stdout' | 'stderr'; text: string }) => void) => {
-    const handler = (_event: any, data: { id: string; type: 'stdout' | 'stderr'; text: string }) => callback(data);
-    ipcRenderer.on('shell-command-output', handler);
-    return () => { ipcRenderer.removeListener('shell-command-output', handler); };
-  },
-  onShellExit: (callback: (data: { id: string; exitCode: number }) => void) => {
-    const handler = (_event: any, data: { id: string; exitCode: number }) => callback(data);
-    ipcRenderer.on('shell-command-exit', handler);
-    return () => { ipcRenderer.removeListener('shell-command-exit', handler); };
-  },
   onAlwaysOnTopBlurAttempt: (callback: () => void) => {
     const handler = () => callback();
     ipcRenderer.on('always-on-top-blur-attempt', handler);
@@ -138,7 +116,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // --- CyberTray Specific IPC channels ---
-  toggleShelf: () => ipcRenderer.invoke('toggle-shelf'),
   setDragActive: (active: boolean) => ipcRenderer.invoke('set-drag-active', active),
   onShelfStateChange: (callback: (visible: boolean) => void) => {
     const handler = (_event: any, visible: boolean) => callback(visible);

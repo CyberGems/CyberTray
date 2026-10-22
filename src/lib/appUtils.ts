@@ -1,6 +1,9 @@
+import { FOLDER_SCHEMA_VERSION } from './configDefaults';
+
+export { FOLDER_SCHEMA_VERSION };
+
 export const isElectron = !!window.electronAPI;
 
-export const FOLDER_SCHEMA_VERSION = 2;
 export const ROOT_FOLDER_ID = 'all';
 
 export interface CyberFolder {
@@ -113,6 +116,30 @@ export const getChildFolders = (folders: CyberFolder[], parentId: string | null)
   folders
     .filter(folder => folder.id !== ROOT_FOLDER_ID && folder.parentId === parentId)
     .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+
+/**
+ * Estado de bloqueo de la bóveda.
+ *
+ * Si el PIN está activo pero no hay hash configurado (config editado a mano,
+ * WebCrypto no disponible, etc.) la bóveda no se bloquea: dejar al usuario
+ * fuera de sus propios archivos sin ninguna vía de recuperación sería peor.
+ */
+export const isVaultLockedState = (params: {
+  pinEnabled?: boolean;
+  pinConfigured?: boolean;
+  lockTimeout?: number;
+  unlockedSession: boolean;
+  lastUnlockTime: number;
+}): boolean => {
+  const { pinEnabled, pinConfigured, lockTimeout, unlockedSession, lastUnlockTime } = params;
+  if (pinEnabled !== true) return false;
+  if (!pinConfigured) return false;
+  if (lockTimeout === -1) return !unlockedSession;
+  if (lockTimeout === 0) return lastUnlockTime === 0;
+  const elapsedMs = Date.now() - lastUnlockTime;
+  const timeoutMs = (lockTimeout || 5) * 60 * 1000;
+  return elapsedMs > timeoutMs;
+};
 
 export const getDescendantFolderIds = (folders: CyberFolder[], folderId: string): string[] => {
   const descendants: string[] = [];

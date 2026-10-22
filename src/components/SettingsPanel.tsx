@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { translate } from '../locales';
 import { isElectron, INITIAL_CATEGORIES } from '../lib/appUtils';
+import { hashPin, verifyPin } from '../lib/pin';
 import Toggle from './Toggle';
 
 const ICON_TONES = {
@@ -124,7 +125,7 @@ export interface SettingsPanelProps {
   tempBgPath: string;
   setTempBgPath: (v: string) => void;
   handleChangeLanguage: (lang: 'en' | 'es') => void;
-  handleUpdateConfigSetting: (keyOrUpdates: string | Record<string, any>, value?: any) => void;
+  handleUpdateConfigSetting: (keyOrUpdates: string | Record<string, any>, value?: any) => void | Promise<void>;
   handleBrowseBgImage: () => void;
   handleApplyCustomBg: () => void;
   handleExportBackup: () => void;
@@ -635,8 +636,12 @@ export default function SettingsPanel({
                                 const val = e.target.value.replace(/\D/g, '').substring(0, 4);
                                 setDisablePinInput(val);
                                 if (val.length === 4) {
-                                  const storedPin = config.vaultPin || '1234';
-                                  if (val === storedPin) {
+                                  const isValid = await verifyPin(
+                                    val,
+                                    config.vaultPinHash,
+                                    config.vaultPinSalt
+                                  );
+                                  if (isValid) {
                                     await handleUpdateConfigSetting('vaultPinEnabled', false);
                                     setShowDisablePinPrompt(false);
                                     playFolderSound();
@@ -731,7 +736,11 @@ export default function SettingsPanel({
                                   playPinBlockSound();
                                   return;
                                 }
-                                await handleUpdateConfigSetting('vaultPin', enablePinInput);
+                                const derived = await hashPin(enablePinInput);
+                                await handleUpdateConfigSetting({
+                                  vaultPinHash: derived.hash,
+                                  vaultPinSalt: derived.salt,
+                                });
                                 await handleUpdateConfigSetting('vaultPinEnabled', true);
                                 setEnablePinError('');
                                 setShowEnablePinPrompt(false);
@@ -831,8 +840,12 @@ export default function SettingsPanel({
                                 <button
                                   type="button"
                                   onClick={async () => {
-                                    const storedPin = config.vaultPin || '1234';
-                                    if (currentPinInput !== storedPin) {
+                                    const isValid = await verifyPin(
+                                      currentPinInput,
+                                      config.vaultPinHash,
+                                      config.vaultPinSalt
+                                    );
+                                    if (!isValid) {
                                       setChangePinError(translate('vault_pin_wrong_current'));
                                       playPinBlockSound();
                                       return;
@@ -847,7 +860,11 @@ export default function SettingsPanel({
                                       playPinBlockSound();
                                       return;
                                     }
-                                    await handleUpdateConfigSetting('vaultPin', newPinInput);
+                                    const derived = await hashPin(newPinInput);
+                                    await handleUpdateConfigSetting({
+                                      vaultPinHash: derived.hash,
+                                      vaultPinSalt: derived.salt,
+                                    });
                                     setChangePinError('');
                                     setChangePinSuccess(true);
                                     playFolderSound();

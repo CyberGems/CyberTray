@@ -1,11 +1,17 @@
 import { app, BrowserWindow, ipcMain, shell, Tray, Menu, globalShortcut, screen, nativeImage, dialog, protocol, net, powerMonitor } from 'electron';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
-import { exec, execSync, execFile } from 'node:child_process';
+import { exec, execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import fs from 'node:fs';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import { initUpdater } from './updater';
+import { createDefaultConfig, type CyberTrayConfig } from '../src/lib/configDefaults';
+
+// Versiones asíncronas: nunca usar execSync en el proceso main, bloquea el
+// tray, la ventana y todo el IPC mientras el hijo de PowerShell corre.
+const execFileAsync = promisify(execFile);
 
 // Registrar el protocolo antes de que la app esté lista
 protocol.registerSchemesAsPrivileged([
@@ -57,68 +63,10 @@ let isDragActive = false;
 let isDialogOpen = false;
 
 // ── CONFIGURACIÓN PREDETERMINADA ──
-interface CyberTrayConfig {
-  monitorId: string;
-  shortcut: string;
-  hideOnBlur: boolean;
-  hotspotCorners: string[];
-  hotspotDelay: number;
-  alwaysOnTop: boolean;
-  iconSize: number;
-  showTaskbarIcon: boolean;
-  autoLaunch: boolean;
-  hideOnDeadZoneClick: boolean;
-  bgType: 'solid' | 'gradient' | 'image';
-  bgSolidColor: string;
-  bgGradient: string;
-  bgImage: string;
-  bgCustomPath: string;
-  language?: 'en' | 'es';
-  soundEnabled?: boolean;
-  soundPath?: string;
-  monitorBounds?: { x: number; y: number; width: number; height: number };
-  vaultPath?: string;
-  vaultPinEnabled?: boolean;
-  vaultPin?: string;
-  vaultLockTimeout?: number;
-  shortcutsList?: any[];
-  categoriesList?: any[];
-  folderSchemaVersion?: number;
-  totalLaunches?: number;
-  autoUpdate?: boolean;
-  autoCheckUpdates?: boolean;
-  taskbarIds?: number[];
-}
+// Los valores por defecto viven en src/lib/configDefaults.ts, compartidos con
+// el renderer para que main y UI nunca discrepen.
 
-const DEFAULT_CONFIG: CyberTrayConfig = {
-  monitorId: '',
-  shortcut: 'Alt+Shift+T', // Atajo CyberTray por defecto
-  hideOnBlur: true,
-  language: 'en',
-  hotspotCorners: [],
-  hotspotDelay: 300,
-  alwaysOnTop: true,
-  iconSize: 52, // 52px por defecto
-  showTaskbarIcon: false,
-  autoLaunch: false,
-  hideOnDeadZoneClick: false,
-  bgType: 'solid',
-  bgSolidColor: '#070b13',
-  bgGradient: 'preset-1',
-  bgImage: 'preset-1',
-  bgCustomPath: '',
-  soundEnabled: true,
-  soundPath: '',
-  vaultPath: '',
-  vaultPinEnabled: false,
-  vaultPin: '1234',
-  vaultLockTimeout: 0,
-  folderSchemaVersion: 2,
-  totalLaunches: 0,
-  autoUpdate: true,
-};
-
-let config: CyberTrayConfig = { ...DEFAULT_CONFIG };
+let config: CyberTrayConfig = createDefaultConfig();
 const CONFIG_FILE = path.join(app.getPath('userData'), 'cyber-tray-config.json');
 
 function getIconsDir(): string {
@@ -214,6 +162,12 @@ function embedIconsInBackupPayload(jsonData: string): string {
     }
     if (parsed.config && Array.isArray(parsed.config.shortcutsList)) {
       parsed.config.shortcutsList = embedIconsInShortcuts(parsed.config.shortcutsList);
+    }
+    // Salvaguarda: el PIN de la bóveda nunca debe acabar en un archivo de backup.
+    if (parsed.config && typeof parsed.config === 'object') {
+      delete parsed.config.vaultPin;
+      delete parsed.config.vaultPinHash;
+      delete parsed.config.vaultPinSalt;
     }
     return JSON.stringify(parsed, null, 2);
   } catch {
@@ -381,16 +335,31 @@ async function launchAppInternal(
   cwd?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const target = String(appPath || '').trim();
+    if (!target) {
+      return { success: false, error: 'Empty target' };
+    }
+
+    // Las URL se abren con el navegador, no con openPath (que espera rutas de archivo).
+    if (/^https?:\/\//i.test(target)) {
+      await shell.openExternal(target);
+      return { success: true };
+    }
+
     const hasArgs = typeof args === 'string' && args.trim().length > 0;
     if (process.platform === 'win32' && (isAdmin || hasArgs || (cwd && cwd.trim()))) {
       const esc = (s: string) => String(s).replace(/'/g, "''");
-      let command = `Start-Process -FilePath '${esc(appPath)}'`;
+      let command = `Start-Process -FilePath '${esc(target)}'`;
       if (hasArgs) command += ` -ArgumentList '${esc(args)}'`;
       if (cwd && cwd.trim()) command += ` -WorkingDirectory '${esc(cwd)}'`;
       if (isAdmin) command += ` -Verb RunAs`;
       exec(`powershell -NoProfile -Command "${command}"`, { windowsHide: true });
     } else {
-      shell.openPath(appPath);
+      // shell.openPath resuelve con un mensaje de error (o cadena vacía si fue bien).
+      const failure = await shell.openPath(target);
+      if (failure) {
+        return { success: false, error: failure };
+      }
     }
     return { success: true };
   } catch (err: any) {
@@ -401,7 +370,10 @@ async function launchAppInternal(
 function launchShortcutFromTray(item: TrayRecentItem): void {
   void (async () => {
     try {
-      await launchAppInternal(item.path, item.isAdmin, item.arguments, item.cwd);
+      const res = await launchAppInternal(item.path, item.isAdmin, item.arguments, item.cwd);
+      if (!res || res.success === false) {
+        return;
+      }
       trayRecents = [item, ...trayRecents.filter(r => r.path !== item.path)].slice(0, 10);
       lastTrayRecentsKey = JSON.stringify(trayRecents);
       rebuildTrayMenu();
@@ -579,8 +551,10 @@ function loadConfig() {
   try {
     if (fs.existsSync(CONFIG_FILE)) {
       const data = fs.readFileSync(CONFIG_FILE, 'utf-8');
-      config = { ...DEFAULT_CONFIG, ...JSON.parse(data) };
+      config = { ...createDefaultConfig(), ...JSON.parse(data) };
       delete (config as { dockPosition?: unknown }).dockPosition;
+      // El PIN de la bóveda solo existe hasheado: nunca se persiste en claro.
+      delete (config as { vaultPin?: unknown }).vaultPin;
     }
   } catch (err) {
     console.error('Error loading config:', err);
@@ -599,6 +573,9 @@ function saveConfig(
       };
     }
     config = { ...config, ...newConfig };
+    // Salvaguarda: si un cliente antiguo o un import intenta escribir el PIN
+    // en claro, se descarta antes de tocar el disco.
+    delete (config as { vaultPin?: unknown }).vaultPin;
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
 
     // Quiet saves (e.g. usageCount ticks) skip reload IPC
@@ -795,8 +772,39 @@ function applyOverlayBounds(display?: Electron.Display) {
 }
 
 // --- Iconos de la Aplicación ---
+/**
+ * Carpeta con los recursos empaquetados (imágenes, sonidos).
+ * En desarrollo Vite los sirve desde `public/`, en producción quedan en `dist/`.
+ */
+function getAssetsDir(): string {
+  return VITE_DEV_SERVER_URL
+    ? path.join(__dirname, '../public')
+    : path.join(__dirname, '../dist');
+}
+
+/**
+ * Devuelve una URL `local-resource://` para un recurso empaquetado.
+ *
+ * Chromium no decodifica audio servido directamente por `file://` (la
+ * respuesta no lleva Content-Type), así que los sonidos tienen que pasar por
+ * el protocolo propio, que sí los tipa correctamente.
+ */
+function getBundledAssetUrl(relativePath: string): string | null {
+  const safeRelative = String(relativePath || '')
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '');
+  if (!safeRelative || safeRelative.includes('..')) return null;
+
+  const assetsDir = path.resolve(getAssetsDir());
+  const absolute = path.resolve(assetsDir, safeRelative);
+  if (absolute !== assetsDir && !absolute.startsWith(assetsDir + path.sep)) return null;
+  if (!fs.existsSync(absolute)) return null;
+
+  return `local-resource:///${absolute.replace(/\\/g, '/')}`;
+}
+
 function getAppIconPath(): string {
-  const iconDir = VITE_DEV_SERVER_URL ? path.join(__dirname, '../public') : path.join(__dirname, '../dist');
+  const iconDir = getAssetsDir();
   const ico = path.join(iconDir, 'icon.ico');
   if (fs.existsSync(ico)) return ico;
   return path.join(iconDir, 'icon.png');
@@ -1052,10 +1060,15 @@ async function resolveFullFileInfo(filePath: string) {
         if (shortcut.target && fs.existsSync(shortcut.target)) {
           resolvedPath = path.resolve(shortcut.target);
         } else {
-          // Fallback con PowerShell
+          // Fallback con PowerShell (asíncrono para no bloquear el proceso main).
           const escapedPath = normalized.replace(/'/g, "''");
-          const winCommand = `powershell -NoProfile -Command "$s = New-Object -ComObject WScript.Shell; $s.CreateShortcut('${escapedPath}').TargetPath"`;
-          const output = execSync(winCommand, { encoding: 'utf-8' }).trim();
+          const psCommand = `$s = New-Object -ComObject WScript.Shell; $s.CreateShortcut('${escapedPath}').TargetPath`;
+          const { stdout } = await execFileAsync('powershell', ['-NoProfile', '-Command', psCommand], {
+            windowsHide: true,
+            timeout: 8000,
+            encoding: 'utf-8',
+          });
+          const output = String(stdout || '').trim();
           if (output && fs.existsSync(output)) {
             resolvedPath = path.resolve(output);
           }
@@ -1091,10 +1104,12 @@ async function resolveFullFileInfo(filePath: string) {
       try {
         const escapedPath = resolvedPath.replace(/'/g, "''");
         const psScript = `Add-Type -AssemblyName System.Drawing; $icon=[System.Drawing.Icon]::ExtractAssociatedIcon('${escapedPath}'); if ($icon) { $bmp=$icon.ToBitmap(); $tmp=[System.IO.Path]::GetTempFileName()+'.png'; $bmp.Save($tmp,[System.Drawing.Imaging.ImageFormat]::Png); Write-Output $tmp; $icon.Dispose(); $bmp.Dispose() }`;
-        const tmpPs = path.join(os.tmpdir(), `ct-icon-${Date.now()}.ps1`);
-        fs.writeFileSync(tmpPs, psScript, 'utf-8');
-        const psOutput = execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${tmpPs}"`, { encoding: 'utf-8', timeout: 8000 }).trim();
-        fs.unlinkSync(tmpPs);
+        const { stdout } = await execFileAsync('powershell', ['-NoProfile', '-Command', psScript], {
+          windowsHide: true,
+          timeout: 8000,
+          encoding: 'utf-8',
+        });
+        const psOutput = String(stdout || '').trim();
         if (psOutput && fs.existsSync(psOutput)) {
           const pngBuffer = fs.readFileSync(psOutput);
           fs.unlinkSync(psOutput);
@@ -1376,22 +1391,6 @@ function registerIpcHandlers() {
     return { success: true };
   });
 
-  ipcMain.handle('get-uwp-apps', async () => {
-    // Paridad con CyberLauncher: obtención básica de apps UWP mediante powershell
-    try {
-      const psCommand = `powershell -NoProfile -Command "Get-AppxPackage -AllUsers | Where-Object { $_.NonRemovable -eq $false } | Select-Object Name, PackageFamilyName | ConvertTo-Json"`;
-      const output = execSync(psCommand, { encoding: 'utf-8' });
-      const raw = JSON.parse(output);
-      return Array.isArray(raw) ? raw.map((item: any) => ({
-        name: item.Name,
-        aumid: item.PackageFamilyName,
-        icon: ''
-      })) : [];
-    } catch {
-      return [];
-    }
-  });
-
   ipcMain.handle('select-file', async (_, options) => {
     isDialogOpen = true;
     const res = await dialog.showOpenDialog(shelfWindow!, {
@@ -1476,24 +1475,12 @@ function registerIpcHandlers() {
     return { success: true, shortcut };
   });
 
-  ipcMain.handle('window-minimize', async () => {
-    shelfWindow?.minimize();
-  });
-
-  ipcMain.handle('window-maximize-toggle', async () => {
-    if (shelfWindow?.isMaximized()) {
-      shelfWindow.unmaximize();
-    } else {
-      shelfWindow?.maximize();
-    }
-  });
-
-  ipcMain.handle('window-close', async () => {
-    hideShelf();
-  });
-
   ipcMain.handle('window-hide-to-tray', async () => {
     hideShelf();
+  });
+
+  ipcMain.handle('get-bundled-asset-url', async (_event, relativePath: string) => {
+    return getBundledAssetUrl(relativePath);
   });
 
   ipcMain.handle('set-auto-launch', async (_, enabled) => {
@@ -1704,27 +1691,6 @@ function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle('search-system-files', async (_, query) => {
-    // Retorna resultados vacíos por defecto, o se integra con el indexer local
-    return [];
-  });
-
-  ipcMain.handle('get-indexer-settings', async () => {
-    return { enabled: false, maxDepth: 1, paths: [] };
-  });
-
-  ipcMain.handle('save-indexer-settings', async () => {
-    return true;
-  });
-
-  ipcMain.handle('get-indexer-stats', async () => {
-    return { status: 'OFFLINE', totalFiles: 0 };
-  });
-
-  ipcMain.handle('get-system-drives', async () => {
-    return ['C:', 'D:'];
-  });
-
   ipcMain.handle('set-hotspots', async (_, corners, delay) => {
     saveConfig({ hotspotCorners: corners, hotspotDelay: delay });
     return { success: true };
@@ -1806,27 +1772,7 @@ function registerIpcHandlers() {
     return { success: true };
   });
 
-  ipcMain.handle('run-shell-command', async (_, command) => {
-    try {
-      exec(command, (err, stdout, stderr) => {
-        const id = 'cmd-once';
-        if (shelfWindow && !shelfWindow.isDestroyed()) {
-          if (stdout) shelfWindow.webContents.send('shell-command-output', { id, type: 'stdout', text: stdout });
-          if (stderr) shelfWindow.webContents.send('shell-command-output', { id, type: 'stderr', text: stderr });
-          shelfWindow.webContents.send('shell-command-exit', { id, exitCode: err ? err.code || 1 : 0 });
-        }
-      });
-      return { success: true, cmdId: 'cmd-once' };
-    } catch (e: any) {
-      return { success: false, error: e?.message || e };
-    }
-  });
-
   // --- Canales de CyberTray ---
-  ipcMain.handle('toggle-shelf', async () => {
-    toggleShelf();
-  });
-
   ipcMain.handle('set-drag-active', async (_, active) => {
     isDragActive = active;
     if (!active && shelfWindow && !shelfWindow.isDestroyed() && !shelfWindow.isFocused() && config.hideOnBlur) {
@@ -2011,6 +1957,62 @@ function registerIpcHandlers() {
 }
 
 // ── PROTOCOLO DE RECURSO LOCAL ──
+/**
+ * El protocolo `local-resource://` sirve los recursos locales que la UI
+ * necesita (iconos extraídos, fondos y sonidos personalizados).
+ *
+ * No sirve el disco entero: solo se permiten rutas dentro de las carpetas de
+ * recursos de la app, la carpeta de iconos del perfil de usuario y los
+ * archivos que el usuario haya configurado explícitamente. Es una barrera de
+ * defensa por capas junto con el CSP del renderer.
+ */
+function isLocalResourceAllowed(targetPath: string): boolean {
+  let resolved: string;
+  try {
+    resolved = path.resolve(targetPath);
+  } catch {
+    return false;
+  }
+
+  const allowedRoots: string[] = [
+    getIconsDir(),
+    getAssetsDir(),
+    app.getAppPath(),
+    path.join(app.getAppPath(), 'public'),
+  ];
+
+  // Archivos que el usuario eligió personalmente como fondo o sonido.
+  const explicitFiles = [config.bgCustomPath, config.soundPath];
+  for (const file of explicitFiles) {
+    if (file && file.trim()) {
+      try {
+        allowedRoots.push(path.resolve(file.trim()));
+      } catch {
+        // Ruta inválida: se ignora.
+      }
+    }
+  }
+
+  // Iconos que la propia app gestiona en los accesos guardados.
+  const shortcutIcons = Array.isArray(config.shortcutsList)
+    ? config.shortcutsList.map((s: any) => s?.iconPath).filter((p: any) => typeof p === 'string' && p)
+    : [];
+  for (const iconPath of shortcutIcons) {
+    if (!iconPath.startsWith('local-resource:')) continue;
+    try {
+      const decoded = decodeURIComponent(iconPath.replace(/^local-resource:\/\/\/?/i, ''));
+      allowedRoots.push(path.resolve(decoded));
+    } catch {
+      // Ruta inválida: se ignora.
+    }
+  }
+
+  return allowedRoots.some((root) => {
+    const normalizedRoot = path.resolve(root);
+    return resolved === normalizedRoot || resolved.startsWith(normalizedRoot + path.sep);
+  });
+}
+
 function registerLocalResourceProtocol() {
   protocol.handle('local-resource', (request) => {
     const decodedUrl = decodeURIComponent(request.url);
@@ -2025,6 +2027,10 @@ function registerLocalResourceProtocol() {
     }
     
     try {
+      if (!isLocalResourceAllowed(normalizedPath)) {
+        console.warn('[local-resource] Ruta no permitida:', normalizedPath);
+        return new Response('Forbidden', { status: 403 });
+      }
       if (fs.existsSync(normalizedPath)) {
         const data = fs.readFileSync(normalizedPath);
         const ext = path.extname(normalizedPath).toLowerCase();

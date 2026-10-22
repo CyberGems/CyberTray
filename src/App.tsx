@@ -23,9 +23,12 @@ import {
   getDescendantFolderIds,
   getFolderPath,
   densityFromIconSize,
+  isVaultLockedState,
   ICON_SIZE_MIN,
   ICON_SIZE_MAX,
 } from './lib/appUtils';
+import { hashPin, verifyPin } from './lib/pin';
+import { createDefaultConfig } from './lib/configDefaults';
 import {
   Search, Plus, Settings, X, Trash2, Info,
   Pin, Play, ArrowDown, Shrink, MoreHorizontal,
@@ -33,113 +36,15 @@ import {
   CheckSquare, Heart, BookOpen, HelpCircle, Tag, Globe, Sliders
 } from 'lucide-react';
 
-declare global {
-  interface Window {
-    electronAPI?: {
-      launchApp: (path: string, isAdmin?: boolean, args?: string, cwd?: string) => Promise<{ success: boolean; error?: string }>;
-      getUwpApps: () => Promise<Array<{ name: string; aumid: string; icon: string }>>;
-      selectFile: (options?: { filters?: Array<{ name: string; extensions: string[] }> }) => Promise<{ name: string; path: string; iconPath?: string } | null>;
-      selectImage: () => Promise<string | null>;
-      selectAudio: () => Promise<string | null>;
-      getMonitors: () => Promise<Array<{ id: string; label: string; isPrimary: boolean; bounds: any; size: any }>>;
-      setMonitor: (monitorId: string) => Promise<void>;
-      registerShortcut: (shortcut: string) => Promise<{ success: boolean; shortcut: string }>;
-      windowMinimize: () => Promise<void>;
-      windowMaximizeToggle: () => Promise<void>;
-      windowClose: () => Promise<void>;
-      windowHideToTray: () => Promise<void>;
-      setAutoLaunch: (enabled: boolean) => Promise<{ success: boolean; enabled: boolean }>;
-      setHideOnBlur: (enabled: boolean) => Promise<{ success: boolean; enabled: boolean }>;
-      setShowTaskbarIcon: (enabled: boolean) => Promise<{ success: boolean; enabled: boolean }>;
-      getSystemInfo: () => Promise<{ memory: { total: number; used: number; percent: number }; cpu: { model: string; cores: number }; vram: { total: number; name: string } | null; uptime: number }>;
-      getDiskInfo: () => Promise<Array<{ drive: string; total: number; free: number; used: number; percent: number }>>;
-      getRunningProcesses: () => Promise<Array<{ pid: number; name: string; path: string; memory: number }>>;
-      killProcess: (pid: number) => Promise<{ success: boolean; error?: string }>;
-      resolveFilePath: (filePath: string) => Promise<{ name: string; path: string; ext: string; exists: boolean; iconPath: string; arguments?: string; cwd?: string } | null>;
-      openFileLocation: (filePath: string) => Promise<{ success: boolean; error?: string }>;
-      searchSystemFiles: (query: string) => Promise<Array<{ name: string; path: string; ext: string; type: 'app' | 'file' | 'folder'; icon?: string }>>;
-      getIndexerSettings: () => Promise<{ enabled: boolean; maxDepth: number; paths: string[] }>;
-      saveIndexerSettings: (settings: { enabled: boolean; maxDepth: number; paths: string[] }) => Promise<boolean>;
-      getIndexerStats: () => Promise<{ status: 'ONLINE' | 'OFFLINE' | 'INDEXING'; totalFiles: number }>;
-      selectIndexerFolder: () => Promise<string | null>;
-      getSystemDrives: () => Promise<string[]>;
-      getPathForFile: (file: File) => string;
-      getImageData: (filePath: string) => Promise<string | null>;
-      setHotspots: (corners: string[], delay: number) => Promise<{ success: boolean }>;
-      openDevTools: () => Promise<{ success: boolean }>;
-      exportConfig: (jsonData: string) => Promise<string | null>;
-      importConfig: () => Promise<string | null>;
-      saveConfig: (config: any, options?: { broadcastReload?: boolean }) => Promise<boolean>;
-      loadConfig: () => Promise<any | null>;
-      getConfigPath: () => Promise<string>;
-      openDataFolder: () => Promise<void>;
-      onReloadConfig: (callback: () => void) => () => void;
-      showTextContextMenu: (x: number, y: number) => Promise<void>;
-      setAlwaysOnTop: (enabled: boolean) => Promise<{ success: boolean }>;
-      registerAppShortcuts: (shortcuts: Array<{ id: number; path: string; shortcut: string; isAdmin: boolean }>) => Promise<{ success: boolean }>;
-      runShellCommand: (command: string) => Promise<{ success: boolean; cmdId?: string; error?: string }>;
-      onShellOutput: (callback: (data: { id: string; type: 'stdout' | 'stderr'; text: string }) => void) => () => void;
-      onShellExit: (callback: (data: { id: string; exitCode: number }) => void) => () => void;
-      onAlwaysOnTopBlurAttempt: (callback: () => void) => () => void;
-      onOpenSettings: (callback: () => void) => () => void;
-      onOpenAbout: (callback: (opts?: { checkUpdates?: boolean }) => void) => () => void;
-      onOpenAddShortcut: (callback: () => void) => () => void;
-      onShortcutLaunched: (callback: (payload: { path: string; name: string }) => void) => () => void;
-      setTrayRecents: (items: Array<{ name: string; path: string; isAdmin?: boolean; iconPath?: string; arguments?: string; cwd?: string }>) => Promise<{ success: boolean }>;
-      getAppVersions: () => Promise<{
-        app: string; electron: string; chrome: string; node: string;
-        platform: string; arch: string; osRelease: string; osType: string;
-      }>;
-      getUpdateStatus: () => Promise<any>;
-      checkForUpdates: () => Promise<{ ok: boolean; version?: string; error?: string }>;
-      downloadUpdate: () => Promise<{ ok: boolean; error?: string }>;
-      installUpdate: () => Promise<void>;
-      setAutoUpdate: (enabled: boolean) => Promise<{ success: boolean; enabled: boolean }>;
-      openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
-      onUpdateStatus: (callback: (status: any) => void) => () => void;
-      toggleShelf: () => Promise<void>;
-      setDragActive: (active: boolean) => Promise<void>;
-      onShelfStateChange: (callback: (visible: boolean) => void) => () => void;
-      onPlayLaunchSound: (callback: () => void) => () => void;
-      runDesktopSweep: () => Promise<{ success: boolean; count?: number; error?: string }>;
-      getDefaultVaultPath: () => Promise<string>;
-      openVaultFolder: () => Promise<boolean>;
-      selectVaultFolder: () => Promise<string | null>;
-      importFileToVault: (filePath: string) => Promise<{ success: boolean; path: string; iconPath: string; name: string; error?: string }>;
-    };
-  }
-}
-
 let globalAudioCtx: AudioContext | null = null;
 const DEFAULT_LAUNCH_SOUND = '/sounds/launch-thud.wav';
+// PIN que usaba CyberTray antes de hashearlo. Solo se usa para derivar el
+// hash de instalaciones antiguas que nunca tocaron el PIN.
+const LEGACY_DEFAULT_PIN = '1234';
 
 export default function App() {
-  // Configuración de la App
-  const [config, setConfig] = useState<any>({
-    monitorId: '',
-    shortcut: 'Alt+Shift+T',
-    hideOnBlur: true,
-    hotspotCorners: [],
-    hotspotDelay: 300,
-    alwaysOnTop: true,
-    iconSize: 60, // Tamaño de icono predeterminado
-    showTaskbarIcon: false,
-    autoLaunch: false,
-    theme: 'cyan',
-    blurLevel: 20,
-    opacity: 85,
-    hideOnDeadZoneClick: false,
-    bgType: 'solid',
-    bgSolidColor: '#070b13',
-    bgGradient: 'preset-1',
-    bgImage: 'preset-1',
-    bgCustomPath: '',
-    soundEnabled: true,
-    soundPath: '',
-    folderSchemaVersion: FOLDER_SCHEMA_VERSION,
-    autoUpdate: true,
-    taskbarIds: [] as number[],
-  });
+  // Configuración de la App (defaults compartidos con el proceso main)
+  const [config, setConfig] = useState<any>(createDefaultConfig());
 
 
   // Base de datos de Accesos Directos y Categorías
@@ -305,18 +210,13 @@ export default function App() {
     });
   };
 
-  const isVaultLocked = () => {
-    if (config.vaultPinEnabled !== true) return false;
-    if (config.vaultLockTimeout === -1) {
-      return !vaultUnlockedSession;
-    }
-    if (config.vaultLockTimeout === 0) {
-      return lastVaultUnlockTime === 0;
-    }
-    const elapsedMs = Date.now() - lastVaultUnlockTime;
-    const timeoutMs = (config.vaultLockTimeout || 5) * 60 * 1000;
-    return elapsedMs > timeoutMs;
-  };
+  const isVaultLocked = () => isVaultLockedState({
+    pinEnabled: configRef.current?.vaultPinEnabled,
+    pinConfigured: !!configRef.current?.vaultPinHash,
+    lockTimeout: configRef.current?.vaultLockTimeout,
+    unlockedSession: vaultUnlockedSession,
+    lastUnlockTime: lastVaultUnlockTime,
+  });
 
   const handleTabClick = (tabId: string) => {
     if (tabId === 'vault') {
@@ -335,8 +235,10 @@ export default function App() {
     playFolderSound();
   };
 
-  const handlePinSubmit = (enteredPin: string) => {
-    if (enteredPin === config.vaultPin) {
+  const handlePinSubmit = async (enteredPin: string) => {
+    const current = configRef.current || {};
+    const isValid = await verifyPin(enteredPin, current.vaultPinHash, current.vaultPinSalt);
+    if (isValid) {
       setLastVaultUnlockTime(Date.now());
       setVaultUnlockedSession(true);
       setShowPinModal(false);
@@ -506,22 +408,47 @@ export default function App() {
   // Preload and initialize audio objects to eliminate playback delay
   useEffect(() => {
     // Initialize folder tab sound
-    folderAudioRef.current = new Audio('/sounds/cybertrayfolders.mp3');
-    folderAudioRef.current.volume = 0.15;
-    folderAudioRef.current.load();
+    let cancelled = false;
+    const setup = async () => {
+      try {
+        const url = isElectron
+          ? await window.electronAPI!.getBundledAssetUrl('sounds/cybertrayfolders.mp3')
+          : '/sounds/cybertrayfolders.mp3';
+        if (cancelled || !url) return;
+        const audio = new Audio(url);
+        audio.volume = 0.15;
+        audio.load();
+        folderAudioRef.current = audio;
+      } catch (err) {
+        console.error('Error preloading folder audio:', err);
+      }
+    };
+    void setup();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
     const soundEnabled = config.soundEnabled !== false;
     const soundPath = config.soundPath || '';
-    if (soundEnabled) {
+    if (!soundEnabled) {
+      launchAudioRef.current = null;
+      return;
+    }
+    let cancelled = false;
+    const setup = async () => {
       try {
-        let url = DEFAULT_LAUNCH_SOUND;
+        let url: string | null = null;
         if (soundPath) {
           url = soundPath.startsWith('http') || soundPath.startsWith('data:')
             ? soundPath
             : `local-resource:///${soundPath.replace(/\\/g, '/')}`;
+        } else if (isElectron) {
+          // Chromium no decodifica audio servido por file://: se usa el protocolo propio.
+          url = await window.electronAPI!.getBundledAssetUrl('sounds/launch-thud.wav');
+        } else {
+          url = DEFAULT_LAUNCH_SOUND;
         }
+        if (cancelled || !url) return;
         const audio = new Audio(url);
         audio.volume = 0.25;
         audio.load(); // Force preload
@@ -529,9 +456,9 @@ export default function App() {
       } catch (err) {
         console.error('Error preloading launch audio:', err);
       }
-    } else {
-      launchAudioRef.current = null;
-    }
+    };
+    void setup();
+    return () => { cancelled = true; };
   }, [config.soundEnabled, config.soundPath]);
   
   // Form de Accesos Directos
@@ -581,11 +508,34 @@ export default function App() {
             ? loadedConfig.autoUpdate
             : loadedConfig.autoCheckUpdates !== false;
           const configWithFolderSchema = {
+            ...createDefaultConfig(),
             ...loadedConfig,
             folderSchemaVersion: loadedConfig.folderSchemaVersion || FOLDER_SCHEMA_VERSION,
             autoUpdate: resolvedAutoUpdate,
           };
-          setConfig(configWithFolderSchema);
+
+          // El PIN de la bóveda solo se guarda hasheado. Si el config viene de
+          // una versión antigua (PIN en claro) o no tiene hash pero la bóveda
+          // está activa, se deriva ahora y se descarta el valor en claro.
+          const legacyPin = typeof configWithFolderSchema.vaultPin === 'string'
+            ? configWithFolderSchema.vaultPin
+            : '';
+          const needsPinDerivation =
+            !configWithFolderSchema.vaultPinHash &&
+            (legacyPin.length > 0 || configWithFolderSchema.vaultPinEnabled === true);
+          const effectiveConfig: any = { ...configWithFolderSchema };
+          if (needsPinDerivation) {
+            try {
+              const derived = await hashPin(legacyPin || LEGACY_DEFAULT_PIN);
+              effectiveConfig.vaultPinHash = derived.hash;
+              effectiveConfig.vaultPinSalt = derived.salt;
+            } catch (err) {
+              console.error('No se pudo derivar el hash del PIN de la bóveda:', err);
+            }
+          }
+          delete effectiveConfig.vaultPin;
+
+          setConfig(effectiveConfig);
           setIsPinned(loadedConfig.alwaysOnTop !== undefined ? loadedConfig.alwaysOnTop : true);
           if (loadedConfig.language) {
             setLangCode(loadedConfig.language);
@@ -595,9 +545,9 @@ export default function App() {
           const sanitizedShortcuts = normalizeShortcutsList(loadedConfig.shortcutsList || [], sanitizedCategories);
           setCategories(sanitizedCategories);
           setShortcuts(sanitizedShortcuts);
-          if (loadedConfig.folderSchemaVersion !== FOLDER_SCHEMA_VERSION) {
+          if (loadedConfig.folderSchemaVersion !== FOLDER_SCHEMA_VERSION || needsPinDerivation) {
             await window.electronAPI!.saveConfig({
-              ...configWithFolderSchema,
+              ...effectiveConfig,
               folderSchemaVersion: FOLDER_SCHEMA_VERSION,
               categoriesList: sanitizedCategories,
               shortcutsList: sanitizedShortcuts,
@@ -761,7 +711,11 @@ export default function App() {
       setShortcuts(updated);
       shortcutsRef.current = updated;
       const nextTotal = (configRef.current?.totalLaunches || 0) + 1;
-      configRef.current = { ...configRef.current, totalLaunches: nextTotal };
+      configRef.current = {
+        ...configRef.current,
+        totalLaunches: nextTotal,
+        shortcutsList: updated,
+      };
       setConfig(configRef.current);
       scheduleUsagePersist(updated, nextTotal);
     });
@@ -974,7 +928,7 @@ export default function App() {
           {
             ...configRef.current,
             shortcutsList: pending.shortcuts,
-            totalLaunches: pending.totalLaunches,
+            totalLaunches: Math.max(pending.totalLaunches, configRef.current?.totalLaunches || 0),
           },
           { broadcastReload: false }
         );
@@ -991,6 +945,9 @@ export default function App() {
 
     cancelPendingUsagePersist();
     setShortcuts(normalizedShortcuts);
+    // El ref es la autoridad: se actualiza de forma síncrona para que un
+    // mutation concurrente (un lanzamiento, por ejemplo) parta del estado real.
+    shortcutsRef.current = normalizedShortcuts;
     setCategories(normalizedCategories);
 
     const prevTaskbar = Array.isArray(configRef.current.taskbarIds) ? configRef.current.taskbarIds : [];
@@ -1071,7 +1028,7 @@ export default function App() {
     }
     if (filePaths.length === 0) return;
 
-    const newShortcuts = [...shortcuts];
+    const newShortcuts = [...(shortcutsRef.current || [])];
     // Clave de identidad: ruta destino + argumentos. Así dos accesos al mismo
     // ejecutable con parámetros distintos (p. ej. mods de Factorio) son distintos.
     const dupKey = (p, a) => JSON.stringify([(p || '').toLowerCase(), (a || '').toLowerCase()]);
@@ -1195,7 +1152,7 @@ export default function App() {
     if (data && data.startsWith('shortcut:')) {
       const shortcutId = parseInt(data.replace('shortcut:', ''), 10);
       if (!isNaN(shortcutId)) {
-        const updatedShortcuts = shortcuts.map(s => {
+        const updatedShortcuts = (shortcutsRef.current || []).map(s => {
           if (s.id === shortcutId) {
             return { ...s, isFavorite: true };
           }
@@ -1247,7 +1204,7 @@ export default function App() {
         folder.id === movingCategoryId ? { ...folder, parentId, order: nextOrder } : folder
       );
 
-      await saveDataToConfig(shortcuts, movedCategories);
+      await saveDataToConfig(shortcutsRef.current || [], movedCategories);
       if (activeCategory === movingCategoryId) setActiveCategory(movingCategoryId);
       playCyberBeep();
       return;
@@ -1256,7 +1213,7 @@ export default function App() {
     if (data && data.startsWith('shortcut:')) {
       const shortcutId = parseInt(data.replace('shortcut:', ''), 10);
       if (!isNaN(shortcutId)) {
-        const targetShortcut = shortcuts.find(s => s.id === shortcutId);
+        const targetShortcut = (shortcutsRef.current || []).find(s => s.id === shortcutId);
         if (targetShortcut) {
           let finalPath = targetShortcut.path;
           let finalIconPath = targetShortcut.iconPath;
@@ -1271,7 +1228,7 @@ export default function App() {
             }
           }
 
-          const updatedShortcuts = shortcuts.map(s => {
+          const updatedShortcuts = (shortcutsRef.current || []).map(s => {
             if (s.id === shortcutId) {
               return {
                 ...s,
@@ -1369,37 +1326,52 @@ export default function App() {
   };
 
   const executeLaunch = async (item: any) => {
-    // Incrementar contador de uso
-    const updated = shortcuts.map(s => {
-      if (s.id === item.id) {
-        return { ...s, usageCount: (s.usageCount || 0) + 1, lastLaunchAt: Date.now() };
-      }
-      return s;
-    });
-    setShortcuts(updated);
-    shortcutsRef.current = updated;
-    
-    // Incrementar launches global
-    const nextTotalLaunches = (config.totalLaunches || 0) + 1;
-    const updatedConfig = { ...configRef.current, totalLaunches: nextTotalLaunches };
-    setConfig(updatedConfig);
-    configRef.current = updatedConfig;
-
-    scheduleUsagePersist(updated, nextTotalLaunches);
+    let launched = true;
 
     if (isElectron) {
       // Lanzamiento nativo (con argumentos y directorio de trabajo del acceso).
       const res = await window.electronAPI!.launchApp(item.path, item.isAdmin, item.arguments, item.cwd);
       if (res && res.success === false) {
+        launched = false;
         pushToast('error', translate('toast_launch_error', { name: item.name }));
-      }
-
-      // Auto-ocultar shelf al lanzar si no está anclada
-      if (config.hideOnBlur) {
-        await window.electronAPI!.windowHideToTray();
       }
     } else {
       alert(`Lanzando mock: ${item.name} (${item.path})`);
+    }
+
+    // Solo se contabilizan los lanzamientos que realmente salieron.
+    if (launched) {
+      // Incrementar contador de uso.
+      // Se parte de shortcutsRef (no del estado de render) para que varios
+      // lanzamientos seguidos —p. ej. el lanzamiento en grupo— no se pisen entre sí.
+      const base = shortcutsRef.current || [];
+      const updated = base.map(s => {
+        if (s.id === item.id) {
+          return { ...s, usageCount: (s.usageCount || 0) + 1, lastLaunchAt: Date.now() };
+        }
+        return s;
+      });
+      setShortcuts(updated);
+      shortcutsRef.current = updated;
+
+      // Incrementar launches global
+      const nextTotalLaunches = (configRef.current?.totalLaunches || 0) + 1;
+      const updatedConfig = {
+        ...configRef.current,
+        totalLaunches: nextTotalLaunches,
+        // Mantener shortcutsList sincronizado para que un guardado de configuración
+        // posterior no sobrescriba los contadores recién incrementados.
+        shortcutsList: updated,
+      };
+      setConfig(updatedConfig);
+      configRef.current = updatedConfig;
+
+      scheduleUsagePersist(updated, nextTotalLaunches);
+    }
+
+    // Auto-ocultar shelf al lanzar si no está anclada
+    if (isElectron && configRef.current?.hideOnBlur) {
+      await window.electronAPI!.windowHideToTray();
     }
     playCyberBeep();
   };
@@ -1556,7 +1528,7 @@ export default function App() {
     if (!isBatch && (!formName.trim() || !formPath.trim())) return;
     if (isBatch && batchItems.length === 0) return;
 
-    let newShortcuts = [...shortcuts];
+    let newShortcuts = [...(shortcutsRef.current || [])];
 
     if (shortcutModal.item) {
       const { finalPath, finalIconPath, finalName } = await resolveVaultEntry(formName, formPath, formIconPath);
@@ -1644,7 +1616,7 @@ export default function App() {
   };
 
   const handleDeleteShortcut = async (id: number) => {
-    const updated = shortcuts.filter(s => s.id !== id);
+    const updated = (shortcutsRef.current || []).filter(s => s.id !== id);
     await saveDataToConfig(updated, categories);
     setShortcutModal({ open: false });
     playCyberBeep();
@@ -1706,8 +1678,8 @@ export default function App() {
       translate('delete_selected_confirm_title'),
       translate('delete_selected_confirm_desc', { count: String(count) }),
       async () => {
-        const removed = shortcuts.filter(s => ids.has(s.id));
-        const remaining = shortcuts.filter(s => !ids.has(s.id));
+        const removed = (shortcutsRef.current || []).filter(s => ids.has(s.id));
+        const remaining = (shortcutsRef.current || []).filter(s => !ids.has(s.id));
         await saveDataToConfig(remaining, categories);
         exitSelectionMode();
         playCyberBeep();
@@ -1814,7 +1786,7 @@ export default function App() {
       ...categories,
       { id: newId, name: folderName, color: newCatColor, parentId, order: nextOrder },
     ];
-    await saveDataToConfig(shortcuts, updated);
+    await saveDataToConfig(shortcutsRef.current || [], updated);
     setNewCatName('');
     setNewCatModal(false);
     setNewCatParentId(null);
@@ -1834,7 +1806,7 @@ export default function App() {
       translate('folder_delete_confirm_desc'),
       async () => {
         const updatedCats = categories.filter(folder => !removedIds.has(folder.id));
-        const updatedShortcuts = shortcuts.map(shortcut =>
+        const updatedShortcuts = (shortcutsRef.current || []).map(shortcut =>
           removedIds.has(shortcut.category) ? { ...shortcut, category: destination } : shortcut
         );
 
@@ -1890,7 +1862,7 @@ export default function App() {
       return c;
     });
 
-    await saveDataToConfig(shortcuts, updatedCats);
+    await saveDataToConfig(shortcutsRef.current || [], updatedCats);
     setRenameCatModal({ open: false });
     playCyberBeep();
   };
@@ -2057,11 +2029,16 @@ export default function App() {
   // Backup y Diagnóstico
   const handleExportBackup = async () => {
     if (!isElectron) return;
+    const backupConfig: any = { ...configRef.current, folderSchemaVersion: FOLDER_SCHEMA_VERSION };
+    // El PIN de la bóveda es un secreto local: nunca sale en un backup.
+    delete backupConfig.vaultPin;
+    delete backupConfig.vaultPinHash;
+    delete backupConfig.vaultPinSalt;
     const backupData = JSON.stringify({
       schemaVersion: FOLDER_SCHEMA_VERSION,
-      shortcutsList: shortcuts,
+      shortcutsList: shortcutsRef.current || [],
       categoriesList: categories,
-      config: { ...config, folderSchemaVersion: FOLDER_SCHEMA_VERSION },
+      config: backupConfig,
     }, null, 2);
     const path = await window.electronAPI!.exportConfig(backupData);
     if (path) {
@@ -2083,11 +2060,26 @@ export default function App() {
         if (Array.isArray(rawShortcuts) && Array.isArray(rawCategories)) {
           const importedCategories = normalizeCategoriesList(rawCategories);
           const importedShortcuts = normalizeShortcutsList(rawShortcuts, importedCategories);
-          const importedConfig = {
-            ...config,
+          const importedConfig: any = {
+            ...configRef.current,
             ...(data.config || {}),
             folderSchemaVersion: FOLDER_SCHEMA_VERSION,
           };
+
+          // Un backup nunca puede cambiar el PIN de la bóveda activa.
+          const localHash = configRef.current?.vaultPinHash;
+          const localSalt = configRef.current?.vaultPinSalt;
+          delete importedConfig.vaultPin;
+          delete importedConfig.vaultPinHash;
+          delete importedConfig.vaultPinSalt;
+          if (localHash && localSalt) {
+            importedConfig.vaultPinHash = localHash;
+            importedConfig.vaultPinSalt = localSalt;
+          } else if (importedConfig.vaultPinEnabled === true) {
+            // Sin hash local no hay forma de desbloquear: la bóveda queda abierta
+            // y hay que volver a fijar un PIN.
+            importedConfig.vaultPinEnabled = false;
+          }
 
           setConfig(importedConfig);
           await saveDataToConfig(importedShortcuts, importedCategories);
@@ -2203,14 +2195,13 @@ export default function App() {
   };
 
   const filteredShortcutsList = useMemo(() => {
-    const vaultLocked = (() => {
-      if (config.vaultPinEnabled !== true) return false;
-      if (config.vaultLockTimeout === -1) return !vaultUnlockedSession;
-      if (config.vaultLockTimeout === 0) return lastVaultUnlockTime === 0;
-      const elapsedMs = Date.now() - lastVaultUnlockTime;
-      const timeoutMs = (config.vaultLockTimeout || 5) * 60 * 1000;
-      return elapsedMs > timeoutMs;
-    })();
+    const vaultLocked = isVaultLockedState({
+      pinEnabled: config.vaultPinEnabled,
+      pinConfigured: !!config.vaultPinHash,
+      lockTimeout: config.vaultLockTimeout,
+      unlockedSession: vaultUnlockedSession,
+      lastUnlockTime: lastVaultUnlockTime,
+    });
 
     let list = shortcuts.filter(s => {
       const matchSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
