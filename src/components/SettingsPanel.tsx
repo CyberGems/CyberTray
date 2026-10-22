@@ -1,14 +1,15 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   AlertTriangle, ArrowUpDown, Droplets, Download, Eye, FileJson, FolderOpen, Globe,
   Grid, HardDrive, Image as ImageIcon, Keyboard, LayoutGrid, List as ListIcon,
-  Lock, Monitor, MousePointer2, Palette, Power, Shield, Sliders, Terminal,
+  Lock, Monitor, MousePointer2, Palette, Pin, Power, Shield, Sliders, Terminal,
   Trash2, Upload, Volume2, type LucideIcon,
 } from 'lucide-react';
 import { translate } from '../locales';
-import { isElectron, INITIAL_CATEGORIES } from '../lib/appUtils';
+import { isElectron, getDefaultCategories } from '../lib/appUtils';
 import { hashPin, verifyPin } from '../lib/pin';
+import { useBundledAssetUrl } from '../lib/useBundledAsset';
 import Toggle from './Toggle';
 
 const ICON_TONES = {
@@ -82,6 +83,37 @@ function ToggleCard({
       </div>
       {children}
     </div>
+  );
+}
+
+function BackgroundPreset({
+  id,
+  name,
+  path,
+  selected,
+  onSelect,
+}: {
+  id: string;
+  name: string;
+  path: string;
+  selected: boolean;
+  onSelect: () => void;
+} & React.Attributes) {
+  const src = useBundledAssetUrl(path);
+  return (
+    <button
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={`h-20 rounded-xl border relative overflow-hidden transition-all text-left flex flex-col justify-end p-2 cursor-pointer group ${
+        selected
+          ? 'border-[var(--neon-glow-color)] ring-1 ring-[var(--neon-glow-color)] scale-[1.02] shadow-[0_0_10px_var(--neon-glow-color-raw)]'
+          : 'border-slate-950 hover:border-slate-900'
+      }`}
+    >
+      <img src={src} alt={name} className="absolute inset-0 w-full h-full object-cover z-0 group-hover:scale-105 transition-transform duration-300" />
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent z-1" />
+      <span className="text-[9px] font-cyber font-extrabold text-white tracking-widest relative z-2 uppercase">{name}</span>
+    </button>
   );
 }
 
@@ -167,6 +199,7 @@ export interface SettingsPanelProps {
   setViewMode: (v: 'grid' | 'list') => void;
   iconSortOrder: 'alpha' | 'recent' | 'added';
   setIconSortOrder: (v: 'alpha' | 'recent' | 'added') => void;
+  handleTogglePin: () => void | Promise<void>;
 }
 
 export default function SettingsPanel({
@@ -224,7 +257,63 @@ export default function SettingsPanel({
   setViewMode,
   iconSortOrder,
   setIconSortOrder,
+  handleTogglePin,
 }: SettingsPanelProps) {
+  const [isRecordingShortcut, setIsRecordingShortcut] = useState(false);
+  const [shortcutError, setShortcutError] = useState('');
+  const shortcutInputRef = useRef<HTMLInputElement>(null);
+  const hotspotDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => () => {
+    if (hotspotDelayTimerRef.current) clearTimeout(hotspotDelayTimerRef.current);
+  }, []);
+
+  const startRecordingShortcut = () => {
+    setShortcutError('');
+    setIsRecordingShortcut(true);
+    shortcutInputRef.current?.focus();
+  };
+
+  const handleShortcutKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (e.key === 'Escape') {
+      setIsRecordingShortcut(false);
+      setShortcutError('');
+      return;
+    }
+    // Se espera a la tecla real: los modificadores solos no forman atajo.
+    if (['Control', 'Alt', 'Shift', 'Meta', 'OS'].includes(e.key)) return;
+
+    const parts: string[] = [];
+    if (e.ctrlKey) parts.push('Ctrl');
+    if (e.altKey) parts.push('Alt');
+    if (e.shiftKey) parts.push('Shift');
+    if (e.metaKey) parts.push('Meta');
+
+    if (parts.length === 0) {
+      setShortcutError(translate('general_shortcut_invalid'));
+      return;
+    }
+
+    const rawKey = e.key === ' ' ? 'Space' : e.key;
+    const mainKey = rawKey.length === 1 ? rawKey.toUpperCase() : rawKey;
+    const combo = [...parts, mainKey].join('+');
+
+    if (isElectron) {
+      const res = await window.electronAPI!.registerShortcut(combo);
+      if (!res.success) {
+        setShortcutError(translate('general_shortcut_conflict'));
+        return;
+      }
+    }
+    await handleUpdateConfigSetting('shortcut', combo);
+    setShortcutError('');
+    setIsRecordingShortcut(false);
+    playCyberBeep();
+  };
+
   return (
     <>
 {/* ── MODAL: PANEL DE CONFIGURACIÓN NEURAL ── */}
@@ -375,26 +464,32 @@ export default function SettingsPanel({
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
                       <SectionHead icon={Keyboard} title={translate('general_shortcut')} desc={translate('general_shortcut_desc')} />
                       
-                      <div className="flex gap-3">
+                      <div className="flex gap-3 flex-wrap">
                         <input
+                          ref={shortcutInputRef}
                           type="text"
                           readOnly
-                          value={config.shortcut}
-                          className="bg-slate-950 border border-slate-900 text-[var(--neon-glow-color)] font-cyber font-bold text-center tracking-widest rounded-lg px-4 py-1.5 focus:outline-none w-48 text-xs"
+                          value={isRecordingShortcut ? translate('general_shortcut_rec') : (config.shortcut || '')}
+                          onFocus={startRecordingShortcut}
+                          onBlur={() => setIsRecordingShortcut(false)}
+                          onKeyDown={handleShortcutKeyDown}
+                          aria-label={translate('general_shortcut')}
+                          className={`bg-slate-950 border text-[var(--neon-glow-color)] font-cyber font-bold text-center tracking-widest rounded-lg px-4 py-1.5 focus:outline-none w-48 text-xs ${
+                            isRecordingShortcut ? 'border-[var(--neon-glow-color)]' : 'border-slate-900'
+                          }`}
                         />
                         <button
-                          onClick={() => {
-                            const newKey = prompt(translate('general_shortcut_prompt'), config.shortcut);
-                            if (newKey) {
-                              if (isElectron) window.electronAPI!.registerShortcut(newKey);
-                              handleUpdateConfigSetting('shortcut', newKey);
-                            }
-                          }}
+                          onClick={startRecordingShortcut}
                           className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
                         >
                           {translate('general_shortcut_record_btn')}
                         </button>
                       </div>
+                      {shortcutError && (
+                        <p role="alert" className="text-[10px] text-red-400 font-mono mt-2 tracking-wide">
+                          {shortcutError}
+                        </p>
+                      )}
                     </div>
 
                     {/* Toggles Rápidos */}
@@ -409,6 +504,22 @@ export default function SettingsPanel({
                           const next = !config.hideOnBlur;
                           handleUpdateConfigSetting('hideOnBlur', next);
                           if (isElectron) window.electronAPI!.setHideOnBlur(next);
+                        }}
+                      >
+                        {!!config.alwaysOnTop && (
+                          <p className="text-[10px] text-amber-400/90 font-mono tracking-wide">
+                            {translate('general_hide_on_blur_pinned_note')}
+                          </p>
+                        )}
+                      </ToggleCard>
+                      <ToggleCard
+                        icon={Pin}
+                        tone="purple"
+                        title={translate('general_always_on_top')}
+                        desc={translate('general_always_on_top_desc')}
+                        on={!!config.alwaysOnTop}
+                        onClick={() => {
+                          void handleTogglePin();
                         }}
                       />
                       <ToggleCard
@@ -517,7 +628,15 @@ export default function SettingsPanel({
                                 onChange={(e) => {
                                   const val = parseInt(e.target.value, 10);
                                   handleUpdateConfigSetting('hotspotDelay', val);
-                                  if (isElectron) window.electronAPI!.setHotspots(config.hotspotCorners || [], val);
+                                  // El IPC reinicia el polling: se difiere para no
+                                  // hacerlo en cada tick del deslizador.
+                                  if (hotspotDelayTimerRef.current) clearTimeout(hotspotDelayTimerRef.current);
+                                  hotspotDelayTimerRef.current = setTimeout(() => {
+                                    hotspotDelayTimerRef.current = null;
+                                    if (isElectron) {
+                                      window.electronAPI!.setHotspots(config.hotspotCorners || [], val);
+                                    }
+                                  }, 300);
                                 }}
                                 className="w-full accent-[var(--neon-glow-color)] h-1 bg-white/10 rounded-full appearance-none outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:bg-[var(--neon-glow-color)] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(34,211,238,0.5)] cursor-pointer mt-3"
                               />
@@ -1104,24 +1223,19 @@ export default function SettingsPanel({
                         {/* Presets Grid */}
                         <div className="grid grid-cols-2 gap-3">
                           {[
-                            { id: 'preset-1', name: translate('preset_cyan'), path: '/backgrounds/cyber_bg_1.png' },
-                            { id: 'preset-2', name: translate('preset_purple'), path: '/backgrounds/cyber_bg_2.png' },
-                            { id: 'preset-3', name: translate('preset_amber'), path: '/backgrounds/cyber_bg_3.png' },
-                            { id: 'preset-4', name: translate('preset_emerald'), path: '/backgrounds/cyber_bg_4.png' }
+                            { id: 'preset-1', name: translate('preset_cyan'), path: 'backgrounds/cyber_bg_1.png' },
+                            { id: 'preset-2', name: translate('preset_purple'), path: 'backgrounds/cyber_bg_2.png' },
+                            { id: 'preset-3', name: translate('preset_amber'), path: 'backgrounds/cyber_bg_3.png' },
+                            { id: 'preset-4', name: translate('preset_emerald'), path: 'backgrounds/cyber_bg_4.png' }
                           ].map((img) => (
-                            <button
+                            <BackgroundPreset
                               key={img.id}
-                              onClick={() => { handleUpdateConfigSetting('bgImage', img.id); playCyberBeep(); }}
-                              className={`h-20 rounded-xl border relative overflow-hidden transition-all text-left flex flex-col justify-end p-2 cursor-pointer group ${
-                                config.bgImage === img.id 
-                                  ? 'border-[var(--neon-glow-color)] ring-1 ring-[var(--neon-glow-color)] scale-[1.02] shadow-[0_0_10px_var(--neon-glow-color-raw)]' 
-                                  : 'border-slate-950 hover:border-slate-900'
-                              }`}
-                            >
-                              <img src={img.path} alt={img.name} className="absolute inset-0 w-full h-full object-cover z-0 group-hover:scale-105 transition-transform duration-300" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent z-1" />
-                              <span className="text-[9px] font-cyber font-extrabold text-white tracking-widest relative z-2 uppercase">{img.name}</span>
-                            </button>
+                              id={img.id}
+                              name={img.name}
+                              path={img.path}
+                              selected={config.bgImage === img.id}
+                              onSelect={() => { handleUpdateConfigSetting('bgImage', img.id); playCyberBeep(); }}
+                            />
                           ))}
                         </div>
 
@@ -1305,7 +1419,9 @@ export default function SettingsPanel({
                               translate('sys_purge_confirm_title'),
                               translate('sys_purge_confirm_desc'),
                               async () => {
-                                await saveDataToConfig([], INITIAL_CATEGORIES);
+                                // Se restauran las carpetas por defecto, con los nombres
+                                // en el idioma activo, y se quitan todos los accesos.
+                                await saveDataToConfig([], getDefaultCategories());
                                 showAlert(
                                   translate('sys_purge_done_title'),
                                   translate('sys_purge_done_desc')

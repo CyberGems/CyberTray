@@ -49,8 +49,10 @@ export default function ProcessMatrixView({
 }: ProcessMatrixViewProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isElectron = !!window.electronAPI;
-  // Re-render when parent language changes (translate() reads module locale)
-  const _lang = langCode;
+  // translate() lee el idioma del módulo, así que basta con re-renderizar.
+  // Antes esto se resolvía remontando el componente con key={langCode}, lo que
+  // reiniciaba el virtualizador y perdía el scroll al cambiar de idioma.
+  const locale = langCode;
 
   const handleKillProcess = (pid: number) => {
     showConfirm(
@@ -123,7 +125,7 @@ export default function ProcessMatrixView({
   });
 
   return (
-    <div key={_lang} className={`space-y-3 max-w-3xl font-mono text-xs flex flex-col ${embedded ? '' : 'h-full'}`}>
+    <div data-locale={locale} className={`space-y-3 max-w-3xl font-mono text-xs flex flex-col ${embedded ? '' : 'h-full'}`}>
       {showToolbar && (
         <div className="flex items-center justify-between border-b border-slate-900 pb-2">
           <div>

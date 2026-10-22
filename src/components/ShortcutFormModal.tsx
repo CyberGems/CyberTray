@@ -124,13 +124,6 @@ export default function ShortcutFormModal({
     submitForm();
   };
 
-  const onBrowseKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    e.stopPropagation();
-    submitForm();
-  };
-
   const afterBrowse = (btn: HTMLButtonElement) => {
     btn.blur();
   };
@@ -406,7 +399,6 @@ export default function ShortcutFormModal({
                               await handleBrowseFile();
                               afterBrowse(btn);
                             }}
-                            onKeyDown={onBrowseKeyDown}
                             onMouseEnter={(e) => showTooltip(e, translate('app_browse'))}
                             onMouseLeave={hideTooltip}
                             className="flex items-center justify-center bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors border border-white/5 shrink-0 outline-none focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-500/40"
@@ -444,8 +436,7 @@ export default function ShortcutFormModal({
                                 await handleBrowseIcon();
                                 afterBrowse(btn);
                               }}
-                              onKeyDown={onBrowseKeyDown}
-                              onMouseEnter={(e) => showTooltip(e, translate('app_browse'))}
+                                onMouseEnter={(e) => showTooltip(e, translate('app_browse'))}
                               onMouseLeave={hideTooltip}
                               className="flex items-center justify-center bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors border border-white/5 shrink-0 outline-none focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-500/40"
                             >

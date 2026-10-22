@@ -204,7 +204,9 @@ export default function TelemetryBar({
 
         <div
           className="flex items-center gap-1.5 cursor-help"
-          onMouseEnter={(e) => showTooltip(e, translate('stat_disks'), `${translate('tooltip_disk')}\n\n${disks.map((d) => `${d.drive} (Total: ${Math.round(d.total)}GB, ${translate('stat_disk_free')}: ${Math.round(d.free)}GB)`).join('\n')}`)}
+          onMouseEnter={(e) => showTooltip(e, translate('stat_disks'), disks.length > 0
+            ? `${translate('tooltip_disk')}\n\n${disks.map((d) => `${d.drive} (Total: ${Math.round(d.total)}GB, ${translate('stat_disk_free')}: ${Math.round(d.free)}GB)`).join('\n')}`
+            : translate('stat_disks_unavailable'))}
           onMouseLeave={hideTooltip}
         >
           <HardDrive className="w-3.5 h-3.5 text-slate-500" />

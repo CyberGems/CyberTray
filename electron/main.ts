@@ -61,12 +61,17 @@ let tray: Tray | null = null;
 let isQuitting = false;
 let isDragActive = false;
 let isDialogOpen = false;
+// Atajo global registrado actualmente (en formato de Electron).
+let currentGlobalShortcut: string | null = null;
 
 // ── CONFIGURACIÓN PREDETERMINADA ──
 // Los valores por defecto viven en src/lib/configDefaults.ts, compartidos con
 // el renderer para que main y UI nunca discrepen.
 
 let config: CyberTrayConfig = createDefaultConfig();
+// Contador monótono de cambios de configuración: permite al renderer ignorar
+// recargas obsoletas en lugar de volver a un estado anterior.
+let configRevision = 0;
 const CONFIG_FILE = path.join(app.getPath('userData'), 'cyber-tray-config.json');
 
 function getIconsDir(): string {
@@ -221,6 +226,51 @@ const TRAY_TRANSLATIONS = {
     quit: 'Salir',
   },
 } as const;
+/**
+ * Textos de los diálogos nativos de Windows (menú de edición, selectores de
+ * archivo). Son la única parte de la UI que no pasa por el renderer, así que
+ * necesitan su propia traducción.
+ */
+const NATIVE_TRANSLATIONS = {
+  en: {
+    cut: 'Cut',
+    copy: 'Copy',
+    paste: 'Paste',
+    delete: 'Delete',
+    selectAll: 'Select All',
+    executables: 'Executables',
+    allFiles: 'All Files',
+    images: 'Images',
+    audioFiles: 'Audio Files',
+    exportTitle: 'Export Configuration',
+    importTitle: 'Import Configuration',
+    selectBackground: 'Select background image',
+    selectSound: 'Select sound file',
+    vaultFolder: 'Select vault folder',
+  },
+  es: {
+    cut: 'Cortar',
+    copy: 'Copiar',
+    paste: 'Pegar',
+    delete: 'Eliminar',
+    selectAll: 'Seleccionar todo',
+    executables: 'Ejecutables',
+    allFiles: 'Todos los archivos',
+    images: 'Imágenes',
+    audioFiles: 'Archivos de audio',
+    exportTitle: 'Exportar Configuración',
+    importTitle: 'Importar Configuración',
+    selectBackground: 'Seleccionar imagen de fondo',
+    selectSound: 'Seleccionar archivo de sonido',
+    vaultFolder: 'Seleccionar carpeta de la bóveda',
+  },
+} as const;
+
+type NativeStrings = (typeof NATIVE_TRANSLATIONS)["en"] | (typeof NATIVE_TRANSLATIONS)["es"];
+
+function nativeStrings(): NativeStrings {
+  return config.language === 'es' ? NATIVE_TRANSLATIONS.es : NATIVE_TRANSLATIONS.en;
+}
 
 type TrayRecentItem = {
   name: string;
@@ -241,11 +291,21 @@ function getMenuIconsDir(): string {
     : path.join(__dirname, '../dist/menu-icons');
 }
 
+// Los iconos del menú no cambian durante la sesión: cachearlos evita releer
+// 12 PNG del disco cada vez que se reconstruye el menú.
+const menuIconCache = new Map<string, Electron.NativeImage | undefined>();
+
 function loadMenuIcon(name: string): Electron.NativeImage | undefined {
+  if (menuIconCache.has(name)) {
+    return menuIconCache.get(name);
+  }
   const iconPath = path.join(getMenuIconsDir(), name);
-  if (!fs.existsSync(iconPath)) return undefined;
-  const img = nativeImage.createFromPath(iconPath);
-  if (img.isEmpty()) return undefined;
+  let img: Electron.NativeImage | undefined;
+  if (fs.existsSync(iconPath)) {
+    const loaded = nativeImage.createFromPath(iconPath);
+    img = loaded.isEmpty() ? undefined : loaded;
+  }
+  menuIconCache.set(name, img);
   return img;
 }
 
@@ -572,7 +632,9 @@ function saveConfig(
         shortcutsList: persistShortcutIconsInPlace(newConfig.shortcutsList),
       };
     }
+    const previous = config;
     config = { ...config, ...newConfig };
+    configRevision += 1;
     // Salvaguarda: si un cliente antiguo o un import intenta escribir el PIN
     // en claro, se descarta antes de tocar el disco.
     delete (config as { vaultPin?: unknown }).vaultPin;
@@ -584,10 +646,26 @@ function saveConfig(
     }
 
     if (shelfWindow && !shelfWindow.isDestroyed()) {
-      shelfWindow.webContents.send('reload-config');
+      // Se envía la config ya normalizada: el renderer no necesita releer el disco.
+      shelfWindow.webContents.send('reload-config', { ...config, __rev: configRevision });
     }
-    createTray();
-    startHotspotPolling();
+
+    // Reconstruir el menú y reiniciar el polling solo cuando cambia lo que
+    // depende de ellos: antes se hacía en cada guardado.
+    const menuChanged =
+      previous.language !== config.language ||
+      previous.showTaskbarIcon !== config.showTaskbarIcon ||
+      previous.alwaysOnTop !== config.alwaysOnTop;
+    if (menuChanged) {
+      createTray();
+    }
+
+    const hotspotsChanged =
+      previous.hotspotDelay !== config.hotspotDelay ||
+      JSON.stringify(previous.hotspotCorners) !== JSON.stringify(config.hotspotCorners);
+    if (hotspotsChanged) {
+      startHotspotPolling();
+    }
   } catch (err) {
     console.error('Error saving config:', err);
   }
@@ -1020,20 +1098,34 @@ function alignWindows() {
 }
 
 // ── REGISTRO DE ATAJO GLOBAL ──
-function registerGlobalShortcutKey(shortcut: string) {
-  globalShortcut.unregisterAll();
+/**
+ * Registra el atajo global que muestra/oculta el shelf.
+ *
+ * No se llama a `unregisterAll()` antes: si el nuevo atajo no se puede
+ * registrar (ya ocupado por otra app o formato inválido) se conserva el que
+ * ya funcionaba. Devuelve `true` solo si el registro se completó.
+ */
+function registerGlobalShortcutKey(shortcut: string): boolean {
   const electronShortcut = shortcut.replace(/Meta/g, 'Super').replace(/Ctrl/g, 'CommandOrControl');
 
   try {
-    const success = globalShortcut.register(electronShortcut, () => {
+    if (!globalShortcut.register(electronShortcut, () => {
       toggleShelf();
-    });
-    if (!success) {
+    })) {
       console.warn(`Failed to register global shortcut: ${electronShortcut}`);
+      return false;
     }
   } catch (err) {
     console.error('Error registering global shortcut:', err);
+    return false;
   }
+
+  // Solo se libera el atajo anterior cuando el nuevo se ha registrado bien.
+  if (currentGlobalShortcut) {
+    globalShortcut.unregister(currentGlobalShortcut);
+  }
+  currentGlobalShortcut = electronShortcut;
+  return true;
 }
 
 // ── FILE RESOLUTION & POWERSHELL LNK RESOLVER ──
@@ -1351,32 +1443,70 @@ function startUACGuard() {
 let vramCache: { data: { total: number; name: string } | null; ts: number } | null = null;
 let isFetchingVram = false;
 
+/**
+ * VRAM de la GPU.
+ *
+ * `Win32_VideoController.AdapterRAM` es un entero de 32 bits: en cualquier GPU
+ * con más de 4 GB devuelve 4 GB. Por eso se pregunta primero a nvidia-smi
+ * (fuente exacta) y solo se recurre a CIM cuando no hay GPU NVIDIA.
+ */
 function fetchVramInfoInBackground() {
   if (isFetchingVram) return;
   isFetchingVram = true;
-  const psCommand = `powershell -NoProfile -Command "Get-WmiObject Win32_VideoController | Where-Object { $_.AdapterRAM -gt 0 } | Select-Object -First 1 Name,@{N='AdapterRAM';E={[math]::Round($_.AdapterRAM / 1GB, 2)}} | ConvertTo-Json"`;
-  exec(psCommand, { encoding: 'utf-8', timeout: 8000 }, (err, stdout) => {
+
+  const storeFallback = () => {
     isFetchingVram = false;
-    if (!err && stdout) {
-      try {
-        const gpuData = JSON.parse(stdout);
-        if (gpuData && gpuData.AdapterRAM > 0) {
-          vramCache = {
-            data: {
-              total: gpuData.AdapterRAM,
-              name: gpuData.Name?.trim() || 'GPU'
-            },
-            ts: Date.now()
-          };
-        }
-      } catch (e) {
-        // ignore JSON parse error
-      }
-    }
-    // If not set yet, store a fallback to avoid infinite loops/queries
     if (!vramCache) {
       vramCache = { data: null, ts: Date.now() };
     }
+  };
+
+  // 1) nvidia-smi: valor real de VRAM.
+  execFile('nvidia-smi', ['--query-gpu=name,memory.total', '--format=csv,noheader,nounits'], {
+    timeout: 5000,
+    encoding: 'utf-8',
+  }, (err, stdout) => {
+    if (!err && stdout) {
+      const line = String(stdout).split(/\r?\n/).map((l) => l.trim()).find(Boolean);
+      if (line) {
+        const parts = line.split(',').map((p) => p.trim());
+        const totalMb = parseFloat(parts[parts.length - 1]);
+        const name = parts.slice(0, -1).join(',').trim();
+        if (!isNaN(totalMb) && totalMb > 0) {
+          vramCache = {
+            data: {
+              total: Math.round((totalMb / 1024) * 10) / 10,
+              name: name || 'GPU',
+            },
+            ts: Date.now(),
+          };
+          isFetchingVram = false;
+          return;
+        }
+      }
+    }
+
+    // 2) Fallback CIM (valor limitado a 4 GB en GPU modernas).
+    const psCommand = `Get-CimInstance Win32_VideoController | Where-Object { $_.AdapterRAM -gt 0 } | Select-Object -First 1 Name,@{N='AdapterRAM';E={[math]::Round($_.AdapterRAM / 1GB, 2)}} | ConvertTo-Json`;
+    exec(psCommand, { encoding: 'utf-8', timeout: 8000 }, (psErr, psOut) => {
+      if (!psErr && psOut) {
+        try {
+          const gpuData = JSON.parse(psOut);
+          if (gpuData && gpuData.AdapterRAM > 0) {
+            vramCache = {
+              data: {
+                total: gpuData.AdapterRAM,
+                name: gpuData.Name?.trim() || 'GPU',
+              },
+              ts: Date.now(),
+            };
+          }
+        } catch (e) {
+          // ignore JSON parse error
+        }
+      }
+      storeFallback();
+    });
   });
 }
 
@@ -1393,9 +1523,13 @@ function registerIpcHandlers() {
 
   ipcMain.handle('select-file', async (_, options) => {
     isDialogOpen = true;
+    const t = nativeStrings();
     const res = await dialog.showOpenDialog(shelfWindow!, {
       properties: ['openFile'],
-      filters: options?.filters,
+      filters: options?.filters ?? [
+        { name: t.executables, extensions: ['exe', 'lnk', 'url', 'bat', 'cmd', 'appx', 'msc', 'appref-ms'] },
+        { name: t.allFiles, extensions: ['*'] },
+      ],
     });
     isDialogOpen = false;
     showShelf();
@@ -1409,8 +1543,9 @@ function registerIpcHandlers() {
   ipcMain.handle('select-image', async () => {
     isDialogOpen = true;
     const res = await dialog.showOpenDialog(shelfWindow!, {
+      title: nativeStrings().selectBackground,
       properties: ['openFile'],
-      filters: [{ name: 'Images', extensions: ['jpg', 'png', 'jpeg', 'gif', 'webp'] }],
+      filters: [{ name: nativeStrings().images, extensions: ['jpg', 'png', 'jpeg', 'gif', 'webp'] }],
     });
     isDialogOpen = false;
     showShelf();
@@ -1423,8 +1558,9 @@ function registerIpcHandlers() {
   ipcMain.handle('select-audio', async () => {
     isDialogOpen = true;
     const res = await dialog.showOpenDialog(shelfWindow!, {
+      title: nativeStrings().selectSound,
       properties: ['openFile'],
-      filters: [{ name: 'Audio Files', extensions: ['mp3', 'wav', 'ogg', 'aac', 'm4a'] }],
+      filters: [{ name: nativeStrings().audioFiles, extensions: ['mp3', 'wav', 'ogg', 'aac', 'm4a'] }],
     });
     isDialogOpen = false;
     showShelf();
@@ -1438,7 +1574,16 @@ function registerIpcHandlers() {
     try {
       if (fs.existsSync(filePath)) {
         const buf = fs.readFileSync(filePath);
-        return `data:image/png;base64,${buf.toString('base64')}`;
+        // El MIME debe corresponder al archivo: declararlo siempre como PNG
+        // rompe la previsualización de los JPG que elige el usuario.
+        const ext = path.extname(String(filePath)).toLowerCase();
+        let mime = 'image/png';
+        if (ext === '.jpg' || ext === '.jpeg') mime = 'image/jpeg';
+        else if (ext === '.gif') mime = 'image/gif';
+        else if (ext === '.webp') mime = 'image/webp';
+        else if (ext === '.svg') mime = 'image/svg+xml';
+        else if (ext === '.bmp') mime = 'image/bmp';
+        return `data:${mime};base64,${buf.toString('base64')}`;
       }
     } catch {}
     return null;
@@ -1470,9 +1615,13 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle('register-shortcut', async (_, shortcut) => {
-    registerGlobalShortcutKey(shortcut);
-    saveConfig({ shortcut });
-    return { success: true, shortcut };
+    const registered = registerGlobalShortcutKey(shortcut);
+    if (registered) {
+      saveConfig({ shortcut });
+      return { success: true, shortcut };
+    }
+    // El atajo anterior sigue activo: no se guarda un valor que no funciona.
+    return { success: false, shortcut, error: 'shortcut_conflict' };
   });
 
   ipcMain.handle('window-hide-to-tray', async () => {
@@ -1533,87 +1682,62 @@ function registerIpcHandlers() {
     };
   });
   let diskCache: { data: any[], ts: number } | null = null;
+  let driveListCache: { drives: string[]; ts: number } | null = null;
+
+  // Lista de unidades locales. wmic está obsoleto y ausente en Windows 11 24H2+,
+  // así que se usa CIM, que sigue disponible.
+  const listLocalDrives = async (): Promise<string[]> => {
+    if (driveListCache && (Date.now() - driveListCache.ts) < 300000) {
+      return driveListCache.drives;
+    }
+    try {
+      const psCommand = `Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3" | Select-Object -ExpandProperty DeviceID`;
+      const { stdout } = await execFileAsync('powershell', ['-NoProfile', '-Command', psCommand], {
+        windowsHide: true,
+        timeout: 8000,
+        encoding: 'utf-8',
+      });
+      const drives = String(stdout || '')
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter((s) => /^[A-Z]:$/.test(s));
+      driveListCache = { drives, ts: Date.now() };
+      return drives;
+    } catch {
+      return driveListCache?.drives || [];
+    }
+  };
+
+  // Espacio real de la unidad vía statfs: sin procesos hijos y sin datos inventados.
+  const readDriveSpace = async (drive: string) => {
+    try {
+      const stats = await fs.promises.statfs(drive);
+      const totalBytes = stats.blocks * stats.bsize;
+      const freeBytes = stats.bavail * stats.bsize;
+      if (!totalBytes) return null;
+      const usedBytes = totalBytes - freeBytes;
+      const toGb = (bytes: number) => Math.round((bytes / (1024 * 1024 * 1024)) * 10) / 10;
+      return {
+        drive,
+        total: toGb(totalBytes),
+        free: toGb(freeBytes),
+        used: toGb(usedBytes),
+        percent: Math.round((usedBytes / totalBytes) * 100),
+      };
+    } catch {
+      return null;
+    }
+  };
 
   ipcMain.handle('get-disk-info', async () => {
-    const hasCache = !!diskCache;
-    const cacheExpired = !hasCache || (Date.now() - diskCache.ts) >= 60000;
-
-    if (cacheExpired) {
-      // Revalidar en segundo plano asíncronamente para evitar congelar el hilo principal
-      const runQuery = () => {
-        exec('wmic logicaldisk get size,freespace,caption', { timeout: 3000, encoding: 'utf-8' }, (err, stdout) => {
-          if (!err && stdout) {
-            const lines = stdout.trim().split('\n').slice(1);
-            const disks: Array<{ drive: string; total: number; free: number; used: number; percent: number }> = [];
-            for (const line of lines) {
-              const parts = line.trim().split(/\s+/);
-              if (parts.length >= 3) {
-                const drive = parts[0];
-                const free = parseInt(parts[1], 10);
-                const total = parseInt(parts[2], 10);
-                if (!isNaN(free) && !isNaN(total) && total > 0) {
-                  const used = total - free;
-                  disks.push({
-                    drive,
-                    total: Math.round(total / (1024 * 1024 * 1024) * 10) / 10,
-                    free: Math.round(free / (1024 * 1024 * 1024) * 10) / 10,
-                    used: Math.round(used / (1024 * 1024 * 1024) * 10) / 10,
-                    percent: Math.round((used / total) * 100),
-                  });
-                }
-              }
-            }
-            if (disks.length > 0) {
-              diskCache = { data: disks, ts: Date.now() };
-            }
-          }
-        });
-      };
-
-      if (hasCache) {
-        // Si ya hay datos viejos, los devolvemos de inmediato y revalidamos de fondo (SWR)
-        runQuery();
-        return diskCache.data;
-      }
-    } else if (hasCache) {
-      // Caché válido menor a 60s
+    if (diskCache && (Date.now() - diskCache.ts) < 60000) {
       return diskCache.data;
     }
-
-    // Primer inicio absoluto sin caché: ejecución bloqueante inicial para tener datos iniciales correctos
-    return new Promise((resolve) => {
-      exec('wmic logicaldisk get size,freespace,caption', { timeout: 3000, encoding: 'utf-8' }, (err, stdout) => {
-        if (err || !stdout) {
-          const fallback = [{ drive: 'C:', total: 500, free: 250, used: 250, percent: 50 }];
-          diskCache = { data: fallback, ts: Date.now() };
-          resolve(fallback);
-          return;
-        }
-        const lines = stdout.trim().split('\n').slice(1);
-        const disks: Array<{ drive: string; total: number; free: number; used: number; percent: number }> = [];
-        for (const line of lines) {
-          const parts = line.trim().split(/\s+/);
-          if (parts.length >= 3) {
-            const drive = parts[0];
-            const free = parseInt(parts[1], 10);
-            const total = parseInt(parts[2], 10);
-            if (!isNaN(free) && !isNaN(total) && total > 0) {
-              const used = total - free;
-              disks.push({
-                drive,
-                total: Math.round(total / (1024 * 1024 * 1024) * 10) / 10,
-                free: Math.round(free / (1024 * 1024 * 1024) * 10) / 10,
-                used: Math.round(used / (1024 * 1024 * 1024) * 10) / 10,
-                percent: Math.round((used / total) * 100),
-              });
-            }
-          }
-        }
-        const result = disks.length > 0 ? disks : [{ drive: 'C:', total: 500, free: 250, used: 250, percent: 50 }];
-        diskCache = { data: result, ts: Date.now() };
-        resolve(result);
-      });
-    });
+    const drives = await listLocalDrives();
+    const disks = (await Promise.all(drives.map(readDriveSpace))).filter(Boolean);
+    const data = disks as Array<{ drive: string; total: number; free: number; used: number; percent: number }>;
+    diskCache = { data, ts: Date.now() };
+    return data;
   });
 
   let processesCache: { data: any[], ts: number } | null = null;
@@ -1702,13 +1826,14 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle('show-text-context-menu', async (_, { x, y }) => {
+    const t = nativeStrings();
     const menu = Menu.buildFromTemplate([
-      { label: 'Cortar', role: 'cut' },
-      { label: 'Copiar', role: 'copy' },
-      { label: 'Pegar', role: 'paste' },
-      { label: 'Eliminar', role: 'delete' },
+      { label: t.cut, role: 'cut' },
+      { label: t.copy, role: 'copy' },
+      { label: t.paste, role: 'paste' },
+      { label: t.delete, role: 'delete' },
       { type: 'separator' },
-      { label: 'Seleccionar todo', role: 'selectAll' }
+      { label: t.selectAll, role: 'selectAll' }
     ]);
     menu.popup({ window: shelfWindow!, x, y });
   });
@@ -1716,7 +1841,7 @@ function registerIpcHandlers() {
   ipcMain.handle('export-config', async (_, jsonData) => {
     isDialogOpen = true;
     const res = await dialog.showSaveDialog(shelfWindow!, {
-      title: 'Exportar Configuración',
+      title: nativeStrings().exportTitle,
       defaultPath: 'cyber-tray-backup.json',
       filters: [{ name: 'JSON', extensions: ['json'] }]
     });
@@ -1732,7 +1857,7 @@ function registerIpcHandlers() {
   ipcMain.handle('import-config', async () => {
     isDialogOpen = true;
     const res = await dialog.showOpenDialog(shelfWindow!, {
-      title: 'Importar Configuración',
+      title: nativeStrings().importTitle,
       filters: [{ name: 'JSON', extensions: ['json'] }],
       properties: ['openFile']
     });
@@ -1750,7 +1875,7 @@ function registerIpcHandlers() {
     if (options?.broadcastReload !== false) {
       alignWindows();
     }
-    return true;
+    return { success: true, revision: configRevision };
   });
 
   ipcMain.handle('loadConfig', async () => {
@@ -1889,7 +2014,7 @@ function registerIpcHandlers() {
   ipcMain.handle('select-vault-folder', async () => {
     isDialogOpen = true; // Bypasa el autohide (hideOnBlur) mientras el diálogo nativo tiene el foco
     const res = await dialog.showOpenDialog(shelfWindow!, {
-      title: 'Seleccionar carpeta de archivos',
+      title: nativeStrings().vaultFolder,
       defaultPath: getVaultPath(),
       properties: ['openDirectory', 'createDirectory'],
     });

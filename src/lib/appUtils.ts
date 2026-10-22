@@ -1,4 +1,5 @@
 import { FOLDER_SCHEMA_VERSION } from './configDefaults';
+import { translate } from '../locales';
 
 export { FOLDER_SCHEMA_VERSION };
 
@@ -25,6 +26,30 @@ export const INITIAL_CATEGORIES = [
   { id: 'utils', name: 'Utilities', color: '#60a5fa', parentId: null, order: 6 },
 ];
 
+/** Clave de traducción del nombre por defecto de cada carpeta. */
+const CATEGORY_NAME_KEYS: Record<string, string> = {
+  all: 'folder_all',
+  ai: 'folder_tools',
+  browsers: 'folder_browsers',
+  comm: 'folder_chat',
+  design: 'folder_design',
+  dev: 'folder_dev',
+  gaming: 'folder_gaming',
+  utils: 'folder_utils',
+};
+
+/**
+ * Carpetas por defecto con los nombres en el idioma activo.
+ * Sin esto, un "restablecer" en español dejaría las carpetas en inglés.
+ */
+export function getDefaultCategories(): CyberFolder[] {
+  return INITIAL_CATEGORIES.map((folder) => {
+    const key = CATEGORY_NAME_KEYS[folder.id];
+    const name = key ? translate(key as any) : folder.name;
+    return { ...folder, name };
+  });
+}
+
 const normalizeParentId = (value: unknown, id: string, ids: Set<string>) => {
   if (typeof value !== 'string' || !value || value === id || !ids.has(value)) return null;
   return value;
@@ -36,7 +61,7 @@ export const normalizeCategoriesList = (list: any[] = []): CyberFolder[] => {
     : [];
 
   if (validCategories.length === 0) {
-    return INITIAL_CATEGORIES.map(folder => ({ ...folder }));
+    return getDefaultCategories();
   }
 
   const seenIds = new Set<string>();

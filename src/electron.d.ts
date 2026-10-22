@@ -15,7 +15,7 @@ declare global {
       getBundledAssetUrl: (relativePath: string) => Promise<string | null>;
       getMonitors: () => Promise<Array<{ id: string; label: string; isPrimary: boolean; bounds: any; size: any }>>;
       setMonitor: (monitorId: string) => Promise<void>;
-      registerShortcut: (shortcut: string) => Promise<{ success: boolean; shortcut: string }>;
+      registerShortcut: (shortcut: string) => Promise<{ success: boolean; shortcut: string; error?: 'shortcut_conflict' }>;
       windowHideToTray: () => Promise<void>;
       setAutoLaunch: (enabled: boolean) => Promise<{ success: boolean; enabled: boolean }>;
       setHideOnBlur: (enabled: boolean) => Promise<{ success: boolean; enabled: boolean }>;
@@ -31,11 +31,11 @@ declare global {
       openDevTools: () => Promise<{ success: boolean }>;
       exportConfig: (jsonData: string) => Promise<string | null>;
       importConfig: () => Promise<string | null>;
-      saveConfig: (config: any, options?: { broadcastReload?: boolean }) => Promise<boolean>;
+      saveConfig: (config: any, options?: { broadcastReload?: boolean }) => Promise<{ success: boolean; revision: number }>;
       loadConfig: () => Promise<any | null>;
       getConfigPath: () => Promise<string>;
       openDataFolder: () => Promise<void>;
-      onReloadConfig: (callback: () => void) => () => void;
+      onReloadConfig: (callback: (nextConfig?: any) => void) => () => void;
       showTextContextMenu: (x: number, y: number) => Promise<void>;
       setAlwaysOnTop: (enabled: boolean) => Promise<{ success: boolean }>;
       onAlwaysOnTopBlurAttempt: (callback: () => void) => () => void;

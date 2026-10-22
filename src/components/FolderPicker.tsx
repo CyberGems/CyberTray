@@ -101,10 +101,24 @@ export default function FolderPicker({
     });
   }, [folders, q, categories]);
 
+  // Hijos indexados por padre: recorrer el árbol no debe recorrer la lista
+  // completa de carpetas en cada nodo.
+  const childrenByParent = useMemo(() => {
+    const map = new Map<string | null, CyberFolder[]>();
+    categories.forEach(folder => {
+      if (folder.id === ROOT_FOLDER_ID) return;
+      const children = map.get(folder.parentId) || [];
+      children.push(folder);
+      map.set(folder.parentId, children);
+    });
+    map.forEach(children => children.sort((a, b) => a.order - b.order || a.name.localeCompare(b.name)));
+    return map;
+  }, [categories]);
+
   const renderTree = (parentId: string | null, depth: number): React.ReactNode => {
-    const children = getChildFolders(categories, parentId);
+    const children = childrenByParent.get(parentId) || [];
     return children.map(folder => {
-      const nested = getChildFolders(categories, folder.id);
+      const nested = childrenByParent.get(folder.id) || [];
       const hasChildren = nested.length > 0;
       const expanded = expandedIds.has(folder.id);
       const selected = value === folder.id;
@@ -152,7 +166,9 @@ export default function FolderPicker({
     });
   };
 
-  const firstMatch = filtered[0]?.id || (vaultMatches ? VAULT_ID : '');
+  // Primer elemento visible de la lista: la bóveda se renderiza antes que las
+  // carpetas, así que es la que Enter debe seleccionar.
+  const firstMatch = vaultMatches ? VAULT_ID : (filtered[0]?.id || '');
 
   return (
     <div ref={rootRef} className="relative">

@@ -61,10 +61,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadConfig: () => ipcRenderer.invoke('loadConfig'),
   getConfigPath: () => ipcRenderer.invoke('get-config-path'),
   openDataFolder: () => ipcRenderer.invoke('open-data-folder'),
-  onReloadConfig: (callback: () => void) => {
-    const handler = (_event: any) => {
-      console.log('[PRELOAD] reload-config event received');
-      callback();
+  onReloadConfig: (callback: (nextConfig?: any) => void) => {
+    const handler = (_event: any, nextConfig?: any) => {
+      callback(nextConfig);
     };
     ipcRenderer.on('reload-config', handler);
     return () => { ipcRenderer.removeListener('reload-config', handler); };

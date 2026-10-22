@@ -1,4 +1,5 @@
 import React from 'react';
+import { useBundledAssetUrl } from '../lib/useBundledAsset';
 
 export function CyberTrayWordmark({ className = '' }: { className?: string }) {
   return (
@@ -18,10 +19,11 @@ export default function CyberTrayLogo({
   animated?: boolean;
   alt?: string;
 }) {
+  const logoSrc = useBundledAssetUrl('icon.png');
   return (
     <div className={`relative ${className} flex items-center justify-center p-0.5`} style={animated ? { animation: 'spin 12s linear infinite' } : undefined}>
       <img
-        src="/icon.png"
+        src={logoSrc}
         alt={alt}
         className="w-full h-full object-contain drop-shadow-[0_0_2px_var(--neon-glow-color)]"
         draggable={false}

@@ -15,6 +15,7 @@ import FolderTree from './components/FolderTree';
 import {
   isElectron,
   INITIAL_CATEGORIES,
+  getDefaultCategories,
   FOLDER_SCHEMA_VERSION,
   normalizeCategoriesList,
   normalizeShortcutsList,
@@ -29,6 +30,8 @@ import {
 } from './lib/appUtils';
 import { hashPin, verifyPin } from './lib/pin';
 import { createDefaultConfig } from './lib/configDefaults';
+import { localResourceUrl } from './lib/iconSrc';
+import { useBundledAssetUrl } from './lib/useBundledAsset';
 import {
   Search, Plus, Settings, X, Trash2, Info,
   Pin, Play, ArrowDown, Shrink, MoreHorizontal,
@@ -41,6 +44,8 @@ const DEFAULT_LAUNCH_SOUND = '/sounds/launch-thud.wav';
 // PIN que usaba CyberTray antes de hashearlo. Solo se usa para derivar el
 // hash de instalaciones antiguas que nunca tocaron el PIN.
 const LEGACY_DEFAULT_PIN = '1234';
+// Ajustes que se guardan con retardo (controles deslizantes).
+const DEBOUNCED_CONFIG_KEYS = new Set(['iconSize', 'opacity', 'blurLevel', 'hotspotDelay']);
 
 export default function App() {
   // Configuración de la App (defaults compartidos con el proceso main)
@@ -48,7 +53,7 @@ export default function App() {
 
 
   // Base de datos de Accesos Directos y Categorías
-  const [categories, setCategories] = useState<any[]>(INITIAL_CATEGORIES);
+  const [categories, setCategories] = useState<any[]>(getDefaultCategories());
   const [shortcuts, setShortcuts] = useState<any[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -352,9 +357,14 @@ export default function App() {
   // Refs
   const configRef = useRef<any>(config);
   const usagePersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const iconSizeSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const configSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Última revisión de configuración aplicada. Permite descartar recargas
+  // obsoletas que habrían revertido un cambio más reciente.
+  const appliedConfigRevRef = useRef(0);
   const pendingUsageRef = useRef<{ shortcuts: any[]; totalLaunches: number } | null>(null);
   const shortcutsRef = useRef<any[]>(shortcuts);
+  const pendingLaunchTimersRef = useRef<Set<ReturnType<typeof setInterval>>>(new Set());
+  const handleTogglePinRef = useRef<(() => void | Promise<void>) | null>(null);
   const launchAudioRef = useRef<HTMLAudioElement | null>(null);
   const folderAudioRef = useRef<HTMLAudioElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -384,6 +394,16 @@ export default function App() {
   useEffect(() => {
     shortcutsRef.current = shortcuts;
   }, [shortcuts]);
+
+  // Temporizadores de los lanzamientos retardados: se limpian al desmontar
+  // para que un acceso no se lance cuando la app ya no lo muestra.
+  useEffect(() => {
+    const timers = pendingLaunchTimersRef.current;
+    return () => {
+      timers.forEach((timer) => clearInterval(timer));
+      timers.clear();
+    };
+  }, []);
 
   // Atajos del modo selección: Esc sale, Ctrl/Cmd+A selecciona todo, Delete borra.
   useEffect(() => {
@@ -441,7 +461,7 @@ export default function App() {
         if (soundPath) {
           url = soundPath.startsWith('http') || soundPath.startsWith('data:')
             ? soundPath
-            : `local-resource:///${soundPath.replace(/\\/g, '/')}`;
+            : localResourceUrl(soundPath);
         } else if (isElectron) {
           // Chromium no decodifica audio servido por file://: se usa el protocolo propio.
           url = await window.electronAPI!.getBundledAssetUrl('sounds/launch-thud.wav');
@@ -485,7 +505,7 @@ export default function App() {
     vram: null as { total: number; name: string } | null,
     uptime: 3600,
   });
-  const [disks, setDisks] = useState<any[]>([{ drive: 'C:', total: 500, free: 250, used: 250, percent: 50 }]);
+  const [disks, setDisks] = useState<any[]>([]);
   const [activeTasksCount, setActiveTasksCount] = useState<number>(0);
   const [runningProcesses, setRunningProcesses] = useState<Array<{ pid: number; name: string; path: string; memory: number }>>([]);
   const [isShelfVisible, setIsShelfVisible] = useState<boolean>(false);
@@ -498,61 +518,81 @@ export default function App() {
 
   // Carga Inicial
   useEffect(() => {
+    const applyConfig = (loadedConfig: any) => {
+      if (!loadedConfig) return;
+      const revision = typeof loadedConfig.__rev === 'number' ? loadedConfig.__rev : 0;
+      if (revision && revision < appliedConfigRevRef.current) return;
+      if (revision) appliedConfigRevRef.current = revision;
+
+      const resolvedAutoUpdate = typeof loadedConfig.autoUpdate === 'boolean'
+        ? loadedConfig.autoUpdate
+        : loadedConfig.autoCheckUpdates !== false;
+      const configWithFolderSchema = {
+        ...createDefaultConfig(),
+        ...loadedConfig,
+        folderSchemaVersion: loadedConfig.folderSchemaVersion || FOLDER_SCHEMA_VERSION,
+        autoUpdate: resolvedAutoUpdate,
+      };
+
+      // El PIN de la bóveda solo se guarda hasheado. Si el config viene de
+      // una versión antigua (PIN en claro) o no tiene hash pero la bóveda
+      // está activa, se deriva ahora y se descarta el valor en claro.
+      const legacyPin = typeof configWithFolderSchema.vaultPin === 'string'
+        ? configWithFolderSchema.vaultPin
+        : '';
+      const needsPinDerivation =
+        !configWithFolderSchema.vaultPinHash &&
+        (legacyPin.length > 0 || configWithFolderSchema.vaultPinEnabled === true);
+      const effectiveConfig: any = { ...configWithFolderSchema };
+      delete effectiveConfig.vaultPin;
+      delete effectiveConfig.__rev;
+
+      setConfig(effectiveConfig);
+      if (loadedConfig.alwaysOnTop !== undefined) {
+        setIsPinned(loadedConfig.alwaysOnTop);
+      }
+      if (loadedConfig.language) {
+        setLangCode(loadedConfig.language);
+        setLocale(loadedConfig.language);
+      }
+      const sanitizedCategories = normalizeCategoriesList(loadedConfig.categoriesList || getDefaultCategories());
+      const sanitizedShortcuts = normalizeShortcutsList(loadedConfig.shortcutsList || [], sanitizedCategories);
+      setCategories(sanitizedCategories);
+      setShortcuts(sanitizedShortcuts);
+      shortcutsRef.current = sanitizedShortcuts;
+      return {
+        effectiveConfig,
+        sanitizedCategories,
+        sanitizedShortcuts,
+        legacyPin,
+        needsPinDerivation,
+        needsSchemaUpgrade: loadedConfig.folderSchemaVersion !== FOLDER_SCHEMA_VERSION,
+      };
+    };
+
     // Cargar Configuración Central y Atajos
-    const fetchConfig = async () => {
+    const fetchConfig = async (providedConfig?: any) => {
       if (isElectron) {
         // Cargar config general de Electron
-        const loadedConfig = await window.electronAPI!.loadConfig();
-        if (loadedConfig) {
-          const resolvedAutoUpdate = typeof loadedConfig.autoUpdate === 'boolean'
-            ? loadedConfig.autoUpdate
-            : loadedConfig.autoCheckUpdates !== false;
-          const configWithFolderSchema = {
-            ...createDefaultConfig(),
-            ...loadedConfig,
-            folderSchemaVersion: loadedConfig.folderSchemaVersion || FOLDER_SCHEMA_VERSION,
-            autoUpdate: resolvedAutoUpdate,
-          };
-
-          // El PIN de la bóveda solo se guarda hasheado. Si el config viene de
-          // una versión antigua (PIN en claro) o no tiene hash pero la bóveda
-          // está activa, se deriva ahora y se descarta el valor en claro.
-          const legacyPin = typeof configWithFolderSchema.vaultPin === 'string'
-            ? configWithFolderSchema.vaultPin
-            : '';
-          const needsPinDerivation =
-            !configWithFolderSchema.vaultPinHash &&
-            (legacyPin.length > 0 || configWithFolderSchema.vaultPinEnabled === true);
-          const effectiveConfig: any = { ...configWithFolderSchema };
-          if (needsPinDerivation) {
+        const loadedConfig = providedConfig ?? await window.electronAPI!.loadConfig();
+        const applied = applyConfig(loadedConfig);
+        if (applied && (applied.needsPinDerivation || applied.needsSchemaUpgrade)) {
+          if (applied.needsPinDerivation) {
             try {
-              const derived = await hashPin(legacyPin || LEGACY_DEFAULT_PIN);
-              effectiveConfig.vaultPinHash = derived.hash;
-              effectiveConfig.vaultPinSalt = derived.salt;
+              const derived = await hashPin(applied.legacyPin || LEGACY_DEFAULT_PIN);
+              applied.effectiveConfig.vaultPinHash = derived.hash;
+              applied.effectiveConfig.vaultPinSalt = derived.salt;
+              setConfig(applied.effectiveConfig);
             } catch (err) {
               console.error('No se pudo derivar el hash del PIN de la bóveda:', err);
             }
           }
-          delete effectiveConfig.vaultPin;
-
-          setConfig(effectiveConfig);
-          setIsPinned(loadedConfig.alwaysOnTop !== undefined ? loadedConfig.alwaysOnTop : true);
-          if (loadedConfig.language) {
-            setLangCode(loadedConfig.language);
-            setLocale(loadedConfig.language);
-          }
-          const sanitizedCategories = normalizeCategoriesList(loadedConfig.categoriesList || INITIAL_CATEGORIES);
-          const sanitizedShortcuts = normalizeShortcutsList(loadedConfig.shortcutsList || [], sanitizedCategories);
-          setCategories(sanitizedCategories);
-          setShortcuts(sanitizedShortcuts);
-          if (loadedConfig.folderSchemaVersion !== FOLDER_SCHEMA_VERSION || needsPinDerivation) {
-            await window.electronAPI!.saveConfig({
-              ...effectiveConfig,
-              folderSchemaVersion: FOLDER_SCHEMA_VERSION,
-              categoriesList: sanitizedCategories,
-              shortcutsList: sanitizedShortcuts,
-            }, { broadcastReload: false });
-          }
+          await window.electronAPI!.saveConfig({
+            ...applied.effectiveConfig,
+            folderSchemaVersion: FOLDER_SCHEMA_VERSION,
+            categoriesList: applied.sanitizedCategories,
+            shortcutsList: applied.sanitizedShortcuts,
+          }, { broadcastReload: false });
         }
 
         // Obtener Monitores
@@ -573,8 +613,13 @@ export default function App() {
 
     // Listener para recarga de configuración
     if (isElectron) {
-      const unsub = window.electronAPI!.onReloadConfig(() => {
-        fetchConfig();
+      const unsub = window.electronAPI!.onReloadConfig((nextConfig) => {
+        // El proceso main envía la config ya normalizada: no hace falta releer el disco.
+        if (nextConfig) {
+          void fetchConfig(nextConfig);
+        } else {
+          void fetchConfig();
+        }
       });
       return () => unsub();
     }
@@ -683,6 +728,21 @@ export default function App() {
       });
       return () => unsub();
     }
+  }, []);
+
+  // El shelf está anclado: no se oculta al perder el foco. Se avisa y se ofrece
+  // desanclarlo, en lugar de dejar al usuario sin explicación.
+  useEffect(() => {
+    if (!isElectron || !window.electronAPI.onAlwaysOnTopBlurAttempt) return;
+    const unsub = window.electronAPI.onAlwaysOnTopBlurAttempt(() => {
+      pushToast('info', translate('toast_pinned_stays'), {
+        actionLabel: translate('toast_pinned_unpin'),
+        onAction: () => {
+          void handleTogglePinRef.current?.();
+        },
+      });
+    });
+    return () => unsub();
   }, []);
 
   useEffect(() => {
@@ -1311,17 +1371,19 @@ export default function App() {
       // Lanzamiento retardado con temporizador visual
       let delayLeft = item.delay;
       setActiveTasksCount(prev => prev + 1);
-      
+
       const timer = setInterval(() => {
         delayLeft--;
         if (delayLeft <= 0) {
           clearInterval(timer);
-          executeLaunch(item);
+          pendingLaunchTimersRef.current.delete(timer);
+          void executeLaunch(item);
           setActiveTasksCount(prev => Math.max(0, prev - 1));
         }
       }, 1000);
+      pendingLaunchTimersRef.current.add(timer);
     } else {
-      executeLaunch(item);
+      void executeLaunch(item);
     }
   };
 
@@ -1369,8 +1431,11 @@ export default function App() {
       scheduleUsagePersist(updated, nextTotalLaunches);
     }
 
-    // Auto-ocultar shelf al lanzar si no está anclada
-    if (isElectron && configRef.current?.hideOnBlur) {
+    // Auto-ocultar shelf al lanzar si no está anclada.
+    // Anclado (`alwaysOnTop`) significa "mantener visible": ocultarlo al lanzar
+    // contradiría el estado del pin.
+    const currentConfig = configRef.current || {};
+    if (isElectron && currentConfig.hideOnBlur && !currentConfig.alwaysOnTop) {
       await window.electronAPI!.windowHideToTray();
     }
     playCyberBeep();
@@ -1953,25 +2018,20 @@ export default function App() {
     configRef.current = updated;
     setConfig(updated);
 
-    const onlyIconSize =
-      (typeof keyOrUpdates === 'string' && keyOrUpdates === 'iconSize') ||
-      (typeof keyOrUpdates === 'object' &&
-        keyOrUpdates !== null &&
-        Object.keys(keyOrUpdates).length === 1 &&
-        Object.prototype.hasOwnProperty.call(keyOrUpdates, 'iconSize'));
-
-    if (onlyIconSize) {
-      if (iconSizeSaveTimerRef.current) clearTimeout(iconSizeSaveTimerRef.current);
-      iconSizeSaveTimerRef.current = setTimeout(() => {
+    // Los controles deslizantes actualizan la UI al instante, pero se guardan
+    // con retardo: arrastrar un slider no debe escribir el disco en cada tick.
+    if (typeof keyOrUpdates === 'string' && DEBOUNCED_CONFIG_KEYS.has(keyOrUpdates)) {
+      if (configSaveTimerRef.current) clearTimeout(configSaveTimerRef.current);
+      configSaveTimerRef.current = setTimeout(() => {
+        configSaveTimerRef.current = null;
         if (isElectron) void window.electronAPI!.saveConfig(configRef.current);
-      }, 280);
+      }, 300);
       return;
     }
 
     if (isElectron) {
       await window.electronAPI!.saveConfig(updated);
     }
-
     // Trigger saved indicator
     setSettingsSaved(true);
     if (settingsSavedTimerRef.current) clearTimeout(settingsSavedTimerRef.current);
@@ -2017,6 +2077,10 @@ export default function App() {
     }
     playCyberBeep();
   };
+
+  // Referencia siempre actualizada: los listeners de IPC se registran una sola
+  // vez y no deben capturar un estado obsoleto.
+  handleTogglePinRef.current = handleTogglePin;
 
   const handleChangeLanguage = (lang: 'en' | 'es') => {
     setLangCode(lang);
@@ -2235,6 +2299,14 @@ export default function App() {
   const bgCustomPath = config.bgCustomPath || '';
   const opacityVal = config.opacity !== undefined ? config.opacity : 85;
   const blurLevel = config.blurLevel !== undefined ? config.blurLevel : 20;
+
+  // Los fondos empaquetados se resuelven por el protocolo propio: bajo file://
+  // una ruta absoluta ("/backgrounds/...") apuntaría a la raíz de la unidad.
+  const presetBackgroundPath = bgImage.startsWith('preset-')
+    ? `backgrounds/cyber_bg_${bgImage.replace('preset-', '')}.png`
+    : '';
+  const presetBackgroundUrl = useBundledAssetUrl(presetBackgroundPath);
+  const fallbackBackgroundUrl = useBundledAssetUrl('backgrounds/cyber_bg_1.png');
   const activeFolderPath = getFolderPath(categories, activeCategory);
   const visibleChildFolders = activeCategory === 'all'
     ? getChildFolders(categories, null)
@@ -2277,21 +2349,23 @@ export default function App() {
               filter: `blur(${blurLevel}px)`,
             }}
           >
-            <img 
+            <img
               src={
                 bgImage === 'custom'
                   ? (bgCustomPath.startsWith('http') || bgCustomPath.startsWith('data:')
                     ? bgCustomPath
-                    : `local-resource:///${bgCustomPath.replace(/\\/g, '/')}`)
-                  : `/backgrounds/cyber_bg_${bgImage.replace('preset-', '')}.png`
-              } 
-              alt={translate('app_bg_type')} 
+                    : localResourceUrl(bgCustomPath))
+                  : (presetBackgroundUrl || presetBackgroundPath)
+              }
+              alt={translate('app_bg_type')}
               className="w-full h-full object-cover transition-opacity duration-300"
               style={{
                 opacity: opacityVal / 100
               }}
               onError={(e) => {
-                (e.target as HTMLImageElement).src = '/backgrounds/cyber_bg_1.png';
+                const fallback = fallbackBackgroundUrl || 'backgrounds/cyber_bg_1.png';
+                const img = e.target as HTMLImageElement;
+                if (img.src !== fallback) img.src = fallback;
               }}
             />
           </div>
@@ -2844,6 +2918,7 @@ export default function App() {
         setViewMode={setViewMode}
         iconSortOrder={iconSortOrder}
         setIconSortOrder={setIconSortOrder}
+        handleTogglePin={handleTogglePin}
       />
 
       <ProcessMatrixModal
