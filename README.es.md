@@ -57,6 +57,10 @@ Tu escritorio está saturado. El menú Inicio es lento. La barra de tareas está
 - **Selección múltiple**: borrado por lotes con el modo de selección (`Ctrl+A`, `Escape`)
 - **Búsqueda en tiempo real**: filtrado instantáneo en todos los atajos
 - **Opciones de ordenación**: alfabético, más usados, añadidos recientemente
+- **Tira de recientes**: los últimos atajos lanzados, a un clic
+- **Control total por teclado**: recorre el estante con las flechas y lanza con `Enter`
+- **Atajo por atajo**: asigna a cada acceso su propio atajo global
+- **Directorio de trabajo**: elige la carpeta en la que se inicia un acceso
 
 ### 🔲 Hotspots (esquinas de pantalla)
 - **Activación por esquina**: activa CyberTray manteniendo el cursor en cualquier esquina de la pantalla
@@ -66,7 +70,7 @@ Tu escritorio está saturado. El menú Inicio es lento. La barra de tareas está
 ### 📊 Telemetría Neural (monitorización del sistema)
 - **Uso de RAM**: barra de progreso en tiempo real con porcentaje
 - **Info de CPU**: modelo y recuento de núcleos
-- **Espacio en disco**: monitorización por unidad mediante WMI
+- **Espacio en disco**: monitorización por unidad con valores reales (sin WMI)
 - **Detección de VRAM**: obtención en segundo plano de la memoria de la GPU
 - **Tiempo de actividad del sistema**: desde el último arranque
 
@@ -77,9 +81,15 @@ Tu escritorio está saturado. El menú Inicio es lento. La barra de tareas está
 
 ### 🔐 Ciber-Bóveda (archivos seguros)
 - **Protección con PIN**: PIN de 4 dígitos para bloquear y desbloquear la bóveda
+- **PIN con hash**: el PIN nunca se guarda en claro, ni siquiera en una copia de seguridad
 - **Barrido de escritorio**: mueve todos los archivos y carpetas del escritorio a la bóveda segura
 - **Bloqueo automático por inactividad**: configurable (inmediato, 1 min, 5 min, 15 min, sesión)
 - **Ruta de bóveda personalizada**: guarda los archivos de la bóveda en cualquier ubicación
+
+### 🖱️ Menú contextual
+- **Abrir ubicación del archivo**, **abrir la carpeta contenedora** y **abrir una terminal ahí**
+- **Copiar la ruta** al portapapeles
+- **Mover a carpeta**, **fijar en la barra de tareas**, **añadir a favoritos** y **ejecutar como administrador**
 
 ### 🎨 Personalización de apariencia
 - **5 colores de acento**: Cian, Púrpura, Ámbar, Carmesí y Esmeralda
@@ -98,6 +108,7 @@ Tu escritorio está saturado. El menú Inicio es lento. La barra de tareas está
 - **Copia de seguridad y restauración**: exporta e importa la configuración como JSON (con iconos integrados)
 - **Actualizaciones en la app**: comprueba, descarga e instala desde Acerca de mediante GitHub Releases (`electron-updater`). La comprobación automática al arrancar te avisa; la instalación siempre se confirma.
 - **Interfaz bilingüe**: interfaz completa en inglés y español
+- **Accesible por diseño**: foco visible, diálogos reales, avisos para lectores de pantalla y control total por teclado
 ---
 
 ## 🚀 Primeros pasos
@@ -152,7 +163,12 @@ CyberTray/
 │   ├── App.tsx           Componente principal de la aplicación
 │   ├── main.tsx          Punto de entrada de React
 │   ├── locales.ts        i18n (inglés / español)
-│   ├── lib/appUtils.ts   Funciones utilitarias
+│   ├── lib/
+│   │   ├── appUtils.ts        Utilidades de carpetas y accesos
+│   │   ├── configDefaults.ts  Configuración por defecto compartida
+│   │   ├── pin.ts             Derivación del PIN de la bóveda (PBKDF2)
+│   │   ├── iconSrc.ts         Utilidades de URL de recursos locales
+│   │   └── useModalAccessibility.ts  Foco y teclado de los diálogos
 │   ├── components/
 │   │   ├── ShortcutGrid.tsx      Cuadrícula principal de accesos
 │   │   ├── ShortcutFormModal.tsx Diálogo para añadir/editar accesos
@@ -166,7 +182,8 @@ CyberTray/
 │   │   ├── ToastStack.tsx        Avisos emergentes
 │   │   └── CyberTrayLogo.tsx     Logo animado
 ├── public/               Recursos estáticos e iconos
-└── vite.config.ts        Configuración de Vite
+├── vite.config.ts        Configuración de Vite
+└── vitest.config.ts      Configuración de las pruebas
 ```
 
 ### Arquitectura de ventanas
@@ -175,7 +192,7 @@ CyberTray/
 |---|---|---|
 | **Shelf** | Panel principal de accesos | Redimensionable, siempre visible, despliegue instantáneo |
 
-La comunicación entre frontend y backend usa Electron IPC mediante `contextBridge`. La sondeo de hotspots se ejecuta en intervalos de 200 ms. La guardia UAC vigila `consent.exe` para ocultarse automáticamente durante sesiones de escritorio seguro.
+La comunicación entre frontend y backend usa Electron IPC mediante `contextBridge`. La sondeo de hotspots se ejecuta en intervalos de 100 ms. La guardia UAC vigila `consent.exe` para ocultarse automáticamente durante sesiones de escritorio seguro.
 
 ### Compilar desde el código fuente (desarrolladores)
 
@@ -203,6 +220,12 @@ npm run build:electron
 ```
 
 El instalador quedará en el directorio `release/`.
+
+#### Pruebas
+
+```bash
+npm run lint   # comprobación de tipos (TypeScript, modo estricto)
+npm test       # pruebas unitarias (Vitest)
 ---
 
 ## ⌨️ Atajos de teclado
@@ -210,6 +233,14 @@ El instalador quedará en el directorio `release/`.
 | Tecla | Acción | Ámbito |
 |---|---|---|
 | `Alt+Shift+T` (predeterminado) | Alternar el estante de CyberTray | Global |
+| `Ctrl+Alt+…` | Atajo por acceso (configurable en el formulario del acceso) | Global |
+| `↓` / `Esc` | Llevar el foco del buscador a la cuadrícula | Aplicación |
+| `←` `→` `↑` `↓` | Moverse entre accesos | Aplicación |
+| `Inicio` / `Fin` | Ir al primer o al último acceso | Aplicación |
+| `Enter` | Lanzar el acceso enfocado | Aplicación |
+| `Supr` | Eliminar el acceso enfocado (pide confirmación) | Aplicación |
+| `A-Z` | Ir al acceso que empieza por lo que escribes | Aplicación |
+| `Esc` | Cerrar un diálogo o el menú contextual | Aplicación |
 | `Escape` | Salir del modo de selección | Aplicación |
 | `Ctrl+A` | Seleccionar todos los accesos | Modo de selección |
 

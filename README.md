@@ -57,6 +57,10 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 - **Multi-Selection**: Bulk delete with selection mode (`Ctrl+A`, `Escape`)
 - **Real-Time Search**: Instant filtering across all shortcuts
 - **Sort Options**: Alphabetical, most used, recently added
+- **Recent Strip**: The last launched shortcuts, one click away
+- **Full Keyboard Control**: Navigate the shelf with the arrow keys and launch with `Enter`
+- **Per-Shortcut Hotkeys**: Give any shortcut its own global hotkey
+- **Working Directory**: Choose the folder a shortcut starts in
 
 ### 🔲 Hotspots (Screen Corners)
 - **Corner activation**: Trigger CyberTray by dwelling cursor in any screen corner
@@ -66,7 +70,7 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 ### 📊 Neural Telemetry (System Monitoring)
 - **RAM Usage**: Real-time progress bar with percentage
 - **CPU Info**: Model and core count
-- **Disk Space**: Per-drive monitoring via WMI
+- **Disk Space**: Per-drive monitoring with real values (no WMI)
 - **VRAM Detection**: Background GPU memory fetch
 - **System Uptime**: Track since last boot
 
@@ -77,9 +81,15 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 
 ### 🔐 Cyber-Vault (Secure Files)
 - **PIN Protection**: 4-digit PIN to lock/unlock the vault
+- **Hashed PIN**: The PIN is never stored in clear, not even in a backup
 - **Desktop Sweep**: Move all desktop files/folders to the secure vault
 - **Auto-Lock Timeout**: Configurable (immediate, 1min, 5min, 15min, session)
 - **Custom Vault Path**: Store vault files in any location
+
+### 🖱️ Context Menu
+- **Open file location**, **open containing folder** and **open a terminal there**
+- **Copy path** to the clipboard
+- **Move to folder**, **pin to taskbar**, **add to favorites** and **run as administrator**
 
 ### 🎨 Appearance Customization
 - **5 accent colors**: Cyan, Purple, Amber, Crimson, Emerald
@@ -98,6 +108,7 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 - **Backup & Restore**: Export/import configuration as JSON (with embedded icons)
 - **In-app Updates**: Check, download, and install from About via GitHub Releases (`electron-updater`). Auto-check on boot notifies you; install is always confirmed.
 - **Bilingual UI**: Full English and Spanish interface
+- **Accessible by design**: Visible focus, real dialogs, screen reader announcements and full keyboard control
 
 ---
 
@@ -154,7 +165,12 @@ CyberTray/
 │   ├── App.tsx           Main application component
 │   ├── main.tsx          React entry point
 │   ├── locales.ts        i18n (English / Spanish)
-│   ├── lib/appUtils.ts   Utility functions
+│   ├── lib/
+│   │   ├── appUtils.ts        Folder and shortcut helpers
+│   │   ├── configDefaults.ts  Shared default configuration
+│   │   ├── pin.ts             Vault PIN derivation (PBKDF2)
+│   │   ├── iconSrc.ts         Local resource URL helpers
+│   │   └── useModalAccessibility.ts  Dialog focus and keyboard handling
 │   ├── components/
 │   │   ├── ShortcutGrid.tsx      Main shortcut display grid
 │   │   ├── ShortcutFormModal.tsx Add/edit shortcut dialog
@@ -168,7 +184,8 @@ CyberTray/
 │   │   ├── ToastStack.tsx        Notification toasts
 │   │   └── CyberTrayLogo.tsx     Animated logo
 ├── public/               Static assets & icons
-└── vite.config.ts        Vite configuration
+├── vite.config.ts        Vite configuration
+└── vitest.config.ts      Test configuration
 ```
 
 ### Window Architecture
@@ -177,7 +194,7 @@ CyberTray/
 |---|---|---|
 | **Shelf** | Main shortcut panel | Resizable, always-on-top, instant deployment |
 
-Communication between frontend and backend uses Electron IPC via `contextBridge`. Hotspot polling runs at 200ms intervals. UAC guard monitors for `consent.exe` to auto-hide during secure desktop sessions.
+Communication between frontend and backend uses Electron IPC via `contextBridge`. Hotspot polling runs at 100ms intervals. UAC guard monitors for `consent.exe` to auto-hide during secure desktop sessions.
 
 ### Building from Source (Developers)
 
@@ -206,6 +223,13 @@ npm run build:electron
 
 The installer will be in the `release/` directory.
 
+#### Tests
+
+```bash
+npm run lint   # type checking (TypeScript, strict mode)
+npm test       # unit tests (Vitest)
+```
+
 ---
 
 ## ⌨️ Keyboard Shortcuts
@@ -213,6 +237,14 @@ The installer will be in the `release/` directory.
 | Key | Action | Scope |
 |---|---|---|
 | `Alt+Shift+T` (default) | Toggle CyberTray shelf | Global |
+| `Ctrl+Alt+…` | Per-shortcut hotkey (configurable in the shortcut form) | Global |
+| `↓` / `Esc` | Move the focus from the search box to the grid | Application |
+| `←` `→` `↑` `↓` | Move between shortcuts | Application |
+| `Home` / `End` | Jump to the first or last shortcut | Application |
+| `Enter` | Launch the focused shortcut | Application |
+| `Delete` | Delete the focused shortcut (asks for confirmation) | Application |
+| `A-Z` | Jump to the shortcut that starts with what you type | Application |
+| `Esc` | Close a dialog or the context menu | Application |
 | `Escape` | Exit selection mode | Application |
 | `Ctrl+A` | Select all shortcuts | Selection mode |
 
