@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ChevronLeft, ChevronRight, Clock, CornerDownLeft, FolderOpen, Keyboard, Lock, Pin,
@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { translate } from '../locales';
 import { isElectron } from '../lib/appUtils';
+import { useModalAccessibility } from '../lib/useModalAccessibility';
 import { shortcutIconSrc } from '../lib/iconSrc';
 import Toggle from './Toggle';
 import FolderPicker from './FolderPicker';
@@ -35,8 +36,7 @@ interface ShortcutFormModalProps {
   formHotkey: string;
   setFormHotkey: (v: string) => void;
   formIconPath: string;
-  setFormIconPath: (v: string) => void;
-  formFavorite: boolean;
+  setFormIconPath: (v: string) => void;  formFavorite: boolean;
   setFormFavorite: (v: boolean) => void;
   formPinToTaskbar: boolean;
   setFormPinToTaskbar: (v: boolean) => void;
@@ -69,7 +69,6 @@ export default function ShortcutFormModal({
   formHotkey,
   setFormHotkey,
   formIconPath,
-  setFormIconPath,
   formFavorite,
   setFormFavorite,
   formPinToTaskbar,
@@ -86,6 +85,7 @@ export default function ShortcutFormModal({
   const isBatch = batchItems.length > 1;
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [recordingHotkey, setRecordingHotkey] = useState(false);
+  const formPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!shortcutModal.open) {
@@ -117,6 +117,7 @@ export default function ShortcutFormModal({
     : !!formName.trim() && !!formPath.trim();
 
   const close = () => setShortcutModal({ open: false });
+  useModalAccessibility(formPanelRef, shortcutModal.open, close);
 
   const submitForm = () => {
     if (canSave) handleSaveShortcut();
@@ -156,6 +157,10 @@ export default function ShortcutFormModal({
             className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
           />
           <motion.div
+            ref={formPanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={translate('app_shortcut_form_title')}
             initial={{ x: '100%', opacity: 0.9 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: '100%', opacity: 0.9 }}
@@ -195,7 +200,7 @@ export default function ShortcutFormModal({
                         <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1">{translate('app_pin_fav_title')}</h4>
                         <p className="text-[11px] text-slate-500 leading-snug">{translate('app_pin_fav_desc')}</p>
                       </div>
-                      <Toggle on={formFavorite} onClick={() => setFormFavorite(!formFavorite)} colorClass="bg-blue-500" ringClass="focus-visible:ring-blue-500/50" className="mt-0.5" />
+                      <Toggle on={formFavorite} onClick={() => setFormFavorite(!formFavorite)} colorClass="bg-blue-500" ringClass="focus-visible:ring-blue-500/50" className="mt-0.5" ariaLabel={translate('app_pin_fav_title')} />
                     </div>
                   </div>
 
@@ -208,7 +213,7 @@ export default function ShortcutFormModal({
                         <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1">{translate('app_pin_taskbar_title')}</h4>
                         <p className="text-[11px] text-slate-500 leading-snug">{translate('app_pin_taskbar_desc')}</p>
                       </div>
-                      <Toggle on={formPinToTaskbar} onClick={() => setFormPinToTaskbar(!formPinToTaskbar)} colorClass="bg-cyan-500" ringClass="focus-visible:ring-cyan-500/50" className="mt-0.5" />
+                      <Toggle on={formPinToTaskbar} onClick={() => setFormPinToTaskbar(!formPinToTaskbar)} colorClass="bg-cyan-500" ringClass="focus-visible:ring-cyan-500/50" className="mt-0.5" ariaLabel={translate('app_pin_taskbar_title')} />
                     </div>
                   </div>
 
@@ -221,7 +226,7 @@ export default function ShortcutFormModal({
                         <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1">{translate('app_admin_title')}</h4>
                         <p className="text-[11px] text-slate-500 leading-snug">{translate('app_admin_desc')}</p>
                       </div>
-                      <Toggle on={formAdmin} onClick={() => setFormAdmin(!formAdmin)} colorClass="bg-amber-500" ringClass="focus-visible:ring-amber-500/50" className="mt-0.5" />
+                      <Toggle on={formAdmin} onClick={() => setFormAdmin(!formAdmin)} colorClass="bg-amber-500" ringClass="focus-visible:ring-amber-500/50" className="mt-0.5" ariaLabel={translate('app_admin_title')} />
                     </div>
                   </div>
 

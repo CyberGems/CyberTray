@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { translate, TranslationKey, getLocale } from '../locales';
 import { isElectron } from '../lib/appUtils';
+import { useModalAccessibility } from '../lib/useModalAccessibility';
 import CyberTrayLogo, { CyberTrayWordmark } from './CyberTrayLogo';
 import Toggle from './Toggle';
 
@@ -90,6 +91,8 @@ export default function AboutModal({
   showTooltip,
   hideTooltip,
 }: AboutModalProps) {
+  const aboutDialogRef = useRef<HTMLDivElement>(null);
+  useModalAccessibility(aboutDialogRef, showAboutModal, () => setShowAboutModal(false));
   const [versions, setVersions] = useState<AppVersions | null>(null);
   const [status, setStatus] = useState<UpdateStatus>({ state: 'idle' });
   const [diagCopied, setDiagCopied] = useState(false);
@@ -187,6 +190,10 @@ export default function AboutModal({
           onClick={() => setShowAboutModal(false)}
         >
           <motion.div
+            ref={aboutDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('about_title')}
             initial={{ scale: 0.94, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.94, opacity: 0, y: 20 }}
@@ -459,7 +466,7 @@ function ReleaseNotesPanel({
           <div className="text-[10px] font-cyber font-bold uppercase tracking-wider text-slate-500 mb-1.5">
             {t('about_release_notes')}
           </div>
-          <div className="min-h-[6.5rem] max-h-[200px] overflow-y-auto custom-scrollbar rounded-xl border border-slate-800 bg-slate-950/50 px-3.5 py-3 text-left text-[12px] leading-relaxed text-slate-300">
+          <div className="selectable-text min-h-[6.5rem] max-h-[200px] overflow-y-auto custom-scrollbar rounded-xl border border-slate-800 bg-slate-950/50 px-3.5 py-3 text-left text-[12px] leading-relaxed text-slate-300">
             <ReleaseNotes body={status.releaseNotes} />
           </div>
         </div>

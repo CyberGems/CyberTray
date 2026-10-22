@@ -1,5 +1,5 @@
-import React from 'react';
 import { CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
+import { translate } from '../locales';
 
 export interface ToastItem {
   id: number;
@@ -24,11 +24,15 @@ export default function ToastStack({ toasts, dismissToast }: ToastStackProps) {
 
   return (
     <div
+      role="status"
+      aria-live="polite"
+      aria-relevant="additions text"
       className="fixed left-1/2 -translate-x-1/2 top-20 z-[90000] flex flex-col gap-2 pointer-events-none w-[min(92%,420px)]"
     >
       {toasts.map(t => (
         <div
           key={t.id}
+          role={t.type === 'error' ? 'alert' : undefined}
           className={`pointer-events-auto relative overflow-hidden rounded-xl border bg-[#0c111c]/95 backdrop-blur-md shadow-[0_4px_24px_rgba(0,0,0,0.55)] animate-toast-in ${
             t.onBodyClick ? 'cursor-pointer hover:brightness-110' : ''
           }`}
@@ -80,6 +84,7 @@ export default function ToastStack({ toasts, dismissToast }: ToastStackProps) {
             </div>
             <button
               onClick={(e) => { e.stopPropagation(); dismissToast(t.id); }}
+              aria-label={translate('toast_dismiss')}
               className="shrink-0 text-slate-500 hover:text-white transition-colors cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />

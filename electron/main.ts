@@ -1,5 +1,5 @@
-import { app, BrowserWindow, clipboard, ipcMain, shell, Tray, Menu, globalShortcut, screen, nativeImage, dialog, protocol, net, powerMonitor } from 'electron';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { app, BrowserWindow, clipboard, ipcMain, shell, Tray, Menu, globalShortcut, screen, nativeImage, dialog, protocol, powerMonitor } from 'electron';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { exec, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -640,7 +640,7 @@ function saveConfig(
 
     // Los atajos por acceso dependen de la lista de accesos: se re-registran
     // solo cuando algún atajo (o su destino) ha cambiado.
-    const hotkeySignature = (list: any[]) =>
+    const hotkeySignature = (list?: any[]) =>
       JSON.stringify((list || []).map((s: any) => `${s?.id ?? ''}:${s?.hotkey || ''}:${s?.path || ''}`));
     if (hotkeySignature(previous.shortcutsList) !== hotkeySignature(config.shortcutsList)) {
       registerShortcutHotkeys(config.shortcutsList || []);
@@ -805,12 +805,13 @@ function getTargetDisplay(): Electron.Display {
     if (matched) return matched;
   }
   // 2. Fallback: buscar por bounds guardados (por si Windows cambió el ID del display)
-  if (config.monitorBounds) {
+  const savedBounds = config.monitorBounds;
+  if (savedBounds) {
     const fallback = displays.find(d =>
-      d.bounds.x === config.monitorBounds.x &&
-      d.bounds.y === config.monitorBounds.y &&
-      d.bounds.width === config.monitorBounds.width &&
-      d.bounds.height === config.monitorBounds.height
+      d.bounds.x === savedBounds.x &&
+      d.bounds.y === savedBounds.y &&
+      d.bounds.width === savedBounds.width &&
+      d.bounds.height === savedBounds.height
     );
     if (fallback) return fallback;
   }
@@ -2156,7 +2157,7 @@ function registerIpcHandlers() {
     return null;
   });
 
-  ipcMain.handle('import-file-to-vault', async (event, filePath: string) => {
+  ipcMain.handle('import-file-to-vault', async (_event, filePath: string) => {
     try {
       const targetVaultPath = getVaultPath();
       if (!fs.existsSync(targetVaultPath)) {

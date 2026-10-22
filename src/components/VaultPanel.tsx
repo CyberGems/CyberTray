@@ -1,4 +1,3 @@
-import React from 'react';
 import { Shield, FolderSearch, FolderOpen, Info } from 'lucide-react';
 import { translate } from '../locales';
 import { isElectron } from '../lib/appUtils';

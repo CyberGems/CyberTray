@@ -19,7 +19,6 @@ interface ShortcutGridProps {
   categories: any[];
   activeCategory: string;
   selectedIds: Set<number>;
-  langCode: 'en' | 'es';
   showVaultHelp: boolean;
   setShowVaultHelp: (v: boolean) => void;
   handleLassoMouseDown: (e: React.MouseEvent) => void;
@@ -51,7 +50,6 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
     categories,
     activeCategory,
     selectedIds,
-    langCode,
     showVaultHelp,
     setShowVaultHelp,
     handleLassoMouseDown,

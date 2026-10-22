@@ -153,6 +153,7 @@ export default function ProcessMatrixView({
         {processSearchQuery && (
           <button
             onClick={() => setProcessSearchQuery('')}
+            aria-label={translate('clear_search')}
             className="absolute right-3 top-2.5 text-slate-500 hover:text-white border-0 bg-transparent cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -164,12 +165,14 @@ export default function ProcessMatrixView({
         <div className="flex-1 flex items-center gap-3">
           <button
             onClick={() => handleColumnSort('pid')}
+            aria-sort={isActiveSort('pid') ? (processSortOrder.endsWith('asc') ? 'ascending' : 'descending') : 'none'}
             className={`w-12 text-left hover:text-white transition-colors cursor-pointer ${isActiveSort('pid') ? 'text-[var(--neon-glow-color)]' : 'text-slate-500'}`}
           >
             PID{getSortIndicator('pid')}
           </button>
           <button
             onClick={() => handleColumnSort('name')}
+            aria-sort={isActiveSort('name') ? (processSortOrder.endsWith('asc') ? 'ascending' : 'descending') : 'none'}
             className={`text-left hover:text-white transition-colors cursor-pointer ${isActiveSort('name') ? 'text-[var(--neon-glow-color)]' : 'text-slate-500'}`}
           >
             {translate('process_col_name')}{getSortIndicator('name')}
@@ -178,6 +181,7 @@ export default function ProcessMatrixView({
         <div className="flex items-center gap-4 w-44 justify-end">
           <button
             onClick={() => handleColumnSort('memory')}
+            aria-sort={isActiveSort('memory') ? (processSortOrder.endsWith('asc') ? 'ascending' : 'descending') : 'none'}
             className={`w-20 text-right hover:text-white transition-colors cursor-pointer ${isActiveSort('memory') ? 'text-[var(--neon-glow-color)]' : 'text-slate-500'}`}
           >
             {translate('process_col_memory')}{getSortIndicator('memory')}

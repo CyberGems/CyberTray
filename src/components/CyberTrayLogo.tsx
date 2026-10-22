@@ -1,4 +1,3 @@
-import React from 'react';
 import { useBundledAssetUrl } from '../lib/useBundledAsset';
 
 export function CyberTrayWordmark({ className = '' }: { className?: string }) {

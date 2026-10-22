@@ -21,6 +21,26 @@
       ]
     },
     "allowImportingTsExtensions": true,
-    "noEmit": true
-  }
+    "noEmit": true,
+
+    /* Comprobaciones estrictas: sin ellas el proyecto no detectaba ni un
+       único error de tipos real (todo el JSX estaba sin verificar por falta
+       de definiciones de React). */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "src",
+    "electron",
+    "vite.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "dist-electron",
+    "release"
+  ]
 }

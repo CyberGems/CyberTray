@@ -13,7 +13,6 @@ interface TelemetryBarProps {
     memory: { total: number; percent: number };
   };
   disks: Array<{ drive: string; total: number; free: number; percent: number }>;
-  langCode: 'en' | 'es';
   shortcuts: any[];
   taskbarIds: number[];
   onLaunch: (item: any) => void;
@@ -37,7 +36,6 @@ export default function TelemetryBar({
   totalLaunches,
   systemInfo,
   disks,
-  langCode,
   shortcuts,
   taskbarIds,
   onLaunch,

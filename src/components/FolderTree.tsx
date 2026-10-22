@@ -27,6 +27,9 @@ interface FolderTreeProps {
   onCreateFolder: (parentId: string | null) => void;
   onDragStart: (event: React.DragEvent, folder: CyberFolder) => void;
   onFolderDrop: (event: React.DragEvent, folder: CyberFolder) => void;
+  onFavoriteDrop: (event: React.DragEvent) => void;
+  onFavoriteDragOver: (event: React.DragEvent) => void;
+  onFavoriteDragLeave: () => void;
   onDragEnd: () => void;
   draggingFolderId: string | null;
   dropFolderId: string | null;
@@ -44,6 +47,9 @@ export default function FolderTree({
   onCreateFolder,
   onDragStart,
   onFolderDrop,
+  onFavoriteDrop,
+  onFavoriteDragOver,
+  onFavoriteDragLeave,
   onDragEnd,
   draggingFolderId,
   dropFolderId,
@@ -226,11 +232,14 @@ export default function FolderTree({
 
       <button
         type="button"
+        onDragOver={onFavoriteDragOver}
+        onDragLeave={onFavoriteDragLeave}
+        onDrop={onFavoriteDrop}
         className={`flex items-center gap-2 w-full text-left px-2 rounded-md border cursor-pointer transition-all bg-transparent ${
           activeFolderId === 'favorites'
             ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
             : 'border-transparent text-slate-400 hover:bg-slate-900/80 hover:text-slate-200'
-        }`}
+        } ${dropFolderId === 'favorites' ? 'ring-1 ring-amber-400 bg-amber-500/10' : ''}`}
         style={{ paddingTop: density.folderRowPy + 2, paddingBottom: density.folderRowPy + 2 }}
         onClick={() => onSelect('favorites')}
       >

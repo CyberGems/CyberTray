@@ -14,7 +14,6 @@ import ShelfOverlays from './components/ShelfOverlays';
 import FolderTree from './components/FolderTree';
 import {
   isElectron,
-  INITIAL_CATEGORIES,
   getDefaultCategories,
   FOLDER_SCHEMA_VERSION,
   normalizeCategoriesList,
@@ -668,17 +667,26 @@ export default function App() {
     }
   }, [isShelfVisible]);
 
-  // Listen for blur attempts when pinned (CyberLauncher-style flash feedback)
+  // El shelf está anclado: no se oculta al perder el foco. Se avisa (con sonido
+  // y destello) y se ofrece desanclarlo, en lugar de dejar al usuario sin
+  // explicación de por qué el panel sigue encima.
   useEffect(() => {
-    if (isElectron && window.electronAPI.onAlwaysOnTopBlurAttempt) {
-      const unsub = window.electronAPI.onAlwaysOnTopBlurAttempt(() => {
-        playPinBlockSound();
-        setIsPinFlashing(true);
-        setTimeout(() => setIsPinFlashing(false), 1200);
+    const api = window.electronAPI;
+    if (!isElectron || !api?.onAlwaysOnTopBlurAttempt) return;
+    const unsub = api.onAlwaysOnTopBlurAttempt(() => {
+      playPinBlockSound();
+      setIsPinFlashing(true);
+      setTimeout(() => setIsPinFlashing(false), 1200);
+      pushToast('info', translate('toast_pinned_stays'), {
+        actionLabel: translate('toast_pinned_unpin'),
+        onAction: () => {
+          void handleTogglePinRef.current?.();
+        },
       });
-      return unsub;
-    }
+    });
+    return () => unsub();
   }, []);
+
 
   // Helper to get active process info for a shortcut
   const getShortcutProcess = useCallback((item: any) => {
@@ -722,28 +730,14 @@ export default function App() {
 
   // Listener para abrir el panel de configuración desde el menú contextual
   useEffect(() => {
-    if (isElectron && window.electronAPI.onOpenSettings) {
-      const unsub = window.electronAPI.onOpenSettings(() => {
+    const api = window.electronAPI;
+    if (isElectron && api?.onOpenSettings) {
+      const unsub = api.onOpenSettings(() => {
         setShowSettings(true);
         setSettingsTab('general');
       });
       return () => unsub();
     }
-  }, []);
-
-  // El shelf está anclado: no se oculta al perder el foco. Se avisa y se ofrece
-  // desanclarlo, en lugar de dejar al usuario sin explicación.
-  useEffect(() => {
-    if (!isElectron || !window.electronAPI.onAlwaysOnTopBlurAttempt) return;
-    const unsub = window.electronAPI.onAlwaysOnTopBlurAttempt(() => {
-      pushToast('info', translate('toast_pinned_stays'), {
-        actionLabel: translate('toast_pinned_unpin'),
-        onAction: () => {
-          void handleTogglePinRef.current?.();
-        },
-      });
-    });
-    return () => unsub();
   }, []);
 
   useEffect(() => {
@@ -1062,24 +1056,9 @@ export default function App() {
     setDraggingCategoryId(cat.id);
   };
 
-  const handleCategoryDragOver = (e: React.DragEvent, cat: any) => {
-    if (cat.id === 'all') return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (dragOverCategoryId !== cat.id) {
-      setDragOverCategoryId(cat.id);
-    }
-  };
-
   const handleCategoryDragEnd = () => {
     setDragOverCategoryId(null);
     setDraggingCategoryId(null);
-  };
-
-  const handleCategoryDragLeave = (cat: any) => {
-    if (dragOverCategoryId === cat.id) {
-      setDragOverCategoryId(null);
-    }
   };
 
   // Importa archivos del sistema (uno o varios) a una categoría concreta.
@@ -1105,7 +1084,7 @@ export default function App() {
     const newShortcuts = [...(shortcutsRef.current || [])];
     // Clave de identidad: ruta destino + argumentos. Así dos accesos al mismo
     // ejecutable con parámetros distintos (p. ej. mods de Factorio) son distintos.
-    const dupKey = (p, a) => JSON.stringify([(p || '').toLowerCase(), (a || '').toLowerCase()]);
+    const dupKey = (p: string, a: string) => JSON.stringify([(p || '').toLowerCase(), (a || '').toLowerCase()]);
     let added = 0;
     let updated = 0;
     let duplicates = 0;
@@ -2625,6 +2604,7 @@ export default function App() {
                   : translate('about_status_available', { version: (updateStatus as { version?: string }).version || '' })
               )}
               onMouseLeave={hideTooltip}
+              aria-label={translate('about_status_available', { version: (updateStatus as { version?: string }).version || '' })}
               className="relative flex items-center justify-center w-7 h-7 rounded-full bg-[#1D2636] hover:bg-[#253246] border border-[#2D3A4E] hover:border-[#3B4E6E] text-[#6C9BFF] shadow-[0_0_12px_rgba(108,155,255,0.2)] hover:shadow-[0_0_16px_rgba(108,155,255,0.45)] transition-all cursor-pointer"
             >
               <ArrowDown className={`w-4 h-4 text-[#6C9BFF] ${updateStatus.state === 'downloading' ? 'animate-bounce' : ''}`} />
@@ -2634,6 +2614,8 @@ export default function App() {
           <button
             type="button"
             onClick={handleTogglePin}
+            aria-label={isPinned ? translate('tooltip_pin_on') : translate('tooltip_pin_off')}
+            aria-pressed={isPinned}
             onMouseEnter={(e) => showTooltip(e, isPinned ? translate('tooltip_pin_on') : translate('tooltip_pin_off'))}
             onMouseLeave={hideTooltip}
             className={`flex items-center justify-center w-7 h-7 rounded-md transition-all group cursor-pointer ${
@@ -2656,6 +2638,8 @@ export default function App() {
           <button
             type="button"
             onClick={() => { setShowSettings(!showSettings); playCyberBeep(); hideTooltip(); }}
+            aria-label={translate('tooltip_settings')}
+            aria-expanded={showSettings}
             onMouseEnter={(e) => showTooltip(e, translate('tooltip_settings'))}
             onMouseLeave={hideTooltip}
             className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors group cursor-pointer ${
@@ -2671,6 +2655,7 @@ export default function App() {
               onClick={() => { setIsMoreMenuOpen(prev => !prev); playCyberBeep(); hideTooltip(); }}
               onMouseEnter={(e) => showTooltip(e, translate('tooltip_more'))}
               onMouseLeave={hideTooltip}
+              aria-label={translate('tooltip_more')}
               aria-haspopup="true"
               aria-expanded={isMoreMenuOpen}
               className={`relative flex items-center justify-center w-7 h-7 rounded-md transition-colors group cursor-pointer ${
@@ -2809,6 +2794,9 @@ export default function App() {
           onCreateFolder={handleCreateFolder}
           onDragStart={handleCategoryDragStart}
           onFolderDrop={handleCategoryDrop}
+          onFavoriteDrop={handleFavoriteDrop}
+          onFavoriteDragOver={handleFavoriteDragOver}
+          onFavoriteDragLeave={handleFavoriteDragLeave}
           onDragEnd={handleCategoryDragEnd}
           draggingFolderId={draggingCategoryId}
           dropFolderId={dragOverCategoryId}
@@ -2907,7 +2895,6 @@ export default function App() {
               categories={categories}
               activeCategory={activeCategory}
               selectedIds={selectedIds}
-              langCode={langCode}
               showVaultHelp={showVaultHelp}
               setShowVaultHelp={setShowVaultHelp}
               handleLassoMouseDown={handleLassoMouseDown}
@@ -2935,7 +2922,6 @@ export default function App() {
         totalLaunches={config.totalLaunches || 0}
         systemInfo={systemInfo}
         disks={disks}
-        langCode={langCode}
         shortcuts={shortcuts}
         taskbarIds={taskbarIds}
         onLaunch={handleLaunch}

@@ -10,6 +10,7 @@ import { translate } from '../locales';
 import { isElectron, getDefaultCategories } from '../lib/appUtils';
 import { hashPin, verifyPin } from '../lib/pin';
 import { useBundledAssetUrl } from '../lib/useBundledAsset';
+import { useModalAccessibility } from '../lib/useModalAccessibility';
 import Toggle from './Toggle';
 
 const ICON_TONES = {
@@ -104,6 +105,7 @@ function BackgroundPreset({
     <button
       onClick={onSelect}
       aria-pressed={selected}
+      data-preset={id}
       className={`h-20 rounded-xl border relative overflow-hidden transition-all text-left flex flex-col justify-end p-2 cursor-pointer group ${
         selected
           ? 'border-[var(--neon-glow-color)] ring-1 ring-[var(--neon-glow-color)] scale-[1.02] shadow-[0_0_10px_var(--neon-glow-color-raw)]'
@@ -263,6 +265,9 @@ export default function SettingsPanel({
   const [shortcutError, setShortcutError] = useState('');
   const shortcutInputRef = useRef<HTMLInputElement>(null);
   const hotspotDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const settingsPanelRef = useRef<HTMLDivElement>(null);
+
+  useModalAccessibility(settingsPanelRef, showSettings, () => setShowSettings(false));
 
   React.useEffect(() => () => {
     if (hotspotDelayTimerRef.current) clearTimeout(hotspotDelayTimerRef.current);
@@ -327,7 +332,11 @@ export default function SettingsPanel({
               onClick={() => setShowSettings(false)}
               className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs"
             />
-            <motion.div 
+            <motion.div
+              ref={settingsPanelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={translate('settings_title')}
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
@@ -1411,7 +1420,7 @@ export default function SettingsPanel({
                         icon={Trash2}
                         tone="red"
                         title={translate('sys_purge_title')}
-                        desc={translate('sys_danger_desc')}
+                        desc={translate('sys_danger_desc', { count: String(shortcuts?.length ?? 0) })}
                       >
                         <button
                           onClick={() => {

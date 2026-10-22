@@ -1,8 +1,9 @@
-import React from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Copy, Edit, ExternalLink, Folder, FolderOpen, Pin, Play, Power, Shield, Terminal, Trash2 } from 'lucide-react';
 import { translate } from '../locales';
 import { getFolderPath, isElectron } from '../lib/appUtils';
+import { useModalAccessibility } from '../lib/useModalAccessibility';
 
 interface ShelfOverlaysProps {
   langCode: string;
@@ -74,6 +75,29 @@ export default function ShelfOverlays({
   setConfirmModal,
   showToast,
 }: ShelfOverlaysProps) {
+  const confirmDialogRef = useRef<HTMLDivElement>(null);
+  const [moveMenuOpen, setMoveMenuOpen] = useState(false);
+
+  useModalAccessibility(
+    confirmDialogRef,
+    confirmModal.open,
+    () => setConfirmModal({ ...confirmModal, open: false })
+  );
+
+  // El menú contextual se cierra con Escape.
+  useEffect(() => {
+    if (!shortcutMenu) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        setShortcutMenu(null);
+        setMoveMenuOpen(false);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [shortcutMenu]);
+
   return (
     <>
 {/* ── MODAL: AÑADIR NUEVA CATEGORÍA VIRTUAL ── */}
@@ -116,7 +140,10 @@ export default function ShelfOverlays({
                     {['#3b82f6', '#a855f7', '#f59e0b', '#ef4444', '#10b981', '#ec4899'].map(color => (
                       <button
                         key={color}
+                        type="button"
                         onClick={() => setNewCatColor(color)}
+                        aria-label={translate('modal_folder_color_label')}
+                        aria-pressed={newCatColor === color}
                         className={`w-6 h-6 rounded-full border transition-all cursor-pointer ${newCatColor === color ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
                         style={{ backgroundColor: color }}
                       />
@@ -252,14 +279,18 @@ export default function ShelfOverlays({
             onClick={() => setShortcutMenu(null)}
             onContextMenu={(e) => { e.preventDefault(); setShortcutMenu(null); }}
           />
-          <div 
+          <div
+            role="menu"
+            aria-label={translate('menu_shortcut_actions')}
             className="fixed bg-slate-950 border border-[var(--neon-glow-border)] rounded-lg shadow-2xl p-1 z-50 text-left font-mono w-56"
-            style={{ 
-              left: Math.min(window.innerWidth - 200, shortcutMenu.x), 
-              top: Math.min(window.innerHeight - 180, shortcutMenu.y) 
+            style={{
+              left: Math.min(window.innerWidth - 200, shortcutMenu.x),
+              top: Math.min(window.innerHeight - 180, shortcutMenu.y)
             }}
           >
-            <button 
+            <button
+              type="button"
+              role="menuitem"
               onClick={() => {
                 const item = shortcutMenu.item;
                 setShortcutMenu(null);
@@ -390,7 +421,12 @@ export default function ShelfOverlays({
 
             {/* Submenú de Mover a Carpeta */}
             <div className="relative group">
-              <button 
+              <button
+                type="button"
+                onClick={() => setMoveMenuOpen(open => !open)}
+                onFocus={() => setMoveMenuOpen(true)}
+                aria-haspopup="menu"
+                aria-expanded={moveMenuOpen}
                 className="w-full py-1.5 px-3 text-left text-xs rounded hover:bg-slate-900 hover:text-white text-slate-300 flex items-center justify-between cursor-pointer border-0 bg-transparent"
               >
                 <span className="flex items-center gap-2">
@@ -399,9 +435,12 @@ export default function ShelfOverlays({
                 </span>
                 <span className="text-[9px] text-slate-500 font-sans">▶</span>
               </button>
-              
-              <div 
+
+              <div
+                role="menu"
                 className={`absolute top-0 hidden group-hover:block bg-slate-950 border border-[var(--neon-glow-border)] rounded-lg shadow-2xl p-1 w-44 z-50 ${
+                  moveMenuOpen ? '!block' : ''
+                } ${
                   shortcutMenu.x > window.innerWidth - 380 ? 'right-full mr-0.5' : 'left-full ml-0.5'
                 }`}
               >
@@ -480,11 +519,16 @@ export default function ShelfOverlays({
       )}
       <AnimatePresence>
         {confirmModal.open && (
-          <div 
+          <div
             className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-[100000] animate-fade-in"
             onClick={() => setConfirmModal({ ...confirmModal, open: false })}
           >
             <motion.div
+              ref={confirmDialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="confirm-dialog-title"
+              aria-describedby="confirm-dialog-message"
               initial={{ opacity: 0, scale: 0.92, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92, y: 15 }}
@@ -509,10 +553,10 @@ export default function ShelfOverlays({
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-ui font-bold text-[13px] text-white tracking-widest uppercase truncate">
+                  <h3 id="confirm-dialog-title" className="font-ui font-bold text-[13px] text-white tracking-widest uppercase truncate">
                     {confirmModal.title}
                   </h3>
-                  <p className="text-xs text-slate-400 mt-2 font-mono leading-relaxed">
+                  <p id="confirm-dialog-message" className="text-xs text-slate-400 mt-2 font-mono leading-relaxed">
                     {confirmModal.message}
                   </p>
                 </div>
@@ -531,6 +575,7 @@ export default function ShelfOverlays({
                   </button>
                 )}
                 <button
+                  data-autofocus
                   onClick={() => {
                     confirmModal.onConfirm();
                     setConfirmModal({ ...confirmModal, open: false });

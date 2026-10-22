@@ -39,6 +39,13 @@
     user-select: none;
     font-family: var(--font-sans);
   }
+
+  /* El texto de verdad (notas de la versión, diagnósticos) sí se puede copiar. */
+  .selectable-text,
+  .selectable-text * {
+    user-select: text;
+    cursor: text;
+  }
 }
 
 /* ── ESTILOS Y ANIMACIONES CYBERPUNK ── */
@@ -179,15 +186,24 @@
   scrollbar-color: rgba(148, 163, 184, 0.28) transparent;
 }
 
-button:focus,
+/* El foco nunca debe desaparecer: sin esto la app es inusable con teclado.
+   Se usa :focus-visible para que el halo no aparezca al hacer clic. */
 button:focus-visible,
-input:focus,
 input:focus-visible,
-select:focus,
 select:focus-visible,
-textarea:focus,
-textarea:focus-visible {
-  outline: none;
+textarea:focus-visible,
+[tabindex]:focus-visible,
+[role="button"]:focus-visible,
+[role="option"]:focus-visible {
+  outline: 2px solid var(--neon-glow-color);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Controles que ya dibujan su propio anillo (p. ej. la rejilla de accesos). */
+[data-shortcut-id]:focus-visible {
+  outline: 2px solid var(--neon-glow-color);
+  outline-offset: 2px;
 }
 
 /* Efectos de Cristal Neón */

@@ -78,6 +78,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
     "electron": "^42.0.0",
     "electron-builder": "^26.8.1",
