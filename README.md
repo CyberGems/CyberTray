@@ -51,6 +51,7 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 ### 🚀 Shortcut Launcher
 - **Shortcut Management**: Register, edit, and launch applications, files, and URLs
 - **Drag & Drop Import**: Drag files or executables directly into the shelf
+- **Windows Import & Sync**: Review Desktop, Start Menu, custom folders and Microsoft Store apps before importing. Later synchronizations add new shortcuts and update changed targets without overwriting your folders, names, icons, hotkeys, favorites or usage stats. Missing items are never deleted automatically, and the last import can be undone.
 - **Categories & Folders**: Organize shortcuts with nested folder support
 - **Favorites System**: Mark shortcuts for quick access
 - **Group Launch**: Launch all shortcuts in a category at once
@@ -204,6 +205,7 @@ Only needed if you want to work on CyberTray or build it yourself; regular users
 
 - [Node.js](https://nodejs.org/) v22+
 - npm
+- Windows with the .NET Framework C# compiler included with Windows 10/11 (only needed to rebuild the Microsoft Store activation helper)
 
 #### Development
 

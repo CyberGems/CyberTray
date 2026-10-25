@@ -50,7 +50,7 @@ Tu escritorio está saturado. El menú Inicio es lento. La barra de tareas está
 
 ### 🚀 Lanzador de atajos
 - **Gestión de atajos**: registra, edita y lanza aplicaciones, archivos y URLs
-- **Importar con arrastrar y soltar**: arrastra archivos o ejecutables directamente al estante
+- **Importación y sincronización de Windows**: revisa Escritorio, Menú Inicio, carpetas personalizadas y apps de Microsoft Store antes de importar. Las sincronizaciones posteriores añaden accesos nuevos y actualizan destinos cambiados sin sobrescribir tus carpetas, nombres, iconos, atajos, favoritos ni estadísticas. Los elementos ausentes nunca se eliminan automáticamente y la última importación se puede deshacer.
 - **Categorías y carpetas**: organiza los atajos con soporte de carpetas anidadas
 - **Sistema de favoritos**: marca atajos para acceso rápido
 - **Lanzamiento por grupos**: lanza todos los atajos de una categoría a la vez
@@ -202,6 +202,7 @@ Solo necesario si quieres modificar CyberTray o compilarlo tú mismo; los usuari
 
 - [Node.js](https://nodejs.org/) v22+
 - npm
+- Windows con el compilador C# de .NET Framework incluido en Windows 10/11 (solo para recompilar el activador de apps de Microsoft Store)
 
 #### Desarrollo
 

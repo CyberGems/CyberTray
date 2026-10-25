@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Check, Clock, Edit, Search, Upload } from 'lucide-react';
 import { translate } from '../locales';
 import { shortcutIconSrc } from '../lib/iconSrc';
@@ -6,6 +7,17 @@ import { densityFromIconSize } from '../lib/appUtils';
 import VaultPanel from './VaultPanel';
 
 type ShowTooltipFn = (e: React.MouseEvent, text: string, subText?: string, borderColor?: string) => void;
+
+type ShortcutRow =
+  | { kind: 'header'; key: string; letter: string }
+  | { kind: 'items'; key: string; items: { item: any; index: number }[] };
+
+const ROW_GAP = 16;
+
+const alphaLabel = (item: any) => {
+  const firstLetter = item.name.charAt(0).toUpperCase();
+  return firstLetter.match(/[A-Z0-9]/i) ? firstLetter : '#';
+};
 
 interface ShortcutGridProps {
   gridScrollRef: React.RefObject<HTMLElement | null>;
@@ -77,17 +89,103 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
   const [activeId, setActiveId] = useState<number | null>(null);
   const itemRefs = useRef<Map<number, HTMLElement>>(new Map());
   const typeaheadRef = useRef<{ text: string; at: number }>({ text: '', at: 0 });
+  const pendingFocusRef = useRef<number | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const [gridWidth, setGridWidth] = useState(0);
 
   const registerItem = useCallback((id: number, node: HTMLElement | null) => {
     if (node) itemRefs.current.set(id, node);
     else itemRefs.current.delete(id);
   }, []);
 
+  const minColumnWidth = viewMode === 'list' ? 280 : config.iconSize * 2.8;
+  const columnCount = Math.max(1, Math.floor((gridWidth + ROW_GAP) / (minColumnWidth + ROW_GAP)));
+  const gridTemplateColumns = `repeat(${columnCount}, minmax(${minColumnWidth}px, 1fr))`;
+
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+
+    const updateWidth = () => setGridWidth(grid.clientWidth);
+    updateWidth();
+
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => {
+      setGridWidth(entries[0].contentRect.width);
+    });
+    observer.observe(grid);
+    return () => observer.disconnect();
+  }, [filteredShortcutsList.length]);
+
+  const rows = useMemo<ShortcutRow[]>(() => {
+    const result: ShortcutRow[] = [];
+    let pendingItems: { item: any; index: number }[] = [];
+
+    const flushItems = () => {
+      if (pendingItems.length === 0) return;
+      result.push({
+        kind: 'items',
+        key: `items-${pendingItems.map(({ item }) => item.id).join('-')}`,
+        items: pendingItems,
+      });
+      pendingItems = [];
+    };
+
+    filteredShortcutsList.forEach((item, index) => {
+      if (viewMode === 'list' && iconSortOrder === 'alpha') {
+        const letter = alphaLabel(item);
+        const previous = index > 0 ? filteredShortcutsList[index - 1] : null;
+        if (!previous || letter !== alphaLabel(previous)) {
+          flushItems();
+          result.push({ kind: 'header', key: `header-list-${letter}`, letter });
+        }
+      }
+
+      pendingItems.push({ item, index });
+      if (pendingItems.length === columnCount) flushItems();
+    });
+    flushItems();
+    return result;
+  }, [filteredShortcutsList, viewMode, iconSortOrder, columnCount]);
+
+  const rowIndexByItemId = useMemo(() => {
+    const indexes = new Map<number, number>();
+    rows.forEach((row, rowIndex) => {
+      if (row.kind === 'items') {
+        row.items.forEach(({ item }) => indexes.set(item.id, rowIndex));
+      }
+    });
+    return indexes;
+  }, [rows]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => gridScrollRef.current,
+    estimateSize: (index) => rows[index].kind === 'header' ? 64 : (viewMode === 'list' ? 76 : config.iconSize + 76),
+    getItemKey: (index) => rows[index].key,
+    overscan: 8,
+    enabled: !selectionMode,
+  });
+
+  const focusMountedItem = useCallback((id: number) => {
+    const node = itemRefs.current.get(id);
+    if (!node) return false;
+    node.focus();
+    node.scrollIntoView({ block: 'nearest' });
+    pendingFocusRef.current = null;
+    return true;
+  }, []);
+
+  // El destino puede montarse después de que scrollToIndex actualice el rango.
+  useEffect(() => {
+    if (pendingFocusRef.current !== null) focusMountedItem(pendingFocusRef.current);
+  });
+
   // Si el elemento activo deja de estar visible, se suelta el foco.
   useEffect(() => {
     if (activeId === null) return;
     if (!filteredShortcutsList.some((item: any) => item.id === activeId)) {
+      pendingFocusRef.current = null;
       setActiveId(null);
     }
   }, [filteredShortcutsList, activeId]);
@@ -95,19 +193,13 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
   const focusItem = useCallback((item: any) => {
     if (!item) return;
     setActiveId(item.id);
-    const node = itemRefs.current.get(item.id);
-    node?.focus();
-    node?.scrollIntoView({ block: 'nearest' });
-  }, []);
-
-  const getColumnCount = useCallback(() => {
-    const grid = gridRef.current;
-    if (!grid) return 1;
-    const tracks = window.getComputedStyle(grid).gridTemplateColumns;
-    if (!tracks || tracks === 'none') return 1;
-    const count = tracks.split(/\s+/).filter(Boolean).length;
-    return Math.max(1, count);
-  }, []);
+    if (!selectionMode) {
+      pendingFocusRef.current = item.id;
+      const rowIndex = rowIndexByItemId.get(item.id);
+      if (rowIndex !== undefined) rowVirtualizer.scrollToIndex(rowIndex, { align: 'auto' });
+    }
+    focusMountedItem(item.id);
+  }, [selectionMode, rowIndexByItemId, rowVirtualizer, focusMountedItem]);
 
   // Roving tabindex: solo un elemento es alcanzable con Tab, el resto se
   // recorre con las flechas. Si no hay ninguno activo, lo es el primero.
@@ -144,8 +236,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
       case 'ArrowDown':
       case 'ArrowUp': {
         e.preventDefault();
-        const columns = getColumnCount();
-        const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowDown' ? columns : -columns;
+        const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowDown' ? columnCount : -columnCount;
         const nextIndex = currentIndex < 0
           ? (e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? items.length - 1 : 0)
           : Math.max(0, Math.min(items.length - 1, currentIndex + step));
@@ -181,6 +272,305 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
       default:
         return;
     }
+  };
+
+  const renderAlphaHeader = (letter: string) => (
+    <div
+      key={`header-list-${letter}`}
+      className="col-span-full mt-4 mb-2 flex items-center gap-3 opacity-60 text-left select-none"
+      style={{ gridColumn: '1 / -1' }}
+    >
+      <span className="text-[13px] font-cyber font-bold text-slate-400 w-6 pl-1 tracking-wider">{letter}</span>
+      <div className="h-px bg-gradient-to-r from-slate-700/40 via-slate-800/10 to-transparent flex-1" />
+    </div>
+  );
+
+  const renderShortcut = (item: any, index: number) => {
+    if (viewMode === 'list') {
+      return (
+        <div
+          key={item.id}
+          data-shortcut-id={item.id}
+          ref={(node) => registerItem(item.id, node)}
+          role="button"
+          tabIndex={isTabbable(item, index) ? 0 : -1}
+          aria-label={item.name}
+          onFocus={() => setActiveId(item.id)}
+          onClick={(e) => selectionMode ? handleItemSelect(item, index, e) : handleLaunch(item)}
+          onContextMenu={(e) => {
+            if (selectionMode) {
+              e.preventDefault();
+              e.stopPropagation();
+              return;
+            }
+            handleShortcutContextMenu(e, item);
+          }}
+          draggable={!selectionMode}
+          onDragStart={(e) => handleShortcutDragStart(e, item)}
+          className={`cyber-panel-glow bg-slate-950/45 rounded-lg p-2 flex items-center justify-between gap-3 transition-all duration-300 hover:scale-102 hover:bg-slate-900/60 cursor-pointer relative group border focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--neon-glow-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+            selectedIds.has(item.id)
+              ? 'border-[var(--neon-glow-color)] ring-1 ring-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10'
+              : 'border-slate-900/30 hover:border-[var(--neon-glow-border)]'
+          }`}
+        >
+          {selectionMode && (
+            <span
+              className={`absolute -top-1.5 -left-1.5 z-20 w-4 h-4 rounded-full flex items-center justify-center border transition-all ${
+                selectedIds.has(item.id)
+                  ? 'bg-[var(--neon-glow-color)] border-[var(--neon-glow-color)] text-slate-950'
+                  : 'bg-slate-950/90 border-slate-600 text-transparent'
+              }`}
+            >
+              <Check className="w-2.5 h-2.5" strokeWidth={3} />
+            </span>
+          )}
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div
+              className="flex-shrink-0 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:border-[var(--neon-glow-color)] group-hover:shadow-[0_0_6px_var(--neon-glow-color-raw)]"
+              style={{ width: `${density.listIconPx}px`, height: `${density.listIconPx}px` }}
+            >
+              {item.iconPath ? (
+                <img src={shortcutIconSrc(item.iconPath)} alt={item.name} className="w-[85%] h-[85%] object-contain" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-slate-600 bg-slate-950 group-hover:text-[var(--neon-glow-color)]">
+                  <span className="font-cyber font-bold text-xs">&gt;_</span>
+                </div>
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1 text-left">
+              <h4
+                className="font-ui font-bold text-white truncate tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1"
+                style={{ fontSize: `${density.titlePx}px` }}
+              >
+                <span className="truncate">{item.name}</span>
+              </h4>
+              <p
+                className={`font-mono truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
+                style={{ fontSize: `${density.pathPx}px` }}
+                onMouseEnter={(e) => showTooltip(e, item.path)}
+                onMouseLeave={hideTooltip}
+              >
+                {item.category === 'vault' ? translate('vault_real_path', { path: item.path }) : item.path}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-shrink-0 z-10">
+            {activeCategory === 'all' && (() => {
+              const catObj = categories.find((c: any) => c.id === item.category);
+              if (!catObj) return null;
+              return (
+                <span
+                  className="text-[8px] font-cyber font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider select-none mr-1"
+                  style={{
+                    backgroundColor: `${catObj.color}15`,
+                    borderColor: `${catObj.color}40`,
+                    color: catObj.color,
+                  }}
+                >
+                  {catObj.name}
+                </span>
+              );
+            })()}
+            {item.isFavorite && (
+              <span
+                className="text-[10px] text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]"
+                onMouseEnter={(e) => showTooltip(e, translate('favorite_badge'))}
+                onMouseLeave={hideTooltip}
+              >★</span>
+            )}
+            {item.isAdmin && (
+              <span
+                className="text-[7.5px] font-ui font-bold bg-amber-500/10 border border-amber-500/30 text-amber-500 px-1 py-0.2 rounded"
+                onMouseEnter={(e) => showTooltip(e, translate('shortcut_run_admin'))}
+                onMouseLeave={hideTooltip}
+              >
+                {translate('shortcut_admin_tag')}
+              </span>
+            )}
+            {item.delay > 0 && (
+              <span className="text-[8px] font-mono text-cyan-400 bg-cyan-950/20 px-1 py-0.2 rounded flex items-center gap-0.5">
+                <Clock className="w-2.5 h-2.5" />
+                {item.delay}s
+              </span>
+            )}
+
+            {!selectionMode && (
+            <button
+              onClick={(e) => handleOpenEditModal(item, e)}
+              onMouseEnter={(e) => showTooltip(e, translate('edit_launch_config'))}
+              onMouseLeave={hideTooltip}
+              className="opacity-0 group-hover:opacity-100 rounded border border-slate-700 hover:border-[var(--neon-glow-color)] bg-slate-950 hover:bg-slate-900 text-slate-400 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer h-5 w-5 p-0"
+            >
+              <Edit className="w-2.5 h-2.5" />
+            </button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    const isSmallGrid = config.iconSize < 48;
+    return (
+      <div
+        key={item.id}
+        data-shortcut-id={item.id}
+        ref={(node) => registerItem(item.id, node)}
+        role="button"
+        tabIndex={isTabbable(item, index) ? 0 : -1}
+        aria-label={item.name}
+        onFocus={() => setActiveId(item.id)}
+        onClick={(e) => selectionMode ? handleItemSelect(item, index, e) : handleLaunch(item)}
+        onContextMenu={(e) => {
+          if (selectionMode) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+          }
+          handleShortcutContextMenu(e, item);
+        }}
+        draggable={!selectionMode}
+        onDragStart={(e) => handleShortcutDragStart(e, item)}
+        className={`cyber-panel-glow rounded-xl transition-all duration-300 hover:scale-103 cursor-pointer relative group focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--neon-glow-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+          selectedIds.has(item.id)
+            ? 'bg-[var(--neon-glow-color-raw)]/10 ring-1 ring-[var(--neon-glow-color)]'
+            : 'bg-slate-950/45'
+        } ${
+          isSmallGrid
+            ? 'p-2 flex flex-col items-center justify-center gap-1.5 text-center'
+            : 'p-3 flex items-center gap-3.5 text-left'
+        }`}
+      >
+        {selectionMode && (
+          <span
+            className={`absolute top-1 left-1 z-20 w-4 h-4 rounded-full flex items-center justify-center border transition-all ${
+              selectedIds.has(item.id)
+                ? 'bg-[var(--neon-glow-color)] border-[var(--neon-glow-color)] text-slate-950'
+                : 'bg-slate-950/90 border-slate-600 text-transparent'
+            }`}
+          >
+            <Check className="w-2.5 h-2.5" strokeWidth={3} />
+          </span>
+        )}
+        <div
+          className="flex-shrink-0 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:border-[var(--neon-glow-color)] group-hover:shadow-[0_0_6px_var(--neon-glow-color-raw)] relative"
+          style={{ width: `${config.iconSize}px`, height: `${config.iconSize}px` }}
+        >
+          {item.iconPath ? (
+            <img src={shortcutIconSrc(item.iconPath)} alt={item.name} className="w-[85%] h-[85%] object-contain" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-slate-600 bg-slate-950 group-hover:text-[var(--neon-glow-color)]">
+              <span className="font-cyber font-bold text-lg">&gt;_</span>
+            </div>
+          )}
+
+          {item.isFavorite && isSmallGrid && (
+            <span
+              className="absolute -top-0.5 -right-0.5 text-[8px] text-amber-400 bg-slate-950/90 border border-amber-500/30 rounded-full w-3.5 h-3.5 flex items-center justify-center shadow-[0_0_4px_rgba(251,191,36,0.5)] z-10 font-sans"
+              onMouseEnter={(e) => showTooltip(e, translate('favorite_badge'))}
+              onMouseLeave={hideTooltip}
+            >
+              ★
+            </span>
+          )}
+        </div>
+
+        <div className={`min-w-0 ${isSmallGrid ? 'w-full text-center flex flex-col items-center' : 'flex-1 text-left'}`}>
+          <h4
+            className="font-ui font-bold text-white truncate tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1"
+            style={{
+              fontSize: `${density.titlePx}px`,
+              justifyContent: isSmallGrid ? 'center' : 'flex-start',
+              width: '100%'
+            }}
+          >
+            <span className="truncate">{item.name}</span>
+          </h4>
+
+          {!isSmallGrid && (
+            <p
+              className={`font-mono truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
+              onMouseEnter={(e) => showTooltip(e, item.path)}
+              onMouseLeave={hideTooltip}
+              style={{ fontSize: `${density.pathPx}px` }}
+            >
+              {item.category === 'vault' ? translate('vault_real_path', { path: item.path }) : item.path}
+            </p>
+          )}
+
+          {(!isSmallGrid || (activeCategory === 'all')) && (
+            <div className={`flex items-center gap-1.5 mt-0.5 flex-wrap ${isSmallGrid ? 'justify-center' : 'justify-start'}`}>
+              {activeCategory === 'all' && (() => {
+                const catObj = categories.find((c: any) => c.id === item.category);
+                if (!catObj) return null;
+                return (
+                  <span
+                    className="text-[7.5px] font-cyber font-bold px-1.2 py-0.3 rounded border uppercase tracking-wider select-none animate-fade-in"
+                    style={{
+                      backgroundColor: `${catObj.color}12`,
+                      borderColor: `${catObj.color}30`,
+                      color: catObj.color,
+                      fontSize: isSmallGrid ? '6.5px' : '7.5px'
+                    }}
+                  >
+                    {catObj.name}
+                  </span>
+                );
+              })()}
+              {item.isAdmin && !isSmallGrid && (
+                <span
+                  className="text-[7.5px] font-ui font-bold bg-amber-500/10 border border-amber-500/30 text-amber-500 px-1 py-0.2 rounded"
+                  onMouseEnter={(e) => showTooltip(e, translate('shortcut_run_admin'))}
+                  onMouseLeave={hideTooltip}
+                >
+                  {translate('shortcut_admin_tag')}
+                </span>
+              )}
+              {item.delay > 0 && !isSmallGrid && (
+                <span className="text-[8px] font-mono text-cyan-400 bg-cyan-950/20 px-1 py-0.2 rounded flex items-center gap-0.5">
+                  <Clock className="w-2.5 h-2.5" />
+                  {item.delay}s
+                </span>
+              )}
+              {item.usageCount > 0 && !isSmallGrid && (
+                <span className="text-[8px] font-mono text-slate-500">
+                  {item.usageCount} ex.
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {item.isFavorite && !isSmallGrid && (
+          <span
+            className="absolute right-2 top-2 text-[10px] text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)] z-10"
+            onMouseEnter={(e) => showTooltip(e, translate('favorite_badge'))}
+            onMouseLeave={hideTooltip}
+          >
+            ★
+          </span>
+        )}
+
+        {!selectionMode && (
+        <button
+          onClick={(e) => handleOpenEditModal(item, e)}
+          onMouseEnter={(e) => showTooltip(e, translate('edit_launch_config'))}
+          onMouseLeave={hideTooltip}
+          className="absolute opacity-0 group-hover:opacity-100 rounded border border-slate-700 hover:border-[var(--neon-glow-color)] bg-slate-950 hover:bg-slate-900 text-slate-400 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer"
+          style={{
+            width: isSmallGrid ? '18px' : '24px',
+            height: isSmallGrid ? '18px' : '24px',
+            right: isSmallGrid ? '4px' : '8px',
+            top: isSmallGrid ? '4px' : '8px',
+            padding: 0
+          }}
+        >
+          <Edit style={{ width: isSmallGrid ? '10px' : '13px', height: isSmallGrid ? '10px' : '13px' }} />
+        </button>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -224,331 +614,44 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
           aria-label={translate('shortcut_grid_label')}
           tabIndex={-1}
           onKeyDown={handleGridKeyDown}
-          className="grid gap-4 transition-all focus:outline-none"
-          style={{
+          className={selectionMode ? 'grid gap-4 transition-all focus:outline-none' : 'relative transition-all focus:outline-none'}
+          style={selectionMode ? {
             gridTemplateColumns: viewMode === 'list'
               ? 'repeat(auto-fill, minmax(280px, 1fr))'
               : `repeat(auto-fill, minmax(${config.iconSize * 2.8}px, 1fr))`
+          } : {
+            height: rowVirtualizer.getTotalSize(),
           }}
         >
-          {filteredShortcutsList.flatMap((item, index) => {
+          {selectionMode ? filteredShortcutsList.flatMap((item, index) => {
             const elements: React.ReactNode[] = [];
-
             if (viewMode === 'list' && iconSortOrder === 'alpha') {
-              const firstLetter = item.name.charAt(0).toUpperCase();
-              const pLetter = firstLetter.match(/[A-Z0-9]/i) ? firstLetter : '#';
-              const prevApp = index > 0 ? filteredShortcutsList[index - 1] : null;
-              let showHeader = false;
-
-              if (prevApp) {
-                const prevFirstLetter = prevApp.name.charAt(0).toUpperCase();
-                const prevPLetter = prevFirstLetter.match(/[A-Z0-9]/i) ? prevFirstLetter : '#';
-                showHeader = pLetter !== prevPLetter;
-              } else {
-                showHeader = true;
-              }
-
-              if (showHeader) {
-                elements.push(
-                  <div
-                    key={`header-list-${pLetter}`}
-                    className="col-span-full mt-4 mb-2 flex items-center gap-3 opacity-60 text-left select-none"
-                    style={{ gridColumn: '1 / -1' }}
-                  >
-                    <span className="text-[13px] font-cyber font-bold text-slate-400 w-6 pl-1 tracking-wider">{pLetter}</span>
-                    <div className="h-px bg-gradient-to-r from-slate-700/40 via-slate-800/10 to-transparent flex-1" />
-                  </div>
-                );
-              }
+              const letter = alphaLabel(item);
+              const previous = index > 0 ? filteredShortcutsList[index - 1] : null;
+              if (!previous || letter !== alphaLabel(previous)) elements.push(renderAlphaHeader(letter));
             }
-
-            if (viewMode === 'list') {
-              elements.push(
-                <div
-                  key={item.id}
-                  data-shortcut-id={item.id}
-                  ref={(node) => registerItem(item.id, node)}
-                  role="button"
-                  tabIndex={isTabbable(item, index) ? 0 : -1}
-                  aria-label={item.name}
-                  onFocus={() => setActiveId(item.id)}
-                  onClick={(e) => selectionMode ? handleItemSelect(item, index, e) : handleLaunch(item)}
-                  onContextMenu={(e) => {
-                    if (selectionMode) {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      return;
-                    }
-                    handleShortcutContextMenu(e, item);
-                  }}
-                  draggable={!selectionMode}
-                  onDragStart={(e) => handleShortcutDragStart(e, item)}
-                  className={`cyber-panel-glow bg-slate-950/45 rounded-lg p-2 flex items-center justify-between gap-3 transition-all duration-300 hover:scale-102 hover:bg-slate-900/60 cursor-pointer relative group border focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--neon-glow-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
-                    selectedIds.has(item.id)
-                      ? 'border-[var(--neon-glow-color)] ring-1 ring-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10'
-                      : 'border-slate-900/30 hover:border-[var(--neon-glow-border)]'
-                  }`}
-                >
-                  {selectionMode && (
-                    <span
-                      className={`absolute -top-1.5 -left-1.5 z-20 w-4 h-4 rounded-full flex items-center justify-center border transition-all ${
-                        selectedIds.has(item.id)
-                          ? 'bg-[var(--neon-glow-color)] border-[var(--neon-glow-color)] text-slate-950'
-                          : 'bg-slate-950/90 border-slate-600 text-transparent'
-                      }`}
-                    >
-                      <Check className="w-2.5 h-2.5" strokeWidth={3} />
-                    </span>
-                  )}
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div
-                      className="flex-shrink-0 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:border-[var(--neon-glow-color)] group-hover:shadow-[0_0_6px_var(--neon-glow-color-raw)]"
-                      style={{ width: `${density.listIconPx}px`, height: `${density.listIconPx}px` }}
-                    >
-                      {item.iconPath ? (
-                        <img src={shortcutIconSrc(item.iconPath)} alt={item.name} className="w-[85%] h-[85%] object-contain" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-600 bg-slate-950 group-hover:text-[var(--neon-glow-color)]">
-                          <span className="font-cyber font-bold text-xs">&gt;_</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex-1 text-left">
-                      <h4
-                        className="font-ui font-bold text-white truncate tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1"
-                        style={{ fontSize: `${density.titlePx}px` }}
-                      >
-                        <span className="truncate">{item.name}</span>
-                      </h4>
-                      <p
-                        className={`font-mono truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
-                        style={{ fontSize: `${density.pathPx}px` }}
-                        onMouseEnter={(e) => showTooltip(e, item.path)}
-                        onMouseLeave={hideTooltip}
-                      >
-                        {item.category === 'vault' ? translate('vault_real_path', { path: item.path }) : item.path}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 flex-shrink-0 z-10">
-                    {activeCategory === 'all' && (() => {
-                      const catObj = categories.find((c: any) => c.id === item.category);
-                      if (!catObj) return null;
-                      return (
-                        <span
-                          className="text-[8px] font-cyber font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider select-none mr-1"
-                          style={{
-                            backgroundColor: `${catObj.color}15`,
-                            borderColor: `${catObj.color}40`,
-                            color: catObj.color,
-                          }}
-                        >
-                          {catObj.name}
-                        </span>
-                      );
-                    })()}
-                    {item.isFavorite && (
-                      <span
-                        className="text-[10px] text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]"
-                        onMouseEnter={(e) => showTooltip(e, translate('favorite_badge'))}
-                        onMouseLeave={hideTooltip}
-                      >★</span>
-                    )}
-                    {item.isAdmin && (
-                      <span
-                        className="text-[7.5px] font-ui font-bold bg-amber-500/10 border border-amber-500/30 text-amber-500 px-1 py-0.2 rounded"
-                        onMouseEnter={(e) => showTooltip(e, translate('shortcut_run_admin'))}
-                        onMouseLeave={hideTooltip}
-                      >
-                        {translate('shortcut_admin_tag')}
-                      </span>
-                    )}
-                    {item.delay > 0 && (
-                      <span className="text-[8px] font-mono text-cyan-400 bg-cyan-950/20 px-1 py-0.2 rounded flex items-center gap-0.5">
-                        <Clock className="w-2.5 h-2.5" />
-                        {item.delay}s
-                      </span>
-                    )}
-
-                    {!selectionMode && (
-                    <button
-                      onClick={(e) => handleOpenEditModal(item, e)}
-                      onMouseEnter={(e) => showTooltip(e, translate('edit_launch_config'))}
-                      onMouseLeave={hideTooltip}
-                      className="opacity-0 group-hover:opacity-100 rounded border border-slate-700 hover:border-[var(--neon-glow-color)] bg-slate-950 hover:bg-slate-900 text-slate-400 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer h-5 w-5 p-0"
-                    >
-                      <Edit className="w-2.5 h-2.5" />
-                    </button>
-                    )}
-                  </div>
-                </div>
-              );
-            } else {
-              const isSmallGrid = config.iconSize < 48;
-              elements.push(
-                <div
-                  key={item.id}
-                  data-shortcut-id={item.id}
-                  ref={(node) => registerItem(item.id, node)}
-                  role="button"
-                  tabIndex={isTabbable(item, index) ? 0 : -1}
-                  aria-label={item.name}
-                  onFocus={() => setActiveId(item.id)}
-                  onClick={(e) => selectionMode ? handleItemSelect(item, index, e) : handleLaunch(item)}
-                  onContextMenu={(e) => {
-                    if (selectionMode) {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      return;
-                    }
-                    handleShortcutContextMenu(e, item);
-                  }}
-                  draggable={!selectionMode}
-                  onDragStart={(e) => handleShortcutDragStart(e, item)}
-                  className={`cyber-panel-glow rounded-xl transition-all duration-300 hover:scale-103 cursor-pointer relative group focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--neon-glow-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
-                    selectedIds.has(item.id)
-                      ? 'bg-[var(--neon-glow-color-raw)]/10 ring-1 ring-[var(--neon-glow-color)]'
-                      : 'bg-slate-950/45'
-                  } ${
-                    isSmallGrid
-                      ? 'p-2 flex flex-col items-center justify-center gap-1.5 text-center'
-                      : 'p-3 flex items-center gap-3.5 text-left'
-                  }`}
-                >
-                  {selectionMode && (
-                    <span
-                      className={`absolute top-1 left-1 z-20 w-4 h-4 rounded-full flex items-center justify-center border transition-all ${
-                        selectedIds.has(item.id)
-                          ? 'bg-[var(--neon-glow-color)] border-[var(--neon-glow-color)] text-slate-950'
-                          : 'bg-slate-950/90 border-slate-600 text-transparent'
-                      }`}
-                    >
-                      <Check className="w-2.5 h-2.5" strokeWidth={3} />
-                    </span>
-                  )}
-                  <div
-                    className="flex-shrink-0 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:border-[var(--neon-glow-color)] group-hover:shadow-[0_0_6px_var(--neon-glow-color-raw)] relative"
-                    style={{ width: `${config.iconSize}px`, height: `${config.iconSize}px` }}
-                  >
-                    {item.iconPath ? (
-                      <img src={shortcutIconSrc(item.iconPath)} alt={item.name} className="w-[85%] h-[85%] object-contain" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-600 bg-slate-950 group-hover:text-[var(--neon-glow-color)]">
-                        <span className="font-cyber font-bold text-lg">&gt;_</span>
-                      </div>
-                    )}
-
-                    {item.isFavorite && isSmallGrid && (
-                      <span
-                        className="absolute -top-0.5 -right-0.5 text-[8px] text-amber-400 bg-slate-950/90 border border-amber-500/30 rounded-full w-3.5 h-3.5 flex items-center justify-center shadow-[0_0_4px_rgba(251,191,36,0.5)] z-10 font-sans"
-                        onMouseEnter={(e) => showTooltip(e, translate('favorite_badge'))}
-                        onMouseLeave={hideTooltip}
-                      >
-                        ★
-                      </span>
-                    )}
-                  </div>
-
-                  <div className={`min-w-0 ${isSmallGrid ? 'w-full text-center flex flex-col items-center' : 'flex-1 text-left'}`}>
-                    <h4
-                      className="font-ui font-bold text-white truncate tracking-wide group-hover:text-[var(--neon-glow-color)] flex items-center gap-1"
-                      style={{
-                        fontSize: `${density.titlePx}px`,
-                        justifyContent: isSmallGrid ? 'center' : 'flex-start',
-                        width: '100%'
-                      }}
-                    >
-                      <span className="truncate">{item.name}</span>
-                    </h4>
-
-                    {!isSmallGrid && (
-                      <p
-                        className={`font-mono truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
-                        onMouseEnter={(e) => showTooltip(e, item.path)}
-                        onMouseLeave={hideTooltip}
-                        style={{ fontSize: `${density.pathPx}px` }}
-                      >
-                        {item.category === 'vault' ? translate('vault_real_path', { path: item.path }) : item.path}
-                      </p>
-                    )}
-
-                    {(!isSmallGrid || (activeCategory === 'all')) && (
-                      <div className={`flex items-center gap-1.5 mt-0.5 flex-wrap ${isSmallGrid ? 'justify-center' : 'justify-start'}`}>
-                        {activeCategory === 'all' && (() => {
-                          const catObj = categories.find((c: any) => c.id === item.category);
-                          if (!catObj) return null;
-                          return (
-                            <span
-                              className="text-[7.5px] font-cyber font-bold px-1.2 py-0.3 rounded border uppercase tracking-wider select-none animate-fade-in"
-                              style={{
-                                backgroundColor: `${catObj.color}12`,
-                                borderColor: `${catObj.color}30`,
-                                color: catObj.color,
-                                fontSize: isSmallGrid ? '6.5px' : '7.5px'
-                              }}
-                            >
-                              {catObj.name}
-                            </span>
-                          );
-                        })()}
-                        {item.isAdmin && !isSmallGrid && (
-                          <span
-                            className="text-[7.5px] font-ui font-bold bg-amber-500/10 border border-amber-500/30 text-amber-500 px-1 py-0.2 rounded"
-                            onMouseEnter={(e) => showTooltip(e, translate('shortcut_run_admin'))}
-                            onMouseLeave={hideTooltip}
-                          >
-                            {translate('shortcut_admin_tag')}
-                          </span>
-                        )}
-                        {item.delay > 0 && !isSmallGrid && (
-                          <span className="text-[8px] font-mono text-cyan-400 bg-cyan-950/20 px-1 py-0.2 rounded flex items-center gap-0.5">
-                            <Clock className="w-2.5 h-2.5" />
-                            {item.delay}s
-                          </span>
-                        )}
-                        {item.usageCount > 0 && !isSmallGrid && (
-                          <span className="text-[8px] font-mono text-slate-500">
-                            {item.usageCount} ex.
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {item.isFavorite && !isSmallGrid && (
-                    <span
-                      className="absolute right-2 top-2 text-[10px] text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)] z-10"
-                      onMouseEnter={(e) => showTooltip(e, translate('favorite_badge'))}
-                      onMouseLeave={hideTooltip}
-                    >
-                      ★
-                    </span>
-                  )}
-
-                  {!selectionMode && (
-                  <button
-                    onClick={(e) => handleOpenEditModal(item, e)}
-                    onMouseEnter={(e) => showTooltip(e, translate('edit_launch_config'))}
-                    onMouseLeave={hideTooltip}
-                    className="absolute opacity-0 group-hover:opacity-100 rounded border border-slate-700 hover:border-[var(--neon-glow-color)] bg-slate-950 hover:bg-slate-900 text-slate-400 hover:text-white flex items-center justify-center transition-all duration-200 cursor-pointer"
-                    style={{
-                      width: isSmallGrid ? '18px' : '24px',
-                      height: isSmallGrid ? '18px' : '24px',
-                      right: isSmallGrid ? '4px' : '8px',
-                      top: isSmallGrid ? '4px' : '8px',
-                      padding: 0
-                    }}
-                  >
-                    <Edit style={{ width: isSmallGrid ? '10px' : '13px', height: isSmallGrid ? '10px' : '13px' }} />
-                  </button>
-                  )}
-                </div>
-              );
-            }
-
+            elements.push(renderShortcut(item, index));
             return elements;
+          }) : rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const row = rows[virtualRow.index];
+            return (
+              <div
+                key={virtualRow.key}
+                data-index={virtualRow.index}
+                ref={rowVirtualizer.measureElement}
+                className="absolute top-0 left-0 w-full"
+                style={{
+                  transform: `translateY(${virtualRow.start}px)`,
+                  paddingBottom: virtualRow.index === rows.length - 1 ? 0 : ROW_GAP,
+                }}
+              >
+                {row.kind === 'header' ? renderAlphaHeader(row.letter) : (
+                  <div className="grid gap-4" style={{ gridTemplateColumns }}>
+                    {row.items.map(({ item, index }) => renderShortcut(item, index))}
+                  </div>
+                )}
+              </div>
+            );
           })}
         </div>
       )}

@@ -11,6 +11,7 @@ import SettingsPanel from './components/SettingsPanel';
 import PinPadModal from './components/PinPadModal';
 import AboutModal, { UpdateStatus, peekReleaseNotes } from './components/AboutModal';
 import ShelfOverlays from './components/ShelfOverlays';
+import ImportSyncModal from './components/ImportSyncModal';
 import FolderTree from './components/FolderTree';
 import {
   isElectron,
@@ -60,6 +61,7 @@ export default function App() {
   // UI States
   const [isPinned, setIsPinned] = useState<boolean>(true);
   const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [showImportSync, setShowImportSync] = useState<boolean>(false);
   const [settingsTab, setSettingsTab] = useState<'general' | 'appearance' | 'shortcuts'>('general');
   const [iconSortOrder, setIconSortOrder] = useState<'alpha' | 'recent' | 'added'>(
     () => (localStorage.getItem('cybertray_icon_sort') as 'alpha' | 'recent' | 'added') || 'alpha'
@@ -336,6 +338,23 @@ export default function App() {
     }]);
     toastTimers.current[id] = setTimeout(() => dismissToast(id), duration);
   };
+
+  const closeImportSync = useCallback(() => setShowImportSync(false), []);
+  const openImportSync = useCallback(() => {
+    setShowSettings(false);
+    setShowImportSync(true);
+  }, []);
+  const handleImportApplied = useCallback((result: { created?: number; updated?: number; removed?: number; undone?: boolean }) => {
+    if (result.undone) {
+      pushToast('success', translate('import_undone'));
+      return;
+    }
+    pushToast('success', translate('import_applied', {
+      created: String(result.created || 0),
+      updated: String(result.updated || 0),
+      removed: String(result.removed || 0),
+    }));
+  }, []);
 
   // ── Selección múltiple / borrado en masa ──
   const [selectionMode, setSelectionMode] = useState<boolean>(false);
@@ -1464,6 +1483,7 @@ export default function App() {
     setFormName('');
     setFormPath('');
     setFormArgs('');
+    setFormCwd('');
     setFormDelay(0);
     setFormCategory(defaultShortcutFolder());
     setFormAdmin(false);
@@ -1544,6 +1564,8 @@ export default function App() {
     if (resolved) {
       setFormName(resolved.name);
       setFormPath(resolved.path);
+      setFormArgs(resolved.arguments || '');
+      setFormCwd(resolved.cwd || '');
       if (resolved.iconPath) setFormIconPath(resolved.iconPath);
     }
   };
@@ -2951,6 +2973,7 @@ export default function App() {
         handleApplyCustomBg={handleApplyCustomBg}
         handleExportBackup={handleExportBackup}
         handleImportBackup={handleImportBackup}
+        onOpenImportSync={openImportSync}
         playFolderSound={playFolderSound}
         playLaunchSound={playLaunchSound}
         playCyberBeep={playCyberBeep}
@@ -2989,6 +3012,16 @@ export default function App() {
         iconSortOrder={iconSortOrder}
         setIconSortOrder={setIconSortOrder}
         handleTogglePin={handleTogglePin}
+      />
+
+      <ImportSyncModal
+        open={showImportSync}
+        onClose={closeImportSync}
+        categories={categories}
+        initialSources={config.importSources || []}
+        onApplied={handleImportApplied}
+        showTooltip={showTooltip}
+        hideTooltip={hideTooltip}
       />
 
       <ProcessMatrixModal

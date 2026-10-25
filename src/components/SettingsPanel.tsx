@@ -164,6 +164,7 @@ export interface SettingsPanelProps {
   handleApplyCustomBg: () => void;
   handleExportBackup: () => void;
   handleImportBackup: () => void;
+  onOpenImportSync: () => void;
   playFolderSound: () => void;
   playLaunchSound: () => void;
   playCyberBeep: () => void;
@@ -222,6 +223,7 @@ export default function SettingsPanel({
   handleApplyCustomBg,
   handleExportBackup,
   handleImportBackup,
+  onOpenImportSync,
   playFolderSound,
   playLaunchSound,
   playCyberBeep,
@@ -1335,6 +1337,35 @@ export default function SettingsPanel({
                         <h3 className="text-sm font-cyber font-bold text-slate-200 tracking-wider">{translate('sys_backup')}</h3>
                         <p className="text-[10px] text-slate-500 mt-0.5">{translate('sys_backup_desc')}</p>
                       </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-xs font-cyber font-bold text-slate-400 tracking-widest drop-shadow-sm flex items-center gap-2">
+                        <Download className="w-4 h-4 text-cyan-400" />
+                        {translate('import_section')}
+                      </label>
+                      <ActionRow
+                        icon={Download}
+                        tone="cyan"
+                        title={translate('import_open_title')}
+                        desc={translate('import_open_desc')}
+                      >
+                        <button
+                          onClick={onOpenImportSync}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 rounded-lg transition-colors text-sm font-medium border border-cyan-500/30 shrink-0 cursor-pointer"
+                        >
+                          <Download className="w-4 h-4" />
+                          {translate('import_open_btn')}
+                        </button>
+                      </ActionRow>
+                      <ToggleCard
+                        icon={Power}
+                        tone="purple"
+                        title={translate('import_auto_title')}
+                        desc={translate('import_auto_desc')}
+                        on={!!config.autoSyncOnStartup}
+                        onClick={() => handleUpdateConfigSetting('autoSyncOnStartup', !config.autoSyncOnStartup)}
+                      />
                     </div>
 
                     <div className="space-y-3">
