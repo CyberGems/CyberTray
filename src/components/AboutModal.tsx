@@ -9,6 +9,7 @@ import { isElectron } from '../lib/appUtils';
 import { useModalAccessibility } from '../lib/useModalAccessibility';
 import CyberTrayLogo, { CyberTrayWordmark } from './CyberTrayLogo';
 import Toggle from './Toggle';
+import { pickSuiteApps } from '../lib/suiteApps';
 
 const REPO_URL = 'https://github.com/CyberGems/CyberTray';
 
@@ -96,6 +97,12 @@ export default function AboutModal({
   const [versions, setVersions] = useState<AppVersions | null>(null);
   const [status, setStatus] = useState<UpdateStatus>({ state: 'idle' });
   const [diagCopied, setDiagCopied] = useState(false);
+  const [suitePick, setSuitePick] = useState(pickSuiteApps);
+
+  useEffect(() => {
+    if (showAboutModal) setSuitePick(pickSuiteApps());
+    else hideTooltip();
+  }, [showAboutModal]);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastHandledSeqRef = useRef(0);
 
@@ -326,6 +333,29 @@ export default function AboutModal({
                   </div>
                 </div>
               </div>
+
+              <section className="mt-5 pt-4 border-t border-white/10" aria-label={t('about_suite_title')}>
+                <h2 className="text-[11px] font-cyber font-bold uppercase text-[var(--neon-glow-color)] tracking-wider mb-3">{t('about_suite_title')}</h2>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {suitePick.map((app) => (
+                    <button
+                      key={app.slug}
+                      type="button"
+                      aria-label={app.name}
+                      onClick={() => { hideTooltip(); openUrl(app.site); }}
+                      onMouseEnter={(e) => showTooltip(e, app.name, t(app.pitchKey))}
+                      onMouseLeave={hideTooltip}
+                      onBlur={hideTooltip}
+                      className="group flex items-center justify-center w-11 h-11 rounded-xl border border-white/10 hover:border-[var(--neon-glow-border)] hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-[var(--neon-glow-color)] transition-colors cursor-pointer"
+                    >
+                      <img src={`./suite/${app.slug}.png`} alt="" draggable={false} className="w-7 h-7 object-contain opacity-70 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity" />
+                    </button>
+                  ))}
+                </div>
+                <button type="button" onClick={() => openUrl('https://cybergems.org/#apps')} className="inline-flex items-center gap-1 mt-2 text-[11px] text-slate-400 hover:text-[var(--neon-glow-color)] focus-visible:underline cursor-pointer">
+                  {t('about_suite_all')} <span aria-hidden="true">→</span>
+                </button>
+              </section>
             </div>
 
             <div className="flex items-center justify-between px-6 py-3 border-t border-white/5 bg-black/30 shrink-0">

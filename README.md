@@ -343,3 +343,7 @@ More free, open-source, privacy-first apps from [**CyberGems**](https://github.c
 | 🛡️&nbsp;[**CyberWall**](https://github.com/CyberGems/CyberWall#readme) | User-friendly Windows firewall with real-time per-app rules powered by the WFP kernel engine. |
 
 ➡️ **[Browse all apps at cybergems.org](https://cybergems.org)**
+
+## About suite icons
+
+About shows five CyberGems apps per opening, with bundled icons, localized descriptions, and links to their app pages. Release preparation refreshes icons from the official repositories using `.github/about-icons.json` and the shared CyberSnap synchronizer. Missing sources or invalid PNGs stop preparation. The About icon verification workflow checks synchronization without publishing a release.

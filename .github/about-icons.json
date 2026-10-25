@@ -1,0 +1,11 @@
+{
+  "destinations": [
+    "public/suite"
+  ],
+  "catalogs": [
+    {
+      "path": "src/lib/suiteApps.ts",
+      "pattern": "\\bslug\\s*:\\s*['\\\"](cyber[a-z0-9-]+)['\\\"]"
+    }
+  ]
+}

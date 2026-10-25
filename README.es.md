@@ -338,3 +338,7 @@ Más aplicaciones gratuitas, de código abierto y con la privacidad primero de [
 | 🛡️&nbsp;[**CyberWall**](https://github.com/CyberGems/CyberWall#readme) | Cortafuegos de Windows fácil de usar con reglas por aplicación en tiempo real gracias al motor kernel WFP. |
 
 ➡️ **[Todas las aplicaciones en cybergems.org](https://cybergems.org)**
+
+## Iconos de la suite en Acerca de
+
+Acerca de muestra cinco apps de CyberGems por apertura, con iconos locales, descripciones y enlaces a sus páginas. La compilación de cada release actualiza los iconos desde los repositorios oficiales mediante `.github/about-icons.json` y el sincronizador compartido de CyberSnap. Si falta una fuente o el PNG no es válido, la preparación se detiene. La verificación de GitHub Actions comprueba la sincronización sin publicar un release.
