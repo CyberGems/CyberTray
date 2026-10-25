@@ -1176,7 +1176,19 @@ function alignWindows() {
  * ya funcionaba. Devuelve `true` solo si el registro se completó.
  */
 function registerGlobalShortcutKey(shortcut: string): boolean {
-  const electronShortcut = shortcut.replace(/Meta/g, 'Super').replace(/Ctrl/g, 'CommandOrControl');
+  const trimmed = String(shortcut || '').trim();
+
+  // Un atajo vacío significa "sin atajo global": se libera el actual en lugar
+  // de intentar registrar un acelerador inválido.
+  if (!trimmed) {
+    if (currentGlobalShortcut) {
+      globalShortcut.unregister(currentGlobalShortcut);
+      currentGlobalShortcut = null;
+    }
+    return true;
+  }
+
+  const electronShortcut = trimmed.replace(/Meta/g, 'Super').replace(/Ctrl/g, 'CommandOrControl');
 
   try {
     if (!globalShortcut.register(electronShortcut, () => {

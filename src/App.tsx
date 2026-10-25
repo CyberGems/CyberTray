@@ -12,6 +12,7 @@ import PinPadModal from './components/PinPadModal';
 import AboutModal, { UpdateStatus, peekReleaseNotes } from './components/AboutModal';
 import ShelfOverlays from './components/ShelfOverlays';
 import ImportSyncModal from './components/ImportSyncModal';
+import OnboardingModal from './components/OnboardingModal';
 import FolderTree from './components/FolderTree';
 import {
   isElectron,
@@ -62,6 +63,9 @@ export default function App() {
   const [isPinned, setIsPinned] = useState<boolean>(true);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showImportSync, setShowImportSync] = useState<boolean>(false);
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
+  const [configLoaded, setConfigLoaded] = useState<boolean>(false);
+  const onboardingCheckedRef = useRef<boolean>(false);
   const [settingsTab, setSettingsTab] = useState<'general' | 'appearance' | 'shortcuts'>('general');
   const [iconSortOrder, setIconSortOrder] = useState<'alpha' | 'recent' | 'added'>(
     () => (localStorage.getItem('cybertray_icon_sort') as 'alpha' | 'recent' | 'added') || 'alpha'
@@ -626,6 +630,7 @@ export default function App() {
         ];
         setShortcuts(mockShortcuts);
       }
+      setConfigLoaded(true);
     };
 
     fetchConfig();
@@ -643,6 +648,16 @@ export default function App() {
       return () => unsub();
     }
   }, []);
+
+  // El asistente de primer inicio solo aparece en instalaciones nuevas: sin
+  // accesos guardados y sin haberlo completado antes. Nunca se repite.
+  useEffect(() => {
+    if (!isElectron || !configLoaded || onboardingCheckedRef.current) return;
+    onboardingCheckedRef.current = true;
+    if (configRef.current?.onboardingDone !== true && (shortcutsRef.current || []).length === 0) {
+      setShowOnboarding(true);
+    }
+  }, [configLoaded]);
 
   // Listen to shelf visibility change to suspend/resume process monitoring
   useEffect(() => {
@@ -2123,6 +2138,15 @@ export default function App() {
     playCyberBeep();
   };
 
+  // Cerrar u omitir el asistente lo da por completado: no vuelve a aparecer
+  // salvo que se abra a propósito desde Ajustes.
+  const handleFinishOnboarding = async () => {
+    setShowOnboarding(false);
+    if (configRef.current?.onboardingDone !== true) {
+      await handleUpdateConfigSetting('onboardingDone', true);
+    }
+  };
+
   // Backup y Diagnóstico
   const handleExportBackup = async () => {
     if (!isElectron) return;
@@ -3012,6 +3036,10 @@ export default function App() {
         iconSortOrder={iconSortOrder}
         setIconSortOrder={setIconSortOrder}
         handleTogglePin={handleTogglePin}
+        onOpenOnboarding={() => {
+          setShowSettings(false);
+          setShowOnboarding(true);
+        }}
       />
 
       <ImportSyncModal
@@ -3022,6 +3050,16 @@ export default function App() {
         onApplied={handleImportApplied}
         showTooltip={showTooltip}
         hideTooltip={hideTooltip}
+      />
+
+      <OnboardingModal
+        open={showOnboarding}
+        langCode={langCode}
+        shortcut={config.shortcut || ''}
+        onSelectLanguage={handleChangeLanguage}
+        onShortcutChange={(combo) => handleUpdateConfigSetting('shortcut', combo)}
+        onFinish={handleFinishOnboarding}
+        playCyberBeep={playCyberBeep}
       />
 
       <ProcessMatrixModal

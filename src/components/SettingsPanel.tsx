@@ -1,13 +1,14 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   AlertTriangle, ArrowUpDown, Droplets, Download, Eye, FileJson, FolderOpen, Globe,
   Grid, HardDrive, Image as ImageIcon, Keyboard, LayoutGrid, List as ListIcon,
-  Lock, Monitor, MousePointer2, Palette, Pin, Power, Shield, Sliders, Terminal,
+  Lock, Monitor, MousePointer2, Palette, Pin, Power, Shield, Sliders, Sparkles, Terminal,
   Trash2, Upload, Volume2, type LucideIcon,
 } from 'lucide-react';
 import { translate } from '../locales';
 import { isElectron, getDefaultCategories } from '../lib/appUtils';
+import HotkeyInput from './HotkeyInput';
 import { hashPin, verifyPin } from '../lib/pin';
 import { useBundledAssetUrl } from '../lib/useBundledAsset';
 import { useModalAccessibility } from '../lib/useModalAccessibility';
@@ -165,6 +166,7 @@ export interface SettingsPanelProps {
   handleExportBackup: () => void;
   handleImportBackup: () => void;
   onOpenImportSync: () => void;
+  onOpenOnboarding: () => void;
   playFolderSound: () => void;
   playLaunchSound: () => void;
   playCyberBeep: () => void;
@@ -224,6 +226,7 @@ export default function SettingsPanel({
   handleExportBackup,
   handleImportBackup,
   onOpenImportSync,
+  onOpenOnboarding,
   playFolderSound,
   playLaunchSound,
   playCyberBeep,
@@ -263,9 +266,6 @@ export default function SettingsPanel({
   setIconSortOrder,
   handleTogglePin,
 }: SettingsPanelProps) {
-  const [isRecordingShortcut, setIsRecordingShortcut] = useState(false);
-  const [shortcutError, setShortcutError] = useState('');
-  const shortcutInputRef = useRef<HTMLInputElement>(null);
   const hotspotDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settingsPanelRef = useRef<HTMLDivElement>(null);
 
@@ -274,52 +274,6 @@ export default function SettingsPanel({
   React.useEffect(() => () => {
     if (hotspotDelayTimerRef.current) clearTimeout(hotspotDelayTimerRef.current);
   }, []);
-
-  const startRecordingShortcut = () => {
-    setShortcutError('');
-    setIsRecordingShortcut(true);
-    shortcutInputRef.current?.focus();
-  };
-
-  const handleShortcutKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (e.key === 'Escape') {
-      setIsRecordingShortcut(false);
-      setShortcutError('');
-      return;
-    }
-    // Se espera a la tecla real: los modificadores solos no forman atajo.
-    if (['Control', 'Alt', 'Shift', 'Meta', 'OS'].includes(e.key)) return;
-
-    const parts: string[] = [];
-    if (e.ctrlKey) parts.push('Ctrl');
-    if (e.altKey) parts.push('Alt');
-    if (e.shiftKey) parts.push('Shift');
-    if (e.metaKey) parts.push('Meta');
-
-    if (parts.length === 0) {
-      setShortcutError(translate('general_shortcut_invalid'));
-      return;
-    }
-
-    const rawKey = e.key === ' ' ? 'Space' : e.key;
-    const mainKey = rawKey.length === 1 ? rawKey.toUpperCase() : rawKey;
-    const combo = [...parts, mainKey].join('+');
-
-    if (isElectron) {
-      const res = await window.electronAPI!.registerShortcut(combo);
-      if (!res.success) {
-        setShortcutError(translate('general_shortcut_conflict'));
-        return;
-      }
-    }
-    await handleUpdateConfigSetting('shortcut', combo);
-    setShortcutError('');
-    setIsRecordingShortcut(false);
-    playCyberBeep();
-  };
 
   return (
     <>
@@ -475,33 +429,29 @@ export default function SettingsPanel({
                     <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
                       <SectionHead icon={Keyboard} title={translate('general_shortcut')} desc={translate('general_shortcut_desc')} />
                       
-                      <div className="flex gap-3 flex-wrap">
-                        <input
-                          ref={shortcutInputRef}
-                          type="text"
-                          readOnly
-                          value={isRecordingShortcut ? translate('general_shortcut_rec') : (config.shortcut || '')}
-                          onFocus={startRecordingShortcut}
-                          onBlur={() => setIsRecordingShortcut(false)}
-                          onKeyDown={handleShortcutKeyDown}
-                          aria-label={translate('general_shortcut')}
-                          className={`bg-slate-950 border text-[var(--neon-glow-color)] font-cyber font-bold text-center tracking-widest rounded-lg px-4 py-1.5 focus:outline-none w-48 text-xs ${
-                            isRecordingShortcut ? 'border-[var(--neon-glow-color)]' : 'border-slate-900'
-                          }`}
-                        />
-                        <button
-                          onClick={startRecordingShortcut}
-                          className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
-                        >
-                          {translate('general_shortcut_record_btn')}
-                        </button>
-                      </div>
-                      {shortcutError && (
-                        <p role="alert" className="text-[10px] text-red-400 font-mono mt-2 tracking-wide">
-                          {shortcutError}
-                        </p>
-                      )}
+                      <HotkeyInput
+                        value={config.shortcut || ''}
+                        label={translate('general_shortcut')}
+                        onChange={(combo) => handleUpdateConfigSetting('shortcut', combo)}
+                        playBeep={playCyberBeep}
+                      />
                     </div>
+
+                    {/* Introducción de primer inicio */}
+                    <ActionRow
+                      icon={Sparkles}
+                      tone="slate"
+                      title={translate('onboarding_replay')}
+                      desc={translate('onboarding_replay_desc')}
+                    >
+                      <button
+                        onClick={onOpenOnboarding}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-200 rounded-lg transition-colors text-sm font-medium border border-slate-800 shrink-0 cursor-pointer"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        {translate('onboarding_replay_btn')}
+                      </button>
+                    </ActionRow>
 
                     {/* Toggles Rápidos */}
                     <div className="space-y-2">

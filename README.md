@@ -50,6 +50,7 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 
 ### 🚀 Shortcut Launcher
 - **Shortcut Management**: Register, edit, and launch applications, files, and URLs
+- **First-Run Assistant**: Pick language, import shortcuts and set the global hotkey in three steps. It only appears on new installations and can be reopened from Settings.
 - **Drag & Drop Import**: Drag files or executables directly into the shelf
 - **Windows Import & Sync**: Review Desktop, Start Menu, custom folders and Microsoft Store apps before importing. Later synchronizations add new shortcuts and update changed targets without overwriting your folders, names, icons, hotkeys, favorites or usage stats. Missing items are never deleted automatically, and the last import can be undone.
 - **Categories & Folders**: Organize shortcuts with nested folder support

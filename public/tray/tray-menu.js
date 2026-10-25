@@ -244,7 +244,12 @@ function recentItem(r, label, shortcut) {
 
 function renderMainView() {
   const isVis = Boolean(currentState && currentState.isVisible);
-  const shortcut = (currentState && currentState.shortcut) || 'Alt+Shift+T';
+  // Un atajo vacío es una elección del usuario (atajo desactivado): no debe
+  // mostrarse el valor de fábrica. Solo se usa el fallback si el estado no
+  // trae el campo.
+  const shortcut = currentState && typeof currentState.shortcut === 'string'
+    ? currentState.shortcut
+    : 'Alt+Shift+T';
   const recents = (currentState && Array.isArray(currentState.recents)) ? currentState.recents : [];
 
   const items = [];

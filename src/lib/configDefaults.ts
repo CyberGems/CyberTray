@@ -10,6 +10,9 @@ import type { ImportSourceConfig } from './shortcutImport';
 
 export const FOLDER_SCHEMA_VERSION = 2;
 
+/** Atajo global de fábrica, compartido con el botón "Restablecer". */
+export const DEFAULT_GLOBAL_SHORTCUT = 'Alt+Shift+T';
+
 export interface CyberTrayConfig {
   monitorId: string;
   shortcut: string;
@@ -47,6 +50,7 @@ export interface CyberTrayConfig {
   taskbarIds?: number[];
   importSources?: ImportSourceConfig[];
   autoSyncOnStartup?: boolean;
+  onboardingDone?: boolean;
 }
 
 /**
@@ -91,6 +95,7 @@ const KNOWN_CONFIG_KEYS = new Set<keyof CyberTrayConfig>([
   'taskbarIds',
   'importSources',
   'autoSyncOnStartup',
+  'onboardingDone',
 ]);
 
 /** Devuelve la configuración sin las claves desconocidas. */
@@ -112,7 +117,7 @@ export function sanitizeConfig<T extends Record<string, unknown>>(config: T): T 
 export function createDefaultConfig(): CyberTrayConfig {
   return {
     monitorId: '',
-    shortcut: 'Alt+Shift+T',
+    shortcut: DEFAULT_GLOBAL_SHORTCUT,
     hideOnBlur: true,
     hotspotCorners: [],
     hotspotDelay: 300,
@@ -141,5 +146,6 @@ export function createDefaultConfig(): CyberTrayConfig {
     taskbarIds: [],
     importSources: [],
     autoSyncOnStartup: false,
+    onboardingDone: false,
   };
 }

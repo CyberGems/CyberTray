@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultConfig, sanitizeConfig, FOLDER_SCHEMA_VERSION } from './configDefaults';
+import { createDefaultConfig, sanitizeConfig, FOLDER_SCHEMA_VERSION, DEFAULT_GLOBAL_SHORTCUT } from './configDefaults';
 
 describe('createDefaultConfig', () => {
   it('devuelve una copia nueva en cada llamada', () => {
@@ -29,6 +29,14 @@ describe('createDefaultConfig', () => {
   it('no incluye el PIN de la bóveda en claro', () => {
     const config = createDefaultConfig() as unknown as Record<string, unknown>;
     expect('vaultPin' in config).toBe(false);
+  });
+
+  it('usa el mismo atajo por defecto que el botón de restablecer', () => {
+    expect(createDefaultConfig().shortcut).toBe(DEFAULT_GLOBAL_SHORTCUT);
+  });
+
+  it('empieza sin onboarding completado', () => {
+    expect(createDefaultConfig().onboardingDone).toBe(false);
   });
 });
 
@@ -61,5 +69,9 @@ describe('sanitizeConfig', () => {
     }];
     const result = sanitizeConfig({ importSources, autoSyncOnStartup: true });
     expect(result).toEqual({ importSources, autoSyncOnStartup: true });
+  });
+
+  it('conserva el estado del onboarding', () => {
+    expect(sanitizeConfig({ onboardingDone: true })).toEqual({ onboardingDone: true });
   });
 });
