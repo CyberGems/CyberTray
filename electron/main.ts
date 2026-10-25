@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import { initUpdater } from './updater';
-import { createDefaultConfig, sanitizeConfig, type CyberTrayConfig } from '../src/lib/configDefaults';
+import { createDefaultConfig, sanitizeConfig, UNCATEGORIZED_FOLDER_ID, type CyberTrayConfig } from '../src/lib/configDefaults';
 import { scanImportSources } from './importScanner';
 import { activateStoreApp, isStoreAppUserModelId, resolveStoreAppLauncher } from './store-app-launch';
 import { applyImportPlan, reconcileImport, type ImportPlan, type ImportSourceConfig, type ShortcutRecord } from '../src/lib/shortcutImport';
@@ -1692,7 +1692,7 @@ function normalizeImportSources(input: unknown): ImportSourceConfig[] {
       ...(sourcePath ? { path: path.normalize(sourcePath) } : {}),
       scope: source.scope === 'common' ? 'common' as const : 'user' as const,
       ...(source.label ? { label: String(source.label).slice(0, 240) } : {}),
-      targetCategory: String(source.targetCategory || 'utils').slice(0, 200),
+      targetCategory: String(source.targetCategory || UNCATEGORIZED_FOLDER_ID).slice(0, 200),
       preserveFolders: source.preserveFolders !== false,
       skipUninstallers: source.skipUninstallers !== false,
       includeFiles: source.includeFiles === true,
@@ -1701,11 +1701,23 @@ function normalizeImportSources(input: unknown): ImportSourceConfig[] {
 }
 
 function currentImportCategories(): CyberFolder[] {
-  if (Array.isArray(config.categoriesList) && config.categoriesList.length) return config.categoriesList;
-  return [
-    { id: 'all', name: 'All', color: '#a1a1a1', parentId: null, order: -1 },
-    { id: 'utils', name: 'Utilities', color: '#60a5fa', parentId: null, order: 0 },
-  ];
+  const base: CyberFolder[] = Array.isArray(config.categoriesList) && config.categoriesList.length
+    ? config.categoriesList
+    : [
+      { id: 'all', name: 'All', color: '#a1a1a1', parentId: null, order: -1 },
+      { id: 'utils', name: 'Utilities', color: '#60a5fa', parentId: null, order: 0 },
+    ];
+  if (base.some(folder => folder.id === UNCATEGORIZED_FOLDER_ID)) return base;
+  // La importación puede escribir en "Sin categoría" antes de que el renderer
+  // haya guardado su lista normalizada, así que se garantiza aquí también.
+  const lastOrder = base.reduce((max, folder) => (folder.id === 'all' ? max : Math.max(max, folder.order ?? 0)), 0);
+  return [...base, {
+    id: UNCATEGORIZED_FOLDER_ID,
+    name: 'Uncategorized',
+    color: '#94a3b8',
+    parentId: null,
+    order: lastOrder + 1,
+  }];
 }
 
 async function scanAndPlanImport(

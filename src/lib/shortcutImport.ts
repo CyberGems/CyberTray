@@ -1,4 +1,5 @@
 import type { CyberFolder } from './appUtils';
+import { UNCATEGORIZED_FOLDER_ID } from './configDefaults';
 
 export type ImportSourceKind = 'desktop' | 'start-menu' | 'folder' | 'store';
 
@@ -233,14 +234,19 @@ function ensureImportedCategory(
 }
 
 function resolveCategory(categories: CyberFolder[], item: ImportPlanItem): string {
-  if (!item.preserveFolders) return item.targetCategory || 'utils';
+  // Sin destino válido, los accesos importados van a "Sin categoría" en lugar
+  // de mezclarse con Utilidades.
+  const fallback = categories.some(folder => folder.id === UNCATEGORIZED_FOLDER_ID)
+    ? UNCATEGORIZED_FOLDER_ID
+    : 'utils';
+  if (!item.preserveFolders) return item.targetCategory || fallback;
   let parentId: string | null = item.targetCategory && item.targetCategory !== 'all' ? item.targetCategory : null;
   for (const name of categoryPath(item.relativeFolder)) {
     const folder = categories.find(candidate => candidate.parentId === parentId && candidate.name.toLowerCase() === name.toLowerCase());
-    if (!folder) return item.targetCategory || 'utils';
+    if (!folder) return item.targetCategory || fallback;
     parentId = folder.id;
   }
-  return parentId || item.targetCategory || 'utils';
+  return parentId || item.targetCategory || fallback;
 }
 
 export function applyImportPlan(

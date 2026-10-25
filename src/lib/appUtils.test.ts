@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import {
   ROOT_FOLDER_ID,
+  UNCATEGORIZED_FOLDER_ID,
   getChildFolders,
   getDefaultCategories,
   getDescendantFolderIds,
@@ -60,6 +61,22 @@ describe('normalizeCategoriesList', () => {
     const huerfana = result.find((f) => f.id === 'huerfana');
     expect(huerfana?.parentId).toBeNull();
   });
+
+  it('garantiza la carpeta "Sin categoría" en configuraciones antiguas', () => {
+    const result = normalizeCategoriesList([folder('dev', null, 0), folder('juegos', null, 1)]);
+    const uncategorized = result.find((f) => f.id === UNCATEGORIZED_FOLDER_ID);
+    expect(uncategorized).toMatchObject({ parentId: null, name: 'Uncategorized' });
+    // Se coloca al final para no alterar el orden que ya tenía el usuario.
+    expect(result[result.length - 1].id).toBe(UNCATEGORIZED_FOLDER_ID);
+  });
+
+  it('no duplica la carpeta "Sin categoría" si ya existe', () => {
+    const result = normalizeCategoriesList([
+      folder(UNCATEGORIZED_FOLDER_ID, null, 2),
+      folder('dev', null, 0),
+    ]);
+    expect(result.filter((f) => f.id === UNCATEGORIZED_FOLDER_ID)).toHaveLength(1);
+  });
 });
 
 describe('normalizeShortcutsList', () => {
@@ -79,10 +96,18 @@ describe('normalizeShortcutsList', () => {
     expect(result[0].id).toBe(1);
   });
 
-  it('mueve a la carpeta por defecto los accesos con categoría inexistente', () => {
+  it('mueve a "Sin categoría" los accesos con categoría inexistente', () => {
     const result = normalizeShortcutsList(
       [{ id: 1, name: 'ok', path: 'C:/a.exe', category: 'inexistente' }],
       folders
+    );
+    expect(result[0].category).toBe(UNCATEGORIZED_FOLDER_ID);
+  });
+
+  it('usa Utilidades si la lista de carpetas no incluye "Sin categoría"', () => {
+    const result = normalizeShortcutsList(
+      [{ id: 1, name: 'ok', path: 'C:/a.exe', category: 'inexistente' }],
+      [folder('all', null, -1), folder('utils', null, 0)]
     );
     expect(result[0].category).toBe('utils');
   });
@@ -172,5 +197,7 @@ describe('getDefaultCategories', () => {
 
     expect(spanish.find((f) => f.id === 'utils')?.name).toBe('Utilidades');
     expect(english.find((f) => f.id === 'utils')?.name).toBe('Utilities');
+    expect(spanish.find((f) => f.id === UNCATEGORIZED_FOLDER_ID)?.name).toBe('Sin categoría');
+    expect(english.find((f) => f.id === UNCATEGORIZED_FOLDER_ID)?.name).toBe('Uncategorized');
   });
 });
