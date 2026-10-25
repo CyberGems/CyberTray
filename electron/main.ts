@@ -194,38 +194,6 @@ function migrateConfigIconsToDisk() {
   }
 }
 
-const TRAY_TRANSLATIONS = {
-  en: {
-    showHide: 'Show / Hide',
-    newShortcut: 'New shortcut...',
-    settings: 'Settings...',
-    help: 'Help',
-    faq: 'Frequently Asked Questions',
-    changelog: 'Changelog',
-    homepage: 'Website',
-    donate: 'Donate',
-    about: 'About...',
-    checkUpdates: 'Check for Update...',
-    mostRecent: 'Most recent',
-    noRecents: 'No recent shortcuts',
-    quit: 'Exit',
-  },
-  es: {
-    showHide: 'Mostrar / Ocultar',
-    newShortcut: 'Nuevo acceso...',
-    settings: 'Ajustes...',
-    help: 'Ayuda',
-    faq: 'Preguntas frecuentes',
-    changelog: 'Registro de cambios',
-    homepage: 'Sitio web',
-    donate: 'Donar',
-    about: 'Acerca de...',
-    checkUpdates: 'Buscar actualizaciones...',
-    mostRecent: 'Más recientes',
-    noRecents: 'Ningún acceso reciente',
-    quit: 'Salir',
-  },
-} as const;
 /**
  * Textos de los diálogos nativos de Windows (menú de edición, selectores de
  * archivo). Son la única parte de la UI que no pasa por el renderer, así que
@@ -286,30 +254,6 @@ type TrayRecentItem = {
 let trayRecents: TrayRecentItem[] = [];
 let lastTrayRecentsKey = '';
 const recentIconCache = new Map<string, Electron.NativeImage>();
-
-function getMenuIconsDir(): string {
-  return VITE_DEV_SERVER_URL
-    ? path.join(__dirname, '../public/menu-icons')
-    : path.join(__dirname, '../dist/menu-icons');
-}
-
-// Los iconos del menú no cambian durante la sesión: cachearlos evita releer
-// 12 PNG del disco cada vez que se reconstruye el menú.
-const menuIconCache = new Map<string, Electron.NativeImage | undefined>();
-
-function loadMenuIcon(name: string): Electron.NativeImage | undefined {
-  if (menuIconCache.has(name)) {
-    return menuIconCache.get(name);
-  }
-  const iconPath = path.join(getMenuIconsDir(), name);
-  let img: Electron.NativeImage | undefined;
-  if (fs.existsSync(iconPath)) {
-    const loaded = nativeImage.createFromPath(iconPath);
-    img = loaded.isEmpty() ? undefined : loaded;
-  }
-  menuIconCache.set(name, img);
-  return img;
-}
 
 function loadRecentIcon(iconPath?: string): Electron.NativeImage | undefined {
   if (!iconPath) return undefined;
@@ -381,15 +325,6 @@ function setTrayRecents(items: unknown[]): void {
   rebuildTrayMenu();
 }
 
-function getBrandMenuIcon(): Electron.NativeImage | undefined {
-  const brand = loadMenuIcon('brand.png');
-  if (brand) return brand;
-  const iconPath = getAppIconPath();
-  if (!fs.existsSync(iconPath)) return undefined;
-  const img = nativeImage.createFromPath(iconPath);
-  return img.isEmpty() ? undefined : img;
-}
-
 async function launchAppInternal(
   appPath: string,
   isAdmin?: boolean,
@@ -448,137 +383,237 @@ function launchShortcutFromTray(item: TrayRecentItem): void {
   })();
 }
 
-function getTrayMenuTemplate(): Electron.MenuItemConstructorOptions[] {
-  const lang = (config as any).language === 'es' ? 'es' : 'en';
-  const t = TRAY_TRANSLATIONS[lang];
-  const version = app.getVersion();
-  const isVisible = isShelfCurrentlyOpen();
-  const parts = t.showHide.split(' / ');
-  const dynamicLabel = isVisible ? (parts[1] || t.showHide) : (parts[0] || t.showHide);
-  const iconBrand = getBrandMenuIcon();
-  const iconShow = loadMenuIcon('show-hide.png');
-  const iconAdd = loadMenuIcon('add.png');
-  const iconSettings = loadMenuIcon('settings.png');
-  const iconHelp = loadMenuIcon('help.png');
-  const iconFaq = loadMenuIcon('faq.png');
-  const iconChangelog = loadMenuIcon('changelog.png');
-  const iconHome = loadMenuIcon('homepage.png');
-  const iconDonate = loadMenuIcon('donate.png');
-  const iconAbout = loadMenuIcon('about.png');
-  const iconRecent = loadMenuIcon('recent.png');
-  const iconUpdate = loadMenuIcon('update.png');
-  const iconQuit = loadMenuIcon('quit.png');
+const TRAY_MENU_CARD_WIDTH = 292;
+const TRAY_MENU_SHADOW_PAD = 24;
+const TRAY_MENU_EST_HEIGHT = 520;
 
-  return [
-    {
-      label: `CyberTray v${version}`,
-      ...(iconBrand ? { icon: iconBrand } : {}),
-      click: () => triggerOpenAbout(false),
-    },
-    { type: 'separator' },
-    {
-      label: dynamicLabel,
-      ...(iconShow ? { icon: iconShow } : {}),
-      accelerator: config.shortcut || undefined,
-      click: () => toggleShelf(),
-    },
-    {
-      label: t.newShortcut,
-      ...(iconAdd ? { icon: iconAdd } : {}),
-      click: () => {
-        showShelf();
-        setTimeout(() => {
-          if (shelfWindow && !shelfWindow.isDestroyed()) {
-            shelfWindow.webContents.send('open-add-shortcut');
-          }
-        }, 300);
-      },
-    },
-    {
-      label: t.settings,
-      ...(iconSettings ? { icon: iconSettings } : {}),
-      click: () => {
-        showShelf();
-        setTimeout(() => {
-          if (shelfWindow && !shelfWindow.isDestroyed()) {
-            shelfWindow.webContents.send('open-settings');
-          }
-        }, 300);
-      },
-    },
-    {
-      label: t.mostRecent,
-      ...(iconRecent ? { icon: iconRecent } : {}),
-      submenu: trayRecents.length > 0
-        ? trayRecents.map((item, index) => {
-            const itemIcon = loadRecentIcon(item.iconPath) || iconRecent;
-            return {
-              label: `${index + 1}. ${item.name}`,
-              ...(itemIcon ? { icon: itemIcon } : {}),
-              click: () => launchShortcutFromTray(item),
-            };
-          })
-        : [{ label: t.noRecents, enabled: false }],
-    },
-    {
-      label: t.help,
-      ...(iconHelp ? { icon: iconHelp } : {}),
-      submenu: [
-        {
-          label: t.help,
-          ...(iconHelp ? { icon: iconHelp } : {}),
-          click: () => { void shell.openExternal('https://github.com/CyberGems/CyberTray/wiki'); },
-        },
-        {
-          label: t.faq,
-          ...(iconFaq ? { icon: iconFaq } : {}),
-          click: () => { void shell.openExternal('https://github.com/CyberGems/CyberTray/issues'); },
-        },
-        {
-          label: t.changelog,
-          ...(iconChangelog ? { icon: iconChangelog } : {}),
-          click: () => { void shell.openExternal('https://github.com/CyberGems/CyberTray/releases'); },
-        },
-        {
-          label: t.homepage,
-          ...(iconHome ? { icon: iconHome } : {}),
-          click: () => { void shell.openExternal('https://cybergems.org'); },
-        },
-        {
-          label: t.donate,
-          ...(iconDonate ? { icon: iconDonate } : {}),
-          click: () => { void shell.openExternal('https://github.com/CyberGems/CyberTray#%EF%B8%8F-donate'); },
-        },
-        { type: 'separator' },
-        {
-          label: t.about,
-          ...(iconAbout ? { icon: iconAbout } : {}),
-          click: () => triggerOpenAbout(false),
-        },
-        {
-          label: t.checkUpdates,
-          ...(iconUpdate ? { icon: iconUpdate } : {}),
-          click: () => triggerOpenAbout(true),
-        },
-      ],
-    },
-    { type: 'separator' },
-    {
-      label: t.quit,
-      ...(iconQuit ? { icon: iconQuit } : {}),
-      click: () => {
-        isQuitting = true;
-        app.quit();
-      },
-    },
+let trayMenuWin: BrowserWindow | null = null;
+let trayMenuAnchor: any = null;
+let trayMenuHideTimer: NodeJS.Timeout | null = null;
+let trayMenuShowPending = false;
+let trayMenuShowFallback: NodeJS.Timeout | null = null;
+let trayMenuRevealTimer: NodeJS.Timeout | null = null;
+let trayMenuLastShown = 0;
+let mainViewHeight = TRAY_MENU_EST_HEIGHT;
+let lastTrayMenuHeight = TRAY_MENU_EST_HEIGHT;
+
+function getTrayMenuHtmlPath(): string {
+  const candidates = [
+    path.join(__dirname, '../public/tray/tray-menu.html'),
+    path.join(__dirname, '../dist/tray/tray-menu.html'),
+    path.join(app.getAppPath(), 'public/tray/tray-menu.html'),
+    path.join(app.getAppPath(), 'dist/tray/tray-menu.html'),
   ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return candidates[0];
+}
+
+function trayMenuGeometry(iconBounds: any, windowW: number, windowH: number) {
+  let b = (iconBounds && typeof iconBounds.x === 'number' && (iconBounds.width || iconBounds.height))
+    ? { x: iconBounds.x, y: iconBounds.y, width: iconBounds.width || 0, height: iconBounds.height || 0 }
+    : null;
+  if (!b) {
+    let p: any = null;
+    try { p = screen.getCursorScreenPoint(); } catch (_) { p = { x: 0, y: 0 }; }
+    b = { x: p.x, y: p.y, width: 0, height: 0 };
+  }
+  const cx = b.x + b.width / 2;
+  const cy = b.y + b.height / 2;
+  let display: any;
+  try { display = screen.getDisplayNearestPoint({ x: cx, y: cy }); }
+  catch (_) { display = screen.getPrimaryDisplay(); }
+  const work = (display && display.workArea) || { x: 0, y: 0, width: windowW, height: windowH };
+
+  const gap = 4;
+  const pad = TRAY_MENU_SHADOW_PAD;
+  const cardW = windowW - 2 * pad;
+  const cardH = windowH - 2 * pad;
+
+  let cardX: number, cardY: number;
+  const dLeft = cx - work.x;
+  const dRight = (work.x + work.width) - cx;
+  const dTop = cy - work.y;
+  const dBottom = (work.y + work.height) - cy;
+
+  if (dBottom <= dLeft && dBottom <= dRight && dBottom <= dTop) {
+    cardX = cx - cardW / 2;
+    cardY = b.y - gap - cardH;
+  } else if (dTop <= dLeft && dTop <= dRight) {
+    cardX = cx - cardW / 2;
+    cardY = b.y + b.height + gap;
+  } else if (dLeft <= dRight) {
+    cardX = b.x + b.width + gap;
+    cardY = cy - cardH / 2;
+  } else {
+    cardX = b.x - gap - cardW;
+    cardY = cy - cardH / 2;
+  }
+
+  let windowX = cardX - pad;
+  let windowY = cardY - pad;
+
+  windowX = Math.min(Math.max(windowX, work.x + 2), work.x + work.width - windowW - 2);
+  const screenBottom = (display.bounds ? display.bounds.y + display.bounds.height : work.y + work.height) - 2;
+  windowY = Math.min(Math.max(windowY, work.y + 2), screenBottom - windowH);
+
+  return { x: Math.round(windowX), y: Math.round(windowY), width: Math.round(windowW), height: Math.round(windowH) };
+}
+
+function ensureTrayMenuWin(): BrowserWindow {
+  if (trayMenuWin && !trayMenuWin.isDestroyed()) return trayMenuWin;
+
+  const windowW = TRAY_MENU_CARD_WIDTH + 2 * TRAY_MENU_SHADOW_PAD;
+  trayMenuWin = new BrowserWindow({
+    width: windowW,
+    height: TRAY_MENU_EST_HEIGHT,
+    show: false,
+    frame: false,
+    transparent: true,
+    hasShadow: false,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    focusable: true,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.mjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      backgroundThrottling: false,
+    },
+  });
+
+  trayMenuWin.setAlwaysOnTop(true, 'pop-up-menu');
+  void trayMenuWin.loadFile(getTrayMenuHtmlPath());
+
+  trayMenuWin.on('blur', () => {
+    if (trayMenuHideTimer) return;
+    if (Date.now() - trayMenuLastShown < 250) return;
+    trayMenuHideTimer = setTimeout(() => {
+      trayMenuHideTimer = null;
+      hideCustomTrayMenu();
+    }, 120);
+  });
+
+  trayMenuWin.on('closed', () => {
+    trayMenuWin = null;
+  });
+
+  trayMenuWin.webContents.once('did-finish-load', () => {
+    if (!trayMenuWin || trayMenuWin.isDestroyed()) return;
+    trayMenuWin.webContents.send('tray-menu-state', buildTrayMenuState(true));
+  });
+
+  return trayMenuWin;
+}
+
+function buildTrayMenuState(resetView = false) {
+  const lang = config.language === 'es' ? 'es' : 'en';
+  return {
+    version: app.getVersion(),
+    lang,
+    isVisible: isShelfCurrentlyOpen(),
+    shortcut: config.shortcut || '',
+    recents: trayRecents.map((item, index) => {
+      const icon = loadRecentIcon(item.iconPath);
+      return {
+        index,
+        name: item.name,
+        path: item.path,
+        icon: icon ? icon.toDataURL() : '',
+      };
+    }),
+    resetView,
+  };
+}
+
+function revealTrayMenuWin() {
+  if (!trayMenuWin || trayMenuWin.isDestroyed()) return;
+  if (trayMenuShowFallback) { clearTimeout(trayMenuShowFallback); trayMenuShowFallback = null; }
+  trayMenuShowPending = false;
+  if (!trayMenuWin.isVisible()) {
+    try { trayMenuWin.setOpacity(0); } catch { /* ignore */ }
+    trayMenuWin.show();
+    if (trayMenuRevealTimer) clearTimeout(trayMenuRevealTimer);
+    trayMenuRevealTimer = setTimeout(() => {
+      trayMenuRevealTimer = null;
+      if (trayMenuWin && !trayMenuWin.isDestroyed()) {
+        try { trayMenuWin.setOpacity(1); } catch { /* ignore */ }
+      }
+    }, 40);
+  } else {
+    try { trayMenuWin.setOpacity(1); } catch { /* ignore */ }
+  }
+  trayMenuWin.focus();
+  trayMenuLastShown = Date.now();
+}
+
+function showCustomTrayMenu(eventBounds?: any) {
+  if (!tray || tray.isDestroyed()) return;
+  let b = (eventBounds && typeof eventBounds.x === 'number' && (eventBounds.width || eventBounds.height))
+    ? eventBounds : null;
+  if (!b) { try { b = tray.getBounds(); } catch (_) { b = null; } }
+  if (!b || (!b.width && !b.height)) {
+    let p: any = null;
+    try { p = screen.getCursorScreenPoint(); } catch (_) { p = { x: 0, y: 0 }; }
+    b = p ? { x: p.x, y: p.y, width: 0, height: 0 } : { x: 0, y: 0, width: 0, height: 0 };
+  }
+
+  trayMenuAnchor = b;
+  if (trayMenuHideTimer) { clearTimeout(trayMenuHideTimer); trayMenuHideTimer = null; }
+
+  const w = ensureTrayMenuWin();
+  if (!w || w.isDestroyed()) return;
+
+  const windowW = TRAY_MENU_CARD_WIDTH + 2 * TRAY_MENU_SHADOW_PAD;
+  const initialH = mainViewHeight || lastTrayMenuHeight || TRAY_MENU_EST_HEIGHT;
+  const geo = trayMenuGeometry(trayMenuAnchor, windowW, initialH);
+  const current = w.getBounds();
+  if (current.x !== geo.x || current.y !== geo.y || current.width !== geo.width || current.height !== geo.height) {
+    w.setBounds(geo);
+  }
+
+  trayMenuShowPending = true;
+  if (trayMenuShowFallback) { clearTimeout(trayMenuShowFallback); trayMenuShowFallback = null; }
+  trayMenuShowFallback = setTimeout(() => {
+    trayMenuShowFallback = null;
+    if (trayMenuShowPending) revealTrayMenuWin();
+  }, 500);
+
+  if (!w.webContents.isLoading()) {
+    w.webContents.send('tray-menu-state', buildTrayMenuState(true));
+  }
+}
+
+function hideCustomTrayMenu() {
+  if (trayMenuHideTimer) { clearTimeout(trayMenuHideTimer); trayMenuHideTimer = null; }
+  if (trayMenuShowFallback) { clearTimeout(trayMenuShowFallback); trayMenuShowFallback = null; }
+  if (trayMenuRevealTimer) { clearTimeout(trayMenuRevealTimer); trayMenuRevealTimer = null; }
+  trayMenuShowPending = false;
+  if (trayMenuWin && !trayMenuWin.isDestroyed()) {
+    try { trayMenuWin.setOpacity(1); } catch { /* ignore */ }
+    if (trayMenuWin.isVisible()) trayMenuWin.hide();
+    if (!trayMenuWin.webContents.isLoading()) {
+      trayMenuWin.webContents.send('tray-menu-reset');
+    }
+  }
+}
+
+function updateCustomTrayMenuState() {
+  if (trayMenuWin && !trayMenuWin.isDestroyed() && !trayMenuWin.webContents.isLoading()) {
+    trayMenuWin.webContents.send('tray-menu-state', buildTrayMenuState(false));
+  }
 }
 
 function rebuildTrayMenu(): void {
   if (!tray) return;
-  const version = app.getVersion();
-  tray.setToolTip(`CyberTray v${version}`);
-  tray.setContextMenu(Menu.buildFromTemplate(getTrayMenuTemplate()));
+  tray.setToolTip(`CyberTray v${app.getVersion()}`);
+  updateCustomTrayMenuState();
 }
 
 // On Windows, pass the ICO as-is so Electron can pick the DPI-matching layer
@@ -600,7 +635,20 @@ function createTray() {
   if (!tray) {
     tray = new Tray(trayIcon);
     tray.setToolTip(`CyberTray v${app.getVersion()}`);
-    tray.on('click', () => toggleShelf());
+    try { tray.setContextMenu(null); } catch { /* ignore */ }
+    tray.on('click', () => {
+      hideCustomTrayMenu();
+      toggleShelf();
+    });
+    tray.on('right-click', (_event, bounds) => {
+      if (trayMenuWin && trayMenuWin.isVisible()) hideCustomTrayMenu();
+      else showCustomTrayMenu(bounds);
+    });
+    try {
+      ensureTrayMenuWin();
+    } catch (err: any) {
+      console.warn('[TRAY] Failed to prewarm tray menu:', err?.message || err);
+    }
   } else {
     tray.setImage(trayIcon);
   }
@@ -660,6 +708,7 @@ function saveConfig(
     // depende de ellos: antes se hacía en cada guardado.
     const menuChanged =
       previous.language !== config.language ||
+      previous.shortcut !== config.shortcut ||
       previous.showTaskbarIcon !== config.showTaskbarIcon ||
       previous.alwaysOnTop !== config.alwaysOnTop;
     if (menuChanged) {
@@ -1590,6 +1639,90 @@ function registerIpcHandlers() {
   ipcMain.handle('tray:set-recents', (_event, items: unknown) => {
     setTrayRecents(Array.isArray(items) ? items : []);
     return { success: true };
+  });
+
+  ipcMain.on('tray-menu-action', (_event, action: string, payload?: unknown) => {
+    hideCustomTrayMenu();
+
+    switch (action) {
+      case 'toggle':
+        toggleShelf();
+        break;
+      case 'new-shortcut':
+        showShelf();
+        setTimeout(() => {
+          if (shelfWindow && !shelfWindow.isDestroyed()) {
+            shelfWindow.webContents.send('open-add-shortcut');
+          }
+        }, 300);
+        break;
+      case 'settings':
+        showShelf();
+        setTimeout(() => {
+          if (shelfWindow && !shelfWindow.isDestroyed()) {
+            shelfWindow.webContents.send('open-settings');
+          }
+        }, 300);
+        break;
+      case 'recent': {
+        const index = Number(payload);
+        const item = Number.isInteger(index) ? trayRecents[index] : undefined;
+        if (item) launchShortcutFromTray(item);
+        break;
+      }
+      case 'help-docs':
+        void shell.openExternal('https://github.com/CyberGems/CyberTray/wiki');
+        break;
+      case 'help-faq':
+        void shell.openExternal('https://github.com/CyberGems/CyberTray/wiki/FAQ');
+        break;
+      case 'help-changelog':
+        void shell.openExternal('https://github.com/CyberGems/CyberTray/releases');
+        break;
+      case 'help-website':
+        void shell.openExternal('https://cybergems.org/apps/cybertray/');
+        break;
+      case 'help-donate':
+        void shell.openExternal('https://github.com/CyberGems/CyberTray#%EF%B8%8F-donate');
+        break;
+      case 'about':
+        triggerOpenAbout(false);
+        break;
+      case 'check-updates':
+        triggerOpenAbout(true);
+        break;
+      case 'quit':
+        isQuitting = true;
+        app.quit();
+        break;
+    }
+  });
+
+  ipcMain.on('tray-menu-hide', () => {
+    hideCustomTrayMenu();
+  });
+
+  ipcMain.on('tray-menu-ready', (_event, rect) => {
+    if (!trayMenuWin || trayMenuWin.isDestroyed() || !rect) return;
+    const pad = TRAY_MENU_SHADOW_PAD;
+    const targetW = Math.round(rect.width || (TRAY_MENU_CARD_WIDTH + 2 * pad));
+    const rawH = Math.round(rect.height || TRAY_MENU_EST_HEIGHT);
+    const isMain = rect.view === 'main' || !rect.view;
+    const desiredH = isMain ? rawH : Math.max(rawH, mainViewHeight);
+    const clampedH = Math.min(Math.max(desiredH, 350), 750);
+
+    if (isMain) {
+      mainViewHeight = clampedH;
+      lastTrayMenuHeight = clampedH;
+    }
+
+    const geo = trayMenuGeometry(trayMenuAnchor, targetW, clampedH);
+    const current = trayMenuWin.getBounds();
+    if (current.x !== geo.x || current.y !== geo.y || current.width !== geo.width || current.height !== geo.height) {
+      trayMenuWin.setBounds(geo);
+    }
+
+    if (trayMenuShowPending) revealTrayMenuWin();
   });
 
   ipcMain.handle('select-file', async (_, options) => {

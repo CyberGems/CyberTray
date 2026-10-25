@@ -141,5 +141,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDefaultVaultPath: () => ipcRenderer.invoke('get-default-vault-path'),
   openVaultFolder: () => ipcRenderer.invoke('open-vault-folder'),
   selectVaultFolder: () => ipcRenderer.invoke('select-vault-folder'),
-  importFileToVault: (filePath: string) => ipcRenderer.invoke('import-file-to-vault', filePath)
+  importFileToVault: (filePath: string) => ipcRenderer.invoke('import-file-to-vault', filePath),
+
+  // --- Custom tray menu ---
+  trayMenu: {
+    onState: (callback: (state: any) => void) => {
+      const handler = (_event: any, state: any) => callback(state);
+      ipcRenderer.on('tray-menu-state', handler);
+      return () => { ipcRenderer.removeListener('tray-menu-state', handler); };
+    },
+    onShow: (callback: () => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('tray-menu-show', handler);
+      return () => { ipcRenderer.removeListener('tray-menu-show', handler); };
+    },
+    onReset: (callback: () => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('tray-menu-reset', handler);
+      return () => { ipcRenderer.removeListener('tray-menu-reset', handler); };
+    },
+    action: (action: string, payload?: unknown) => ipcRenderer.send('tray-menu-action', action, payload),
+    ready: (rect: { width: number; height: number; view: string }) => ipcRenderer.send('tray-menu-ready', rect),
+    hide: () => ipcRenderer.send('tray-menu-hide'),
+  },
 });

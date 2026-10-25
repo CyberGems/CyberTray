@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: local-resource:; script-src 'self'; font-src 'self';"
+  >
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberTray Tray Menu</title>
+  <link rel="stylesheet" href="tray-menu.css">
+</head>
+<body>
+  <div id="root" class="shell">
+    <div id="card" class="card" role="menu">
+      <div id="head" class="head"></div>
+      <div class="divider" id="headDivider"></div>
+      <div id="group" class="group"></div>
+      <div class="divider" id="exitDivider"></div>
+      <div id="exitGroup" class="group group-bottom"></div>
+    </div>
+  </div>
+  <script src="tray-menu.js"></script>
+</body>
+</html>
