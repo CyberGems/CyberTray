@@ -17,7 +17,6 @@ import {
   isElectron,
   getDefaultCategories,
   FOLDER_SCHEMA_VERSION,
-  UNCATEGORIZED_FOLDER_ID,
   normalizeCategoriesList,
   normalizeShortcutsList,
   createFolderId,
@@ -506,7 +505,7 @@ export default function App() {
   const [formArgs, setFormArgs] = useState<string>('');
   const [formCwd, setFormCwd] = useState<string>('');
   const [formDelay, setFormDelay] = useState<number>(0);
-  const [formCategory, setFormCategory] = useState<string>(UNCATEGORIZED_FOLDER_ID);
+  const [formCategory, setFormCategory] = useState<string>('utils');
   const [formAdmin, setFormAdmin] = useState<boolean>(false);
   const [formHotkey, setFormHotkey] = useState<string>('');
   const [formIconPath, setFormIconPath] = useState<string>('');
@@ -768,7 +767,7 @@ export default function App() {
     setFormArgs('');
     setFormCwd('');
       setFormDelay(0);
-      setFormCategory(UNCATEGORIZED_FOLDER_ID);
+      setFormCategory('utils');
       setFormAdmin(false);
       setFormHotkey('');
       setFormIconPath('');
@@ -1216,7 +1215,7 @@ export default function App() {
     // visible (Favoritos no es una categoría real, sino el flag isFavorite).
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const targetCategory =
-        activeCategory === 'all' || activeCategory === 'favorites' ? UNCATEGORIZED_FOLDER_ID : activeCategory;
+        activeCategory === 'all' || activeCategory === 'favorites' ? 'utils' : activeCategory;
       await importDroppedFiles(e.dataTransfer.files, targetCategory, { markFavorite: true });
       return;
     }
@@ -1246,7 +1245,7 @@ export default function App() {
     // Archivos del sistema soltados directamente sobre una pestaña/categoría:
     // importarlos (uno o varios) asignándolos a esa categoría concreta.
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      await importDroppedFiles(e.dataTransfer.files, cat.id === 'all' ? UNCATEGORIZED_FOLDER_ID : cat.id);
+      await importDroppedFiles(e.dataTransfer.files, cat.id === 'all' ? 'utils' : cat.id);
       return;
     }
 
@@ -1305,7 +1304,7 @@ export default function App() {
             if (s.id === shortcutId) {
               return {
                 ...s,
-                category: cat.id === 'all' ? UNCATEGORIZED_FOLDER_ID : cat.id,
+                category: cat.id === 'all' ? 'utils' : cat.id,
                 path: finalPath,
                 iconPath: finalIconPath,
                 name: finalName,
@@ -1327,9 +1326,9 @@ export default function App() {
     if (e.dataTransfer.files.length === 0) return;
 
     // Soltado sobre el cuerpo del panel: agregar a la categoría activa
-    // (o "Sin categoría" por defecto cuando estamos en "Todos"/"Favoritos").
+    // (o 'utils' por defecto cuando estamos en "Todos"/"Favoritos").
     const targetCategory =
-      activeCategory === 'all' || activeCategory === 'favorites' ? UNCATEGORIZED_FOLDER_ID : activeCategory;
+      activeCategory === 'all' || activeCategory === 'favorites' ? 'utils' : activeCategory;
     await importDroppedFiles(e.dataTransfer.files, targetCategory);
   };
 
@@ -1476,7 +1475,7 @@ export default function App() {
 
   const defaultShortcutFolder = () => (
     activeCategory === 'all' || activeCategory === 'favorites' || activeCategory === 'vault'
-      ? UNCATEGORIZED_FOLDER_ID
+      ? 'utils'
       : activeCategory
   );
 
@@ -1894,15 +1893,12 @@ export default function App() {
   };
 
   const handleDeleteCategory = async (id: string) => {
-    // "Todos", "Utilidades" y "Sin categoría" son carpetas del sistema:
-    // Utilidades es el destino histórico y "Sin categoría" recoge los
-    // accesos huérfanos, así que ambas deben existir siempre.
-    if (id === 'all' || id === 'utils' || id === UNCATEGORIZED_FOLDER_ID) return;
+    if (id === 'all' || id === 'utils') return; // Protegidos
     const targetFolder = categories.find(folder => folder.id === id);
     if (!targetFolder) return;
 
     const removedIds = new Set([id, ...getDescendantFolderIds(categories, id)]);
-    const destination = targetFolder.parentId || UNCATEGORIZED_FOLDER_ID;
+    const destination = targetFolder.parentId || 'utils';
     showConfirm(
       translate('folder_delete_confirm_title'),
       translate('folder_delete_confirm_desc'),

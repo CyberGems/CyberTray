@@ -1,7 +1,7 @@
-import { FOLDER_SCHEMA_VERSION, UNCATEGORIZED_FOLDER_ID } from './configDefaults';
+import { FOLDER_SCHEMA_VERSION } from './configDefaults';
 import { translate } from '../locales';
 
-export { FOLDER_SCHEMA_VERSION, UNCATEGORIZED_FOLDER_ID };
+export { FOLDER_SCHEMA_VERSION };
 
 export const isElectron = !!window.electronAPI;
 
@@ -24,7 +24,6 @@ export const INITIAL_CATEGORIES = [
   { id: 'dev', name: 'Development', color: '#38bdf8', parentId: null, order: 4 },
   { id: 'gaming', name: 'Gaming', color: '#ec4899', parentId: null, order: 5 },
   { id: 'utils', name: 'Utilities', color: '#60a5fa', parentId: null, order: 6 },
-  { id: UNCATEGORIZED_FOLDER_ID, name: 'Uncategorized', color: '#94a3b8', parentId: null, order: 7 },
 ];
 
 /** Clave de traducción del nombre por defecto de cada carpeta. */
@@ -37,7 +36,6 @@ const CATEGORY_NAME_KEYS: Record<string, string> = {
   dev: 'folder_dev',
   gaming: 'folder_gaming',
   utils: 'folder_utils',
-  uncategorized: 'folder_uncategorized',
 };
 
 /**
@@ -98,22 +96,6 @@ export const normalizeCategoriesList = (list: any[] = []): CyberFolder[] => {
     })),
   ];
 
-  // "Sin categoría" es una carpeta de sistema: recibe los accesos huérfanos,
-  // así que se garantiza su presencia igual que la carpeta raíz.
-  if (!normalizedFolders.some(folder => folder.id === UNCATEGORIZED_FOLDER_ID)) {
-    const lastOrder = normalizedFolders.reduce(
-      (max, folder) => (folder.id === ROOT_FOLDER_ID ? max : Math.max(max, folder.order)),
-      0
-    );
-    normalizedFolders.push({
-      id: UNCATEGORIZED_FOLDER_ID,
-      name: translate('folder_uncategorized'),
-      color: '#94a3b8',
-      parentId: null,
-      order: lastOrder + 1,
-    });
-  }
-
   const byId = new Map(normalizedFolders.map(folder => [folder.id, folder]));
   normalizedFolders.forEach(folder => {
     if (!folder.parentId) return;
@@ -134,11 +116,7 @@ export const normalizeCategoriesList = (list: any[] = []): CyberFolder[] => {
 
 export const normalizeShortcutsList = (list: any[] = [], folders: CyberFolder[]) => {
   const validFolderIds = new Set(folders.map(folder => folder.id));
-  const fallbackFolderId = folders.some(folder => folder.id === UNCATEGORIZED_FOLDER_ID)
-    ? UNCATEGORIZED_FOLDER_ID
-    : folders.some(folder => folder.id === 'utils')
-      ? 'utils'
-      : folders.find(folder => folder.id !== ROOT_FOLDER_ID)?.id || 'utils';
+  const fallbackFolderId = folders.some(folder => folder.id === 'utils') ? 'utils' : folders.find(folder => folder.id !== ROOT_FOLDER_ID)?.id || 'utils';
 
   return (Array.isArray(list) ? list : [])
     .filter(shortcut => shortcut && shortcut.id !== undefined && typeof shortcut.name === 'string' && typeof shortcut.path === 'string')

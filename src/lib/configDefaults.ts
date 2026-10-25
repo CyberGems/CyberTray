@@ -10,14 +10,6 @@ import type { ImportSourceConfig } from './shortcutImport';
 
 export const FOLDER_SCHEMA_VERSION = 2;
 
-/**
- * Carpeta de sistema que recibe los accesos sin categoría válida.
- *
- * Vive aquí (y no en `appUtils`) porque el proceso principal de Electron
- * también la necesita y `appUtils` toca `window`.
- */
-export const UNCATEGORIZED_FOLDER_ID = 'uncategorized';
-
 export interface CyberTrayConfig {
   monitorId: string;
   shortcut: string;
