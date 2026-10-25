@@ -40,6 +40,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // --- Drag & Drop helpers ---
   resolveFilePath: (filePath: string) => ipcRenderer.invoke('resolve-file-path', filePath),
+  scanImportSources: (sources: unknown[]) => ipcRenderer.invoke('import:scan', sources),
+  cancelImportScan: () => ipcRenderer.invoke('import:cancel'),
+  onImportProgress: (callback: (progress: { completed: number; total: number; sourceId: string }) => void) => {
+    const handler = (_event: any, progress: { completed: number; total: number; sourceId: string }) => callback(progress);
+    ipcRenderer.on('import:progress', handler);
+    return () => { ipcRenderer.removeListener('import:progress', handler); };
+  },
+  applyImportPlan: (plan: unknown, sources: unknown[]) => ipcRenderer.invoke('import:apply', { plan, sources }),
+  getImportBackupStatus: () => ipcRenderer.invoke('import:backup-status'),
+  undoLastImport: () => ipcRenderer.invoke('import:undo'),
   openFileLocation: (filePath: string) => ipcRenderer.invoke('open-file-location', filePath),
   copyToClipboard: (text: string) => ipcRenderer.invoke('copy-to-clipboard', text),
   openFolder: (targetPath: string) => ipcRenderer.invoke('open-folder', targetPath),

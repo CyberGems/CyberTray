@@ -10,7 +10,8 @@
   "scripts": {
     "dev": "vite --port=3001 --host=0.0.0.0",
     "build": "vite build",
-    "build:electron": "vite build && electron-builder",
+    "build:electron": "npm run build:store-launcher && vite build && electron-builder",
+    "build:store-launcher": "node scripts/build-store-launcher.mjs",
     "preview": "vite preview",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true});require('node:fs').rmSync('dist-electron',{recursive:true,force:true})\"",
     "lint": "tsc --noEmit",
@@ -28,6 +29,12 @@
     "files": [
       "dist",
       "dist-electron"
+    ],
+    "extraResources": [
+      {
+        "from": "electron/launch-store-app.exe",
+        "to": "launch-store-app.exe"
+      }
     ],
     "win": {
       "icon": "public/icon.ico",

@@ -1,3 +1,5 @@
+import type { ImportPlan, ImportSourceConfig } from './lib/shortcutImport';
+
 export {};
 
 /**
@@ -8,7 +10,7 @@ declare global {
   interface Window {
     electronAPI?: {
       launchApp: (path: string, isAdmin?: boolean, args?: string, cwd?: string) => Promise<{ success: boolean; error?: string }>;
-      selectFile: (options?: { filters?: Array<{ name: string; extensions: string[] }> }) => Promise<{ name: string; path: string; iconPath?: string } | null>;
+      selectFile: (options?: { filters?: Array<{ name: string; extensions: string[] }> }) => Promise<{ name: string; path: string; iconPath?: string; arguments?: string; cwd?: string } | null>;
       selectImage: () => Promise<string | null>;
       selectAudio: () => Promise<string | null>;
       selectFolder: () => Promise<string | null>;
@@ -26,6 +28,12 @@ declare global {
       getRunningProcesses: () => Promise<Array<{ pid: number; name: string; path: string; memory: number }>>;
       killProcess: (pid: number) => Promise<{ success: boolean; error?: string }>;
       resolveFilePath: (filePath: string) => Promise<{ name: string; path: string; ext: string; exists: boolean; iconPath: string; arguments?: string; cwd?: string } | null>;
+      scanImportSources: (sources: ImportSourceConfig[]) => Promise<{ plan: ImportPlan; errors: Array<{ sourceId: string; message: string }> }>;
+      cancelImportScan: () => Promise<{ success: boolean }>;
+      onImportProgress: (callback: (progress: { completed: number; total: number; sourceId: string }) => void) => () => void;
+      applyImportPlan: (plan: ImportPlan, sources: ImportSourceConfig[]) => Promise<{ success: boolean; created?: number; updated?: number; removed?: number; missing?: number; error?: string }>;
+      getImportBackupStatus: () => Promise<{ available: boolean }>;
+      undoLastImport: () => Promise<{ success: boolean; shortcuts?: number; error?: string }>;
       openFileLocation: (filePath: string) => Promise<{ success: boolean; error?: string }>;
       copyToClipboard: (text: string) => Promise<{ success: boolean; error?: string }>;
       openFolder: (targetPath: string) => Promise<{ success: boolean; error?: string }>;

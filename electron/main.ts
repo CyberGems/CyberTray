@@ -8,6 +8,10 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import { initUpdater } from './updater';
 import { createDefaultConfig, sanitizeConfig, type CyberTrayConfig } from '../src/lib/configDefaults';
+import { scanImportSources } from './importScanner';
+import { activateStoreApp, isStoreAppUserModelId, resolveStoreAppLauncher } from './store-app-launch';
+import { applyImportPlan, reconcileImport, type ImportPlan, type ImportSourceConfig, type ShortcutRecord } from '../src/lib/shortcutImport';
+import type { CyberFolder } from '../src/lib/appUtils';
 
 // Versiones asíncronas: nunca usar execSync en el proceso main, bloquea el
 // tray, la ventana y todo el IPC mientras el hijo de PowerShell corre.
@@ -73,6 +77,7 @@ let config: CyberTrayConfig = createDefaultConfig();
 // recargas obsoletas en lugar de volver a un estado anterior.
 let configRevision = 0;
 const CONFIG_FILE = path.join(app.getPath('userData'), 'cyber-tray-config.json');
+const IMPORT_BACKUP_FILE = `${CONFIG_FILE}.before-import-backup`;
 
 function getIconsDir(): string {
   const dir = path.join(app.getPath('userData'), 'icons');
@@ -344,6 +349,13 @@ async function launchAppInternal(
     }
 
     const hasArgs = typeof args === 'string' && args.trim().length > 0;
+    if (process.platform === 'win32' && isStoreAppUserModelId(target)) {
+      if (isAdmin) return { success: false, error: 'Microsoft Store apps cannot be elevated through this launcher.' };
+      if (cwd?.trim()) return { success: false, error: 'Microsoft Store apps do not support a custom working directory.' };
+      const helperPath = resolveStoreAppLauncher(app.isPackaged, process.resourcesPath, app.getAppPath(), __dirname);
+      await activateStoreApp(target, helperPath, hasArgs ? args : undefined);
+      return { success: true };
+    }
     if (process.platform === 'win32' && (isAdmin || hasArgs || (cwd && cwd.trim()))) {
       const esc = (s: string) => String(s).replace(/'/g, "''");
       let command = `Start-Process -FilePath '${esc(target)}'`;
@@ -674,7 +686,7 @@ function loadConfig() {
 function saveConfig(
   newConfig: Partial<CyberTrayConfig>,
   options?: { broadcastReload?: boolean }
-) {
+): boolean {
   try {
     if (newConfig.shortcutsList) {
       newConfig = {
@@ -688,7 +700,7 @@ function saveConfig(
     // Los atajos por acceso dependen de la lista de accesos: se re-registran
     // solo cuando algún atajo (o su destino) ha cambiado.
     const hotkeySignature = (list?: any[]) =>
-      JSON.stringify((list || []).map((s: any) => `${s?.id ?? ''}:${s?.hotkey || ''}:${s?.path || ''}`));
+      JSON.stringify((list || []).map((s: any) => `${s?.id ?? ''}:${s?.hotkey || ''}:${s?.path || ''}:${s?.arguments || ''}:${s?.cwd || ''}:${s?.isAdmin ? 1 : 0}`));
     if (hotkeySignature(previous.shortcutsList) !== hotkeySignature(config.shortcutsList)) {
       registerShortcutHotkeys(config.shortcutsList || []);
     }
@@ -696,7 +708,7 @@ function saveConfig(
 
     // Quiet saves (e.g. usageCount ticks) skip reload IPC
     if (options?.broadcastReload === false) {
-      return;
+      return true;
     }
 
     if (shelfWindow && !shelfWindow.isDestroyed()) {
@@ -721,8 +733,10 @@ function saveConfig(
     if (hotspotsChanged) {
       startHotspotPolling();
     }
+    return true;
   } catch (err) {
     console.error('Error saving config:', err);
+    return false;
   }
 }
 
@@ -1258,6 +1272,8 @@ async function resolveFullFileInfo(filePath: string) {
     let resolvedArgs = '';
     let resolvedCwd = '';
     let iconFileUrl = '';
+    let iconSourcePath = '';
+    let targetExists = true;
 
     if (ext === '.lnk') {
       // Conservar el nombre propio del acceso (ej. "factorio SeaBlock") en vez del
@@ -1269,7 +1285,11 @@ async function resolveFullFileInfo(filePath: string) {
         // relanzarlo tal cual (clave para apps como Factorio con flags de mod).
         resolvedArgs = shortcut.args || '';
         resolvedCwd = shortcut.cwd || '';
-        if (shortcut.target && fs.existsSync(shortcut.target)) {
+        iconSourcePath = shortcut.icon || '';
+        if (shortcut.appUserModelId) {
+          resolvedPath = shortcut.appUserModelId;
+          targetExists = true;
+        } else if (shortcut.target && fs.existsSync(shortcut.target)) {
           resolvedPath = path.resolve(shortcut.target);
         } else {
           // Fallback con PowerShell (asíncrono para no bloquear el proceso main).
@@ -1283,6 +1303,9 @@ async function resolveFullFileInfo(filePath: string) {
           const output = String(stdout || '').trim();
           if (output && fs.existsSync(output)) {
             resolvedPath = path.resolve(output);
+            targetExists = true;
+          } else {
+            targetExists = false;
           }
         }
         // El target solo se usa para lanzar y extraer el icono; el nombre visible
@@ -1292,16 +1315,39 @@ async function resolveFullFileInfo(filePath: string) {
       } catch (e) {
         console.error('Error resolving .lnk file:', e);
       }
+    } else if (ext === '.url') {
+      const content = await fs.promises.readFile(normalized, 'utf8');
+      const url = content.match(/^\s*URL\s*=\s*(.+)\s*$/im)?.[1]?.trim();
+      if (!url) return null;
+      const customIcon = content.match(/^\s*IconFile\s*=\s*(.+)\s*$/im)?.[1]?.trim();
+      if (customIcon) {
+        iconSourcePath = customIcon.replace(/%([^%]+)%/g, (match, name) => process.env[String(name)] || match);
+      }
+      resolvedPath = url;
+      resolvedName = path.basename(normalized, ext);
+      targetExists = true;
     }
 
     const iconKey = iconKeyForPath(resolvedPath);
+    if (iconSourcePath) {
+      // Los accesos guardan el icono como "archivo.ico,0": el índice no forma
+      // parte de la ruta y pasarlo a nativeImage haría fallar la extracción.
+      iconSourcePath = iconSourcePath.trim().replace(/^"(.*)"$/, '$1').replace(/,\s*-?\d+$/, '');
+      if (!path.isAbsolute(iconSourcePath)) {
+        iconSourcePath = path.resolve(path.dirname(normalized), iconSourcePath);
+      }
+      if (!fs.existsSync(iconSourcePath)) iconSourcePath = '';
+    }
 
     // Extracción de Icono nativo de alta calidad → PNG en userData/icons
     try {
-      if (fs.existsSync(resolvedPath)) {
-        let icon = await app.getFileIcon(resolvedPath, { size: 'large' });
-        if (!icon || icon.isEmpty()) {
-          icon = await app.getFileIcon(resolvedPath, { size: 'normal' });
+      const effectiveIconSource = iconSourcePath || (fs.existsSync(resolvedPath) ? resolvedPath : normalized);
+      if (fs.existsSync(effectiveIconSource)) {
+        let icon = iconSourcePath
+          ? nativeImage.createFromPath(effectiveIconSource)
+          : await app.getFileIcon(effectiveIconSource, { size: 'large' });
+        if ((!icon || icon.isEmpty()) && !iconSourcePath) {
+          icon = await app.getFileIcon(effectiveIconSource, { size: 'normal' });
         }
         if (icon && !icon.isEmpty()) {
           iconFileUrl = persistNativeIcon(icon, iconKey);
@@ -1314,7 +1360,8 @@ async function resolveFullFileInfo(filePath: string) {
     // Fallback de extracción de icono con PowerShell (para evitar iconos genéricos muy pequeños)
     if (!iconFileUrl) {
       try {
-        const escapedPath = resolvedPath.replace(/'/g, "''");
+        const fallbackIconSource = iconSourcePath || (fs.existsSync(resolvedPath) ? resolvedPath : normalized);
+        const escapedPath = fallbackIconSource.replace(/'/g, "''");
         const psScript = `Add-Type -AssemblyName System.Drawing; $icon=[System.Drawing.Icon]::ExtractAssociatedIcon('${escapedPath}'); if ($icon) { $bmp=$icon.ToBitmap(); $tmp=[System.IO.Path]::GetTempFileName()+'.png'; $bmp.Save($tmp,[System.Drawing.Imaging.ImageFormat]::Png); Write-Output $tmp; $icon.Dispose(); $bmp.Dispose() }`;
         const { stdout } = await execFileAsync('powershell', ['-NoProfile', '-Command', psScript], {
           windowsHide: true,
@@ -1338,7 +1385,7 @@ async function resolveFullFileInfo(filePath: string) {
       name: resolvedName,
       path: resolvedPath,
       ext,
-      exists: fs.existsSync(resolvedPath),
+      exists: targetExists && (isStoreAppUserModelId(resolvedPath) || /^https?:\/\//i.test(resolvedPath) || fs.existsSync(resolvedPath)),
       iconPath: iconFileUrl,
       arguments: resolvedArgs,
       cwd: resolvedCwd,
@@ -1628,6 +1675,84 @@ function fetchVramInfoInBackground() {
       storeFallback();
     });
   });
+}
+
+function normalizeImportSources(input: unknown): ImportSourceConfig[] {
+  if (!Array.isArray(input)) return [];
+  return input.slice(0, 32).flatMap((raw) => {
+    if (!raw || typeof raw !== 'object') return [];
+    const source = raw as Partial<ImportSourceConfig>;
+    if (!['desktop', 'start-menu', 'folder', 'store'].includes(String(source.kind))) return [];
+    const kind = source.kind as ImportSourceConfig['kind'];
+    const sourcePath = typeof source.path === 'string' ? source.path.trim() : '';
+    if (kind === 'folder' && (!sourcePath || !path.isAbsolute(sourcePath))) return [];
+    return [{
+      id: String(source.id || `${kind}:${sourcePath || source.scope || 'user'}`).slice(0, 500),
+      kind,
+      ...(sourcePath ? { path: path.normalize(sourcePath) } : {}),
+      scope: source.scope === 'common' ? 'common' as const : 'user' as const,
+      ...(source.label ? { label: String(source.label).slice(0, 240) } : {}),
+      targetCategory: String(source.targetCategory || 'utils').slice(0, 200),
+      preserveFolders: source.preserveFolders !== false,
+      skipUninstallers: source.skipUninstallers !== false,
+      includeFiles: source.includeFiles === true,
+    }];
+  });
+}
+
+function currentImportCategories(): CyberFolder[] {
+  if (Array.isArray(config.categoriesList) && config.categoriesList.length) return config.categoriesList;
+  return [
+    { id: 'all', name: 'All', color: '#a1a1a1', parentId: null, order: -1 },
+    { id: 'utils', name: 'Utilities', color: '#60a5fa', parentId: null, order: 0 },
+  ];
+}
+
+async function scanAndPlanImport(
+  sources: ImportSourceConfig[],
+  options: { signal?: AbortSignal; onProgress?: (progress: { completed: number; total: number; sourceId: string }) => void } = {},
+) {
+  const scan = await scanImportSources(sources, resolveFullFileInfo, options);
+  const plan = reconcileImport(
+    (config.shortcutsList || []) as ShortcutRecord[],
+    currentImportCategories(),
+    scan.items,
+    scan.scannedSourceIds,
+  );
+  return { plan, errors: scan.errors };
+}
+
+function commitImportPlan(plan: ImportPlan, sources: ImportSourceConfig[]) {
+  const result = applyImportPlan(
+    (config.shortcutsList || []) as ShortcutRecord[],
+    currentImportCategories(),
+    plan,
+  );
+  const removedIds = new Set(plan.items.filter(item => item.action === 'missing' && item.selected).map(item => item.existingId));
+  const taskbarIds = (config.taskbarIds || []).filter(id => !removedIds.has(id) && result.shortcuts.some(item => item.id === id));
+  if (fs.existsSync(CONFIG_FILE)) {
+    fs.copyFileSync(CONFIG_FILE, IMPORT_BACKUP_FILE);
+  } else {
+    fs.writeFileSync(IMPORT_BACKUP_FILE, JSON.stringify(config, null, 2), 'utf-8');
+  }
+  const success = saveConfig({
+    shortcutsList: result.shortcuts,
+    categoriesList: result.categories,
+    taskbarIds,
+    importSources: sources,
+  });
+  if (!success) throw new Error('Could not save the imported shortcuts.');
+  return { success: true, created: result.created, updated: result.updated, removed: result.removed, missing: result.missing };
+}
+
+async function runStartupImportSync() {
+  if (!config.autoSyncOnStartup || !config.importSources?.length) return;
+  const sources = normalizeImportSources(config.importSources);
+  if (!sources.length) return;
+  const { plan, errors } = await scanAndPlanImport(sources);
+  if (errors.length) console.warn('[IMPORT] Startup scan completed with source errors:', errors);
+  const result = commitImportPlan(plan, sources);
+  console.log(`[IMPORT] Startup sync: ${result.created} added, ${result.updated} updated, ${result.missing} missing`);
 }
 
 // ── IPC INTERACTIVE COMMS BINDERS ──
@@ -2021,6 +2146,65 @@ function registerIpcHandlers() {
     return await resolveFullFileInfo(filePath);
   });
 
+  const importScans = new Map<number, AbortController>();
+  ipcMain.handle('import:scan', async (event, input) => {
+    const sources = normalizeImportSources(input);
+    if (!sources.length) return { plan: { items: [], scannedSourceIds: [] }, errors: [] };
+    importScans.get(event.sender.id)?.abort();
+    const controller = new AbortController();
+    importScans.set(event.sender.id, controller);
+    try {
+      return await scanAndPlanImport(sources, {
+        signal: controller.signal,
+        onProgress: progress => {
+          if (!event.sender.isDestroyed()) event.sender.send('import:progress', progress);
+        },
+      });
+    } finally {
+      if (importScans.get(event.sender.id) === controller) importScans.delete(event.sender.id);
+    }
+  });
+  ipcMain.handle('import:cancel', async (event) => {
+    importScans.get(event.sender.id)?.abort();
+    return { success: true };
+  });
+
+  ipcMain.handle('import:apply', async (_, input) => {
+    const sources = normalizeImportSources(input?.sources);
+    const plan = input?.plan as ImportPlan | undefined;
+    if (!plan || !Array.isArray(plan.items) || plan.items.length > 30000) {
+      return { success: false, error: 'Invalid import plan.' };
+    }
+    try {
+      return commitImportPlan(plan, sources);
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+  ipcMain.handle('import:backup-status', async () => ({ available: fs.existsSync(IMPORT_BACKUP_FILE) }));
+  ipcMain.handle('import:undo', async () => {
+    try {
+      if (!fs.existsSync(IMPORT_BACKUP_FILE)) return { success: false, error: 'No import backup is available.' };
+      const backup = JSON.parse(await fs.promises.readFile(IMPORT_BACKUP_FILE, 'utf-8')) as Record<string, unknown>;
+      const shortcutsList = backup.shortcutsList;
+      const categoriesList = backup.categoriesList;
+      if (!Array.isArray(shortcutsList) || shortcutsList.length > 100000 || !Array.isArray(categoriesList) || categoriesList.length > 20000) {
+        throw new Error('The import backup is invalid.');
+      }
+      const success = saveConfig({
+        shortcutsList,
+        categoriesList,
+        taskbarIds: Array.isArray(backup.taskbarIds) ? backup.taskbarIds : [],
+        importSources: normalizeImportSources(backup.importSources),
+      });
+      if (!success) throw new Error('Could not restore the import backup.');
+      await fs.promises.unlink(IMPORT_BACKUP_FILE).catch(() => undefined);
+      return { success: true, shortcuts: shortcutsList.length };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
   ipcMain.handle('open-file-location', async (_, filePath) => {
     try {
       if (fs.existsSync(filePath)) {
@@ -2131,11 +2315,11 @@ function registerIpcHandlers() {
 
   // --- Almacenamiento Dinámico Independiente ---
   ipcMain.handle('saveConfig', async (_, newConfig, options?: { broadcastReload?: boolean }) => {
-    saveConfig(newConfig, options);
-    if (options?.broadcastReload !== false) {
+    const success = saveConfig(newConfig, options);
+    if (success && options?.broadcastReload !== false) {
       alignWindows();
     }
-    return { success: true, revision: configRevision };
+    return { success, revision: configRevision };
   });
 
   ipcMain.handle('loadConfig', async () => {
@@ -2445,7 +2629,7 @@ function registerLocalResourceProtocol() {
 
 
 // ── INICIALIZACIÓN ──
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   if (!gotTheLock) return;
   loadConfig();
   if (app.isPackaged) applyAutoLaunchSettings(!!config.autoLaunch);
@@ -2463,6 +2647,13 @@ app.whenReady().then(() => {
   updateCachedDisplays();
   startHotspotPolling();
   startUACGuard();
+
+  // La sincronización opcional no debe retrasar la ventana ni la bandeja.
+  if (config.autoSyncOnStartup) {
+    setTimeout(() => {
+      void runStartupImportSync().catch(error => console.error('[IMPORT] Startup sync failed:', error));
+    }, 2000);
+  }
 
   let bootAutoUpdate = true;
   if (typeof config.autoUpdate === 'boolean') {

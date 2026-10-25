@@ -1,3 +1,5 @@
+import type { ImportSourceConfig } from './shortcutImport';
+
 /**
  * Configuración por defecto de CyberTray.
  *
@@ -43,6 +45,8 @@ export interface CyberTrayConfig {
   autoUpdate?: boolean;
   autoCheckUpdates?: boolean;
   taskbarIds?: number[];
+  importSources?: ImportSourceConfig[];
+  autoSyncOnStartup?: boolean;
 }
 
 /**
@@ -85,6 +89,8 @@ const KNOWN_CONFIG_KEYS = new Set<keyof CyberTrayConfig>([
   'autoUpdate',
   'autoCheckUpdates',
   'taskbarIds',
+  'importSources',
+  'autoSyncOnStartup',
 ]);
 
 /** Devuelve la configuración sin las claves desconocidas. */
@@ -133,5 +139,7 @@ export function createDefaultConfig(): CyberTrayConfig {
     totalLaunches: 0,
     autoUpdate: true,
     taskbarIds: [],
+    importSources: [],
+    autoSyncOnStartup: false,
   };
 }

@@ -48,4 +48,18 @@ describe('sanitizeConfig', () => {
     const result = sanitizeConfig({ iconSize: 60, totalLaunches: 3 });
     expect(result).toEqual({ iconSize: 60, totalLaunches: 3 });
   });
+
+  it('conserva los orígenes y la sincronización al iniciar', () => {
+    const importSources = [{
+      id: 'desktop:user',
+      kind: 'desktop' as const,
+      scope: 'user' as const,
+      targetCategory: 'utils',
+      preserveFolders: false,
+      skipUninstallers: true,
+      includeFiles: false,
+    }];
+    const result = sanitizeConfig({ importSources, autoSyncOnStartup: true });
+    expect(result).toEqual({ importSources, autoSyncOnStartup: true });
+  });
 });
