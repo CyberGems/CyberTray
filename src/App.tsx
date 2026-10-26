@@ -13,6 +13,7 @@ import AboutModal, { UpdateStatus, peekReleaseNotes } from './components/AboutMo
 import ShelfOverlays from './components/ShelfOverlays';
 import ImportSyncModal from './components/ImportSyncModal';
 import OnboardingModal from './components/OnboardingModal';
+import BootLoader from './components/BootLoader';
 import FolderTree from './components/FolderTree';
 import {
   isElectron,
@@ -45,6 +46,9 @@ const DEFAULT_LAUNCH_SOUND = '/sounds/launch-thud.wav';
 // PIN que usaba CyberTray antes de hashearlo. Solo se usa para derivar el
 // hash de instalaciones antiguas que nunca tocaron el PIN.
 const LEGACY_DEFAULT_PIN = '1234';
+// Tiempo mínimo que se muestra la pantalla de arranque, para que la carga
+// instantánea no se perciba como un parpadeo.
+const BOOT_MIN_DURATION_MS = 550;
 // Ajustes que se guardan con retardo (controles deslizantes).
 const DEBOUNCED_CONFIG_KEYS = new Set(['iconSize', 'opacity', 'blurLevel', 'hotspotDelay']);
 
@@ -65,6 +69,8 @@ export default function App() {
   const [showImportSync, setShowImportSync] = useState<boolean>(false);
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
   const [configLoaded, setConfigLoaded] = useState<boolean>(false);
+  const [booting, setBooting] = useState<boolean>(true);
+  const bootStartedAtRef = useRef<number>(typeof performance !== 'undefined' ? performance.now() : Date.now());
   const onboardingCheckedRef = useRef<boolean>(false);
   const [settingsTab, setSettingsTab] = useState<'general' | 'appearance' | 'shortcuts'>('general');
   const [iconSortOrder, setIconSortOrder] = useState<'alpha' | 'recent' | 'added'>(
@@ -648,6 +654,20 @@ export default function App() {
       return () => unsub();
     }
   }, []);
+
+  // La pantalla de arranque se queda un instante mínimo aunque la config
+  // cargue al instante: sin eso se ve un parpadeo en lugar de una transición.
+  useEffect(() => {
+    if (!configLoaded) {
+      // Red de seguridad: si la carga se atasca, no se deja la ventana tapada.
+      const failsafe = setTimeout(() => setBooting(false), 8000);
+      return () => clearTimeout(failsafe);
+    }
+    const elapsed = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - bootStartedAtRef.current;
+    const remaining = Math.max(0, BOOT_MIN_DURATION_MS - elapsed);
+    const timer = setTimeout(() => setBooting(false), remaining);
+    return () => clearTimeout(timer);
+  }, [configLoaded]);
 
   // El asistente de primer inicio solo aparece en instalaciones nuevas: sin
   // accesos guardados y sin haberlo completado antes. Nunca se repite.
@@ -2391,6 +2411,8 @@ export default function App() {
     >
       <ToastStack toasts={toasts} dismissToast={dismissToast} />
 
+      <AnimatePresence>{booting && <BootLoader />}</AnimatePresence>
+
       {/* ── CAPA DE FONDO PERSONALIZADO (Solid / Gradient / Image) ── */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none">
         {bgType === 'solid' && (
@@ -2928,7 +2950,7 @@ export default function App() {
             </div>
           )}
 
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             <ShortcutGrid
               gridScrollRef={gridScrollRef}
               selectionMode={selectionMode}

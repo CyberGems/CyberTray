@@ -56,6 +56,7 @@ out/
 artifacts/
 
 # Private Agent Instruction Files (MUST NOT be committed or pushed)
+.workbuddy-ai/
 AGENTS.md
 CLAUDE.md
 .cursorrules
