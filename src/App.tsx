@@ -7,7 +7,7 @@ import CyberTrayLogo, { CyberTrayWordmark } from './components/CyberTrayLogo';
 import ShortcutGrid from './components/ShortcutGrid';
 import TelemetryBar from './components/TelemetryBar';
 import ToastStack from './components/ToastStack';
-import SettingsPanel from './components/SettingsPanel';
+import SettingsPanel, { type SettingsTab } from './components/SettingsPanel';
 import PinPadModal from './components/PinPadModal';
 import AboutModal, { UpdateStatus, peekReleaseNotes } from './components/AboutModal';
 import ShelfOverlays from './components/ShelfOverlays';
@@ -72,7 +72,7 @@ export default function App() {
   const [booting, setBooting] = useState<boolean>(true);
   const bootStartedAtRef = useRef<number>(typeof performance !== 'undefined' ? performance.now() : Date.now());
   const onboardingCheckedRef = useRef<boolean>(false);
-  const [settingsTab, setSettingsTab] = useState<'general' | 'appearance' | 'shortcuts'>('general');
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('general');
   const [iconSortOrder, setIconSortOrder] = useState<'alpha' | 'recent' | 'added'>(
     () => (localStorage.getItem('cybertray_icon_sort') as 'alpha' | 'recent' | 'added') || 'alpha'
   );

@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  AlertTriangle, ArrowUpDown, Droplets, Download, Eye, FileJson, FolderOpen, Globe,
+  AlertTriangle, Archive, ArrowUpDown, Droplets, Download, Eye, FileJson, FolderOpen, Globe,
   Grid, HardDrive, Image as ImageIcon, Keyboard, LayoutGrid, List as ListIcon,
   Lock, Monitor, MousePointer2, Palette, Pin, Power, Shield, Sliders, Sparkles, Terminal,
   Trash2, Upload, Volume2, type LucideIcon,
@@ -13,6 +13,7 @@ import { hashPin, verifyPin } from '../lib/pin';
 import { useBundledAssetUrl } from '../lib/useBundledAsset';
 import { useModalAccessibility } from '../lib/useModalAccessibility';
 import Toggle from './Toggle';
+import BackupPanel from './BackupPanel';
 
 const ICON_TONES = {
   cyan: { wrap: 'bg-cyan-500/10 border-cyan-500/20', icon: 'text-cyan-400', toggle: 'bg-cyan-500', ring: 'focus-visible:ring-cyan-500/50' },
@@ -147,11 +148,13 @@ function ActionRow({
   );
 }
 
+export type SettingsTab = 'general' | 'appearance' | 'shortcuts' | 'backups';
+
 export interface SettingsPanelProps {
   showSettings: boolean;
   setShowSettings: (v: boolean) => void;
-  settingsTab: 'general' | 'appearance' | 'shortcuts';
-  setSettingsTab: (v: 'general' | 'appearance' | 'shortcuts') => void;
+  settingsTab: SettingsTab;
+  setSettingsTab: (v: SettingsTab) => void;
   settingsSaved: boolean;
   langCode: string;
   config: any;
@@ -341,6 +344,18 @@ export default function SettingsPanel({
                   >
                     <HardDrive className="w-3.5 h-3.5 shrink-0" />
                     {translate('tab_shortcuts')}
+                  </button>
+
+                  <button
+                    onClick={() => { setSettingsTab('backups'); playFolderSound(); }}
+                    className={`w-full py-2 px-3 text-left text-xs font-cyber font-bold tracking-wider rounded-lg border transition-all cursor-pointer flex items-center gap-2 leading-snug ${
+                      settingsTab === 'backups'
+                        ? 'border-emerald-500/80 text-emerald-400 bg-emerald-950/10 shadow-[0_0_6px_rgba(52,211,153,0.25)]'
+                        : 'border-transparent text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    <Archive className="w-3.5 h-3.5 shrink-0" />
+                    {translate('tab_backups')}
                   </button>
                 </div>
 
@@ -1428,6 +1443,17 @@ export default function SettingsPanel({
                       </ActionRow>
                     </div>
                   </div>
+                )}
+
+                {/* 4. RESPALDOS AUTOMÁTICOS */}
+                {settingsTab === 'backups' && (
+                  <BackupPanel
+                    config={config}
+                    handleUpdateConfigSetting={handleUpdateConfigSetting}
+                    playCyberBeep={playCyberBeep}
+                    showAlert={showAlert}
+                    showConfirm={showConfirm}
+                  />
                 )}
 
               </div>

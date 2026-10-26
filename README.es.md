@@ -106,6 +106,7 @@ Tu escritorio está saturado. El menú Inicio es lento. La barra de tareas está
 - **Sonidos de navegación de carpetas**: retroalimentación de audio al navegar por categorías
 
 ### 💾 Gestión de datos
+- **Respaldos automáticos**: copias programadas de tu configuración (cada 6 h, 12 h, 24 h o 7 días), conservando 1, 3, 5 o 7 copias — 3 por defecto. Elige cualquier carpeta de destino, restaura cualquier copia en un clic y cada restauración guarda antes el estado actual para poder deshacerla.
 - **Copia de seguridad y restauración**: exporta e importa la configuración como JSON (con iconos integrados)
 - **Actualizaciones en la app**: comprueba, descarga e instala desde Acerca de mediante GitHub Releases (`electron-updater`). La comprobación automática al arrancar te avisa; la instalación siempre se confirma.
 - **Interfaz bilingüe**: interfaz completa en inglés y español

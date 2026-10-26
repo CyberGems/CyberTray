@@ -12,6 +12,8 @@ import { scanImportSources } from './importScanner';
 import { activateStoreApp, isStoreAppUserModelId, resolveStoreAppLauncher } from './store-app-launch';
 import { applyImportPlan, reconcileImport, type ImportPlan, type ImportSourceConfig, type ShortcutRecord } from '../src/lib/shortcutImport';
 import type { CyberFolder } from '../src/lib/appUtils';
+import { createBackupService } from './backups';
+import { normalizeBackupFolder, parseBackupHours, parseBackupKeep } from '../src/lib/backup';
 
 // Versiones asíncronas: nunca usar execSync en el proceso main, bloquea el
 // tray, la ventana y todo el IPC mientras el hijo de PowerShell corre.
@@ -78,6 +80,7 @@ let config: CyberTrayConfig = createDefaultConfig();
 let configRevision = 0;
 const CONFIG_FILE = path.join(app.getPath('userData'), 'cyber-tray-config.json');
 const IMPORT_BACKUP_FILE = `${CONFIG_FILE}.before-import-backup`;
+const BACKUPS_DIR = path.join(app.getPath('userData'), 'backups');
 
 function getIconsDir(): string {
   const dir = path.join(app.getPath('userData'), 'icons');
@@ -221,6 +224,7 @@ const NATIVE_TRANSLATIONS = {
     selectSound: 'Select sound file',
     selectFolder: 'Select folder',
     vaultFolder: 'Select vault folder',
+    backupFolder: 'Select backup folder',
   },
   es: {
     cut: 'Cortar',
@@ -238,6 +242,7 @@ const NATIVE_TRANSLATIONS = {
     selectSound: 'Seleccionar archivo de sonido',
     selectFolder: 'Seleccionar carpeta',
     vaultFolder: 'Seleccionar carpeta de la bóveda',
+    backupFolder: 'Seleccionar carpeta de respaldos',
   },
 } as const;
 
@@ -696,6 +701,12 @@ function saveConfig(
     }
     const previous = config;
     config = sanitizeConfig({ ...config, ...newConfig }) as CyberTrayConfig;
+    // Los ajustes de respaldo se normalizan al guardar: así el archivo nunca
+    // contiene una frecuencia o una cantidad de copias fuera de las permitidas.
+    config.autoBackupEnabled = config.autoBackupEnabled !== false;
+    config.autoBackupHours = parseBackupHours(config.autoBackupHours);
+    config.autoBackupKeep = parseBackupKeep(config.autoBackupKeep);
+    config.autoBackupPath = normalizeBackupFolder(config.autoBackupPath);
     configRevision += 1;
     // Los atajos por acceso dependen de la lista de accesos: se re-registran
     // solo cuando algún atajo (o su destino) ha cambiado.
@@ -746,6 +757,46 @@ function getVaultPath(): string {
   }
   return path.join(app.getPath('userData'), 'CyberTray_files');
 }
+
+// ── RESPALDO AUTOMÁTICO ──
+// El servicio vive aparte (electron/backups.ts) para poder probarlo contra
+// carpetas temporales sin levantar Electron. Aquí solo se le da acceso a la
+// configuración y a las acciones que dependen de la ventana.
+function broadcastConfig(): void {
+  if (shelfWindow && !shelfWindow.isDestroyed()) {
+    shelfWindow.webContents.send('reload-config', { ...config, __rev: configRevision });
+  }
+}
+
+/** Tras restaurar una copia hay que reaplicar todo lo que dependía de la config. */
+function applyRestoredConfig(): void {
+  loadConfig();
+  configRevision += 1;
+  registerGlobalShortcutKey(config.shortcut);
+  registerShortcutHotkeys(config.shortcutsList || []);
+  startHotspotPolling();
+  createTray();
+  broadcastConfig();
+}
+
+const backupService = createBackupService({
+  configFile: CONFIG_FILE,
+  defaultFolder: BACKUPS_DIR,
+  readSettings: () => ({
+    enabled: config.autoBackupEnabled !== false,
+    hours: parseBackupHours(config.autoBackupHours),
+    keep: parseBackupKeep(config.autoBackupKeep),
+    last: typeof config.autoBackupLast === 'string' ? config.autoBackupLast : null,
+    folder: normalizeBackupFolder(config.autoBackupPath),
+  }),
+  patchConfig: (patch) => { saveConfig(patch as Partial<CyberTrayConfig>, { broadcastReload: false }); },
+  onCompleted: (payload) => {
+    if (shelfWindow && !shelfWindow.isDestroyed()) {
+      shelfWindow.webContents.send('backup:completed', payload);
+    }
+  },
+  onRestored: () => applyRestoredConfig(),
+});
 
 // ── HOTSPOTS & UAC GUARD STATE ──
 let hotspotTimer: NodeJS.Timeout | null = null;
@@ -2217,6 +2268,37 @@ function registerIpcHandlers() {
     }
   });
 
+  // --- Respaldo automático de la configuración ---
+  ipcMain.handle('backup:status', () => backupService.status());
+  ipcMain.handle('backup:now', () => backupService.run('manual'));
+  ipcMain.handle('backup:list', () => backupService.list());
+  ipcMain.handle('backup:delete', (_event, fileName) => backupService.remove(String(fileName || '')));
+  ipcMain.handle('backup:restore', (_event, fileName) => backupService.restore(String(fileName || '')));
+
+  ipcMain.handle('backup:open-folder', async () => {
+    try {
+      const { folder } = backupService.status();
+      fs.mkdirSync(folder, { recursive: true });
+      const failure = await shell.openPath(folder);
+      return failure ? { success: false, error: failure } : { success: true, folder };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle('backup:select-folder', async () => {
+    isDialogOpen = true; // Bypasa el autohide (hideOnBlur) mientras el diálogo tiene el foco
+    const res = await dialog.showOpenDialog(shelfWindow!, {
+      title: nativeStrings().backupFolder,
+      defaultPath: backupService.status().folder,
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    isDialogOpen = false;
+    showShelf();
+    if (!res.canceled && res.filePaths.length > 0) return res.filePaths[0];
+    return null;
+  });
+
   ipcMain.handle('open-file-location', async (_, filePath) => {
     try {
       if (fs.existsSync(filePath)) {
@@ -2659,6 +2741,8 @@ app.whenReady().then(async () => {
   updateCachedDisplays();
   startHotspotPolling();
   startUACGuard();
+  // Respaldo automático: comprueba al arrancar (diferido) y luego cada minuto.
+  backupService.start();
 
   // La sincronización opcional no debe retrasar la ventana ni la bandeja.
   if (config.autoSyncOnStartup) {
@@ -2728,4 +2812,5 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   unregisterShortcutHotkeys();
   stopHotspotPolling();
+  backupService.stop();
 });

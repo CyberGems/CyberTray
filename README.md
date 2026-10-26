@@ -107,6 +107,7 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 - **Folder Navigation Sounds**: Audio feedback when browsing categories
 
 ### 💾 Data Management
+- **Automatic Backups**: Scheduled copies of your configuration (every 6 h, 12 h, 24 h or 7 days), keeping 1, 3, 5 or 7 copies — 3 by default. Pick any destination folder, restore any copy in one click, and every restore saves the current state first so it can be undone.
 - **Backup & Restore**: Export/import configuration as JSON (with embedded icons)
 - **In-app Updates**: Check, download, and install from About via GitHub Releases (`electron-updater`). Auto-check on boot notifies you; install is always confirmed.
 - **Bilingual UI**: Full English and Spanish interface

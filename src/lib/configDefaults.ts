@@ -1,4 +1,5 @@
 import type { ImportSourceConfig } from './shortcutImport';
+import { DEFAULT_AUTO_BACKUP_HOURS, DEFAULT_AUTO_BACKUP_KEEP } from './backup';
 
 /**
  * Configuración por defecto de CyberTray.
@@ -51,6 +52,14 @@ export interface CyberTrayConfig {
   importSources?: ImportSourceConfig[];
   autoSyncOnStartup?: boolean;
   onboardingDone?: boolean;
+  /** Respaldo automático de la configuración. */
+  autoBackupEnabled?: boolean;
+  autoBackupHours?: number;
+  autoBackupKeep?: number;
+  /** ISO de la última copia correcta. */
+  autoBackupLast?: string | null;
+  /** Carpeta de destino personalizada; vacía = carpeta por defecto. */
+  autoBackupPath?: string;
 }
 
 /**
@@ -96,6 +105,11 @@ const KNOWN_CONFIG_KEYS = new Set<keyof CyberTrayConfig>([
   'importSources',
   'autoSyncOnStartup',
   'onboardingDone',
+  'autoBackupEnabled',
+  'autoBackupHours',
+  'autoBackupKeep',
+  'autoBackupLast',
+  'autoBackupPath',
 ]);
 
 /** Devuelve la configuración sin las claves desconocidas. */
@@ -147,5 +161,10 @@ export function createDefaultConfig(): CyberTrayConfig {
     importSources: [],
     autoSyncOnStartup: false,
     onboardingDone: false,
+    autoBackupEnabled: true,
+    autoBackupHours: DEFAULT_AUTO_BACKUP_HOURS,
+    autoBackupKeep: DEFAULT_AUTO_BACKUP_KEEP,
+    autoBackupLast: null,
+    autoBackupPath: '',
   };
 }

@@ -1,4 +1,5 @@
 import type { ImportPlan, ImportSourceConfig } from './lib/shortcutImport';
+import type { BackupItem, BackupResult, BackupStatus } from './lib/backup';
 
 export {};
 
@@ -76,6 +77,16 @@ declare global {
       openVaultFolder: () => Promise<boolean>;
       selectVaultFolder: () => Promise<string | null>;
       importFileToVault: (filePath: string) => Promise<{ success: boolean; path: string; iconPath: string; name: string; error?: string }>;
+      backup: {
+        getStatus: () => Promise<BackupStatus>;
+        runNow: () => Promise<BackupResult>;
+        list: () => Promise<BackupItem[]>;
+        openFolder: () => Promise<{ success: boolean; folder?: string; error?: string }>;
+        selectFolder: () => Promise<string | null>;
+        restore: (fileName: string) => Promise<BackupResult>;
+        remove: (fileName: string) => Promise<BackupResult>;
+        onCompleted: (callback: (payload: { at: string; file: string; folder: string; reason: string; warning?: string }) => void) => () => void;
+      };
     };
   }
 }

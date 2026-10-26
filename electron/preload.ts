@@ -153,6 +153,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectVaultFolder: () => ipcRenderer.invoke('select-vault-folder'),
   importFileToVault: (filePath: string) => ipcRenderer.invoke('import-file-to-vault', filePath),
 
+  // --- Respaldo automático ---
+  backup: {
+    getStatus: () => ipcRenderer.invoke('backup:status'),
+    runNow: () => ipcRenderer.invoke('backup:now'),
+    list: () => ipcRenderer.invoke('backup:list'),
+    openFolder: () => ipcRenderer.invoke('backup:open-folder'),
+    selectFolder: () => ipcRenderer.invoke('backup:select-folder'),
+    restore: (fileName: string) => ipcRenderer.invoke('backup:restore', fileName),
+    remove: (fileName: string) => ipcRenderer.invoke('backup:delete', fileName),
+    onCompleted: (callback: (payload: { at: string; file: string; folder: string; reason: string; warning?: string }) => void) => {
+      const handler = (_event: any, payload: any) => callback(payload);
+      ipcRenderer.on('backup:completed', handler);
+      return () => { ipcRenderer.removeListener('backup:completed', handler); };
+    },
+  },
+
   // --- Custom tray menu ---
   trayMenu: {
     onState: (callback: (state: any) => void) => {
