@@ -33,6 +33,7 @@ typings/
 dist/
 dist-electron/
 release/
+release-build/
 out/
 
 # IDEs and editors
