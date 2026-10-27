@@ -2501,7 +2501,7 @@ export default function App() {
       </div>
 
       {/* ── BARRA SUPERIOR ── */}
-      <header data-no-dead-zone className="h-12 shrink-0 border-b border-[var(--neon-glow-border)] flex items-center gap-3 px-4 bg-slate-950/75 backdrop-blur-md z-10">
+      <header data-no-dead-zone className="h-12 shrink-0 border-b border-[var(--neon-glow-border)] flex items-center gap-3 px-4 bg-slate-950/75 backdrop-blur-md z-20">
         <button
           type="button"
           onClick={() => { setShowAboutModal(true); playCyberBeep(); hideTooltip(); }}
@@ -2893,7 +2893,10 @@ export default function App() {
         </div>
       </header>
 
-      <div className="flex-1 min-h-0 flex overflow-hidden">
+      {/* `relative z-10` es obligatorio: la capa de fondo es `absolute`, y un
+          elemento posicionado se pinta por encima de los hermanos en flujo
+          normal. Sin esto la barra lateral y las migas quedan tapadas. */}
+      <div className="relative z-10 flex-1 min-h-0 flex overflow-hidden">
         <FolderTree
           folders={categories}
           activeFolderId={activeCategory}
