@@ -8,6 +8,7 @@ import { translate } from '../locales';
 import { isElectron } from '../lib/appUtils';
 import { useModalAccessibility } from '../lib/useModalAccessibility';
 import { shortcutIconSrc } from '../lib/iconSrc';
+import ShortcutGlyph from './ShortcutGlyph';
 import Toggle from './Toggle';
 import FolderPicker from './FolderPicker';
 
@@ -396,7 +397,7 @@ export default function ShortcutFormModal({
                             {item.iconPath ? (
                               <img src={shortcutIconSrc(item.iconPath)} alt="" className="w-4 h-4 object-contain" />
                             ) : (
-                              <span className="text-[9px] font-cyber font-bold text-slate-500">&gt;_</span>
+                              <ShortcutGlyph className="w-4 h-4 text-[var(--neon-glow-color)]" />
                             )}
                           </span>
                           <span className="text-[12px] text-slate-200 truncate">{item.name}</span>
@@ -456,7 +457,7 @@ export default function ShortcutFormModal({
                           {formIconPath ? (
                             <img src={shortcutIconSrc(formIconPath)} alt="" className="w-8 h-8 object-contain" draggable={false} />
                           ) : (
-                            <span className="text-[9px] font-cyber font-bold text-slate-500">&gt;_</span>
+                            <ShortcutGlyph className="w-6 h-6 text-[var(--neon-glow-color)]" />
                           )}
                         </div>
                         <div className="flex-1 flex gap-2 min-w-0">

@@ -1,16 +1,17 @@
 /**
- * Glifo vectorial para accesos web.
+ * Glifo vectorial para cualquier acceso sin icono propio.
  *
- * Un `.url` sin `IconFile` hereda el globo 3D genérico de Windows, que no dice
- * nada y desentona con el resto. Cuando no hay icono propio se dibuja esta
- * flecha curva, plana y con el color de acento de la app.
+ * Cuando no hay icono (un `.url` sin `IconFile`, un ejecutable cuya extracción
+ * falló, un alias de la tienda sin imagen...) Windows tiende a dar el globo 3D
+ * genérico, que parece un enlace roto. En su lugar se dibuja esta flecha
+ * curva, plana y con el color de acento de la app.
  */
 
-interface UrlLinkIconProps {
+interface ShortcutGlyphProps {
   className?: string;
 }
 
-export default function UrlLinkIcon({ className = '' }: UrlLinkIconProps) {
+export default function ShortcutGlyph({ className = '' }: ShortcutGlyphProps) {
   return (
     <svg
       viewBox="0 0 24 24"

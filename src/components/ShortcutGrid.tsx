@@ -3,8 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { Check, Clock, Edit, Lock, Search, Upload } from 'lucide-react';
 import { translate } from '../locales';
 import { shortcutIconSrc } from '../lib/iconSrc';
-import { isUrlPath } from '../lib/shortcutPath';
-import UrlLinkIcon from './UrlLinkIcon';
+import ShortcutGlyph from './ShortcutGlyph';
 import { densityFromIconSize } from '../lib/appUtils';
 import VaultPanel from './VaultPanel';
 
@@ -338,12 +337,8 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
             >
               {item.iconPath ? (
                 <img src={shortcutIconSrc(item.iconPath)} alt={item.name} className="w-[85%] h-[85%] object-contain" />
-              ) : isUrlPath(item.path) ? (
-                <UrlLinkIcon className="w-[58%] h-[58%] text-[var(--neon-glow-color)] opacity-90 transition-opacity group-hover:opacity-100" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-slate-600 bg-slate-950 group-hover:text-[var(--neon-glow-color)]">
-                  <span className="font-cyber font-bold text-xs">&gt;_</span>
-                </div>
+                <ShortcutGlyph className="w-[58%] h-[58%] text-[var(--neon-glow-color)] opacity-90 transition-opacity group-hover:opacity-100" />
               )}
             </div>
 
@@ -468,12 +463,8 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
         >
           {item.iconPath ? (
             <img src={shortcutIconSrc(item.iconPath)} alt={item.name} className="w-[85%] h-[85%] object-contain" />
-          ) : isUrlPath(item.path) ? (
-            <UrlLinkIcon className="w-[58%] h-[58%] text-[var(--neon-glow-color)] opacity-90 transition-opacity group-hover:opacity-100" />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-600 bg-slate-950 group-hover:text-[var(--neon-glow-color)]">
-              <span className="font-cyber font-bold text-lg">&gt;_</span>
-            </div>
+            <ShortcutGlyph className="w-[58%] h-[58%] text-[var(--neon-glow-color)] opacity-90 transition-opacity group-hover:opacity-100" />
           )}
 
           {item.isFavorite && isSmallGrid && (

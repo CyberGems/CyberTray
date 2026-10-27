@@ -36,8 +36,7 @@ import {
 import { hashPin, verifyPin } from './lib/pin';
 import { createDefaultConfig, applyLegacyDefaults } from './lib/configDefaults';
 import { localResourceUrl, shortcutIconSrc } from './lib/iconSrc';
-import { isUrlPath } from './lib/shortcutPath';
-import UrlLinkIcon from './components/UrlLinkIcon';
+import ShortcutGlyph from './components/ShortcutGlyph';
 import { useBundledAssetUrl } from './lib/useBundledAsset';
 import {
   Search, Plus, Settings, X, Trash2, Info,
@@ -3068,10 +3067,8 @@ export default function App() {
                   <span className="w-5 h-5 rounded bg-slate-900/80 border border-white/5 flex items-center justify-center overflow-hidden shrink-0">
                     {item.iconPath ? (
                       <img src={shortcutIconSrc(item.iconPath)} alt="" className="w-3.5 h-3.5 object-contain" draggable={false} />
-                    ) : isUrlPath(item.path) ? (
-                      <UrlLinkIcon className="w-3 h-3 text-[var(--neon-glow-color)]" />
                     ) : (
-                      <span className="text-[8px] font-cyber font-bold text-slate-500">&gt;_</span>
+                      <ShortcutGlyph className="w-3 h-3 text-[var(--neon-glow-color)]" />
                     )}
                   </span>
                   <span className="font-ui tracking-wide truncate max-w-28" style={{ fontSize: `${density.childChipPx}px` }}>

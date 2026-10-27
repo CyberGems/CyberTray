@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle, Bell, CheckCheck, FolderOpen, Info, LayoutGrid, Monitor, Plus, Store, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Bell, CheckCheck, Info, LayoutGrid, Monitor, Plus, Store, Trash2, X } from 'lucide-react';
 import { translate } from '../locales';
 import { shortcutIconSrc } from '../lib/iconSrc';
-import { isUrlPath } from '../lib/shortcutPath';
 import FolderDropdown from './FolderDropdown';
-import UrlLinkIcon from './UrlLinkIcon';
+import ShortcutGlyph from './ShortcutGlyph';
 import { UNCATEGORIZED_ID, type CyberFolder } from '../lib/appUtils';
 import {
   countUnseenEntries,
@@ -134,10 +133,8 @@ function ItemRow({
             draggable={false}
             onError={() => setIconBroken(true)}
           />
-        ) : isUrlPath(item.path) ? (
-          <UrlLinkIcon className="w-3.5 h-3.5 text-[var(--neon-glow-color)]" />
         ) : (
-          <FolderOpen className="w-3.5 h-3.5 text-slate-600" />
+          <ShortcutGlyph className="w-3.5 h-3.5 text-[var(--neon-glow-color)]" />
         )}
       </span>
       <span className="min-w-0 flex-1 flex flex-col">

@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertTriangle, Check, FileWarning, FolderOpen, Import, RefreshCw, Search, Store, X } from 'lucide-react';
+import { AlertTriangle, Check, FolderOpen, Import, RefreshCw, Search, Store, X } from 'lucide-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { translate } from '../locales';
 import { isElectron } from '../lib/appUtils';
 import { UNCATEGORIZED_ID } from '../lib/appUtils';
 import { shortcutIconSrc } from '../lib/iconSrc';
+import ShortcutGlyph from './ShortcutGlyph';
 import { useModalAccessibility } from '../lib/useModalAccessibility';
 import type { ImportPlan, ImportSourceConfig } from '../lib/shortcutImport';
 import type { TranslationKey } from '../locales';
@@ -302,7 +303,7 @@ export default function ImportSyncModal({ open, onClose, categories, initialSour
                                 <input type="checkbox" disabled={!['create', 'update', 'missing', 'skipped'].includes(item.action)} checked={item.selected} onChange={() => toggleItem(item.key)} className="accent-cyan-400" />
                               </label>
                               <div className="w-9 h-9 shrink-0 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center overflow-hidden">
-                                {item.iconPath ? <img src={shortcutIconSrc(item.iconPath)} alt="" className="w-7 h-7 object-contain" /> : <FileWarning className="w-4 h-4 text-slate-600" />}
+                                {item.iconPath ? <img src={shortcutIconSrc(item.iconPath)} alt="" className="w-7 h-7 object-contain" /> : <ShortcutGlyph className="w-5 h-5 text-[var(--neon-glow-color)]" />}
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">

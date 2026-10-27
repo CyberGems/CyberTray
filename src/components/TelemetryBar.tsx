@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Clock, Cpu, HardDrive, Plus, Sliders } from 'lucide-react';
 import { translate } from '../locales';
 import { shortcutIconSrc } from '../lib/iconSrc';
+import ShortcutGlyph from './ShortcutGlyph';
 
 interface TelemetryBarProps {
   categoriesCount: number;
@@ -128,7 +129,7 @@ export default function TelemetryBar({
                 {item.iconPath ? (
                   <img src={shortcutIconSrc(item.iconPath)} alt="" className="w-5 h-5 object-contain" draggable={false} />
                 ) : (
-                  <span className="text-[10px] font-cyber font-bold text-slate-500">&gt;_</span>
+                  <ShortcutGlyph className="w-4 h-4 text-[var(--neon-glow-color)]" />
                 )}
               </span>
               <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-3.5 h-0.5 rounded-full bg-[var(--logo-accent)] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-[0_0_8px_var(--logo-accent)]" />
