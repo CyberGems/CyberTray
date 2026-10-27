@@ -1,4 +1,5 @@
 import type { CyberFolder } from './appUtils';
+import { UNCATEGORIZED_ID } from './appUtils';
 
 export type ImportSourceKind = 'desktop' | 'start-menu' | 'folder' | 'store';
 
@@ -209,6 +210,16 @@ export function reconcileImport(
   return { items, scannedSourceIds: [...successfulSources] };
 }
 
+/**
+ * Carpeta real de destino. "Todos" es una vista y la bandeja sin categoría
+ * no es una carpeta, así que ninguna de las dos puede usarse como padre.
+ */
+function realTarget(item: ImportPlanItem): string | null {
+  const target = item.targetCategory;
+  if (!target || target === 'all' || target === UNCATEGORIZED_ID) return null;
+  return target;
+}
+
 function ensureImportedCategory(
   categories: CyberFolder[],
   item: ImportPlanItem,
@@ -217,7 +228,7 @@ function ensureImportedCategory(
   const parts = categoryPath(item.relativeFolder);
   if (!parts.length) return categories;
   let next = categories;
-  let parentId: string | null = item.targetCategory && item.targetCategory !== 'all' ? item.targetCategory : null;
+  let parentId: string | null = realTarget(item);
   for (const name of parts) {
     const existing = next.find(folder => folder.parentId === parentId && folder.name.toLowerCase() === name.toLowerCase());
     if (existing) {
@@ -233,14 +244,15 @@ function ensureImportedCategory(
 }
 
 function resolveCategory(categories: CyberFolder[], item: ImportPlanItem): string {
-  if (!item.preserveFolders) return item.targetCategory || 'utils';
-  let parentId: string | null = item.targetCategory && item.targetCategory !== 'all' ? item.targetCategory : null;
+  const fallback = realTarget(item) || UNCATEGORIZED_ID;
+  if (!item.preserveFolders) return fallback;
+  let parentId: string | null = realTarget(item);
   for (const name of categoryPath(item.relativeFolder)) {
     const folder = categories.find(candidate => candidate.parentId === parentId && candidate.name.toLowerCase() === name.toLowerCase());
-    if (!folder) return item.targetCategory || 'utils';
+    if (!folder) return fallback;
     parentId = folder.id;
   }
-  return parentId || item.targetCategory || 'utils';
+  return parentId || fallback;
 }
 
 export function applyImportPlan(

@@ -7,6 +7,15 @@ export const isElectron = !!window.electronAPI;
 
 export const ROOT_FOLDER_ID = 'all';
 
+/**
+ * Bandeja de lo que no tiene carpeta.
+ *
+ * No es una carpeta real: nunca se dibuja en el árbol y no aparece en los
+ * selectores. Los accesos que caen aquí solo se ven en la vista "Todos",
+ * que es justo lo que se busca al no querer una carpeta contenedora.
+ */
+export const UNCATEGORIZED_ID = 'uncategorized';
+
 export interface CyberFolder {
   id: string;
   name: string;
@@ -23,7 +32,6 @@ export const INITIAL_CATEGORIES = [
   { id: 'design', name: 'Design', color: '#ef4444', parentId: null, order: 3 },
   { id: 'dev', name: 'Development', color: '#38bdf8', parentId: null, order: 4 },
   { id: 'gaming', name: 'Gaming', color: '#ec4899', parentId: null, order: 5 },
-  { id: 'utils', name: 'Utilities', color: '#60a5fa', parentId: null, order: 6 },
 ];
 
 /** Clave de traducción del nombre por defecto de cada carpeta. */
@@ -35,7 +43,6 @@ const CATEGORY_NAME_KEYS: Record<string, string> = {
   design: 'folder_design',
   dev: 'folder_dev',
   gaming: 'folder_gaming',
-  utils: 'folder_utils',
 };
 
 /**
@@ -116,7 +123,6 @@ export const normalizeCategoriesList = (list: any[] = []): CyberFolder[] => {
 
 export const normalizeShortcutsList = (list: any[] = [], folders: CyberFolder[]) => {
   const validFolderIds = new Set(folders.map(folder => folder.id));
-  const fallbackFolderId = folders.some(folder => folder.id === 'utils') ? 'utils' : folders.find(folder => folder.id !== ROOT_FOLDER_ID)?.id || 'utils';
 
   return (Array.isArray(list) ? list : [])
     .filter(shortcut => shortcut && shortcut.id !== undefined && typeof shortcut.name === 'string' && typeof shortcut.path === 'string')
@@ -126,7 +132,7 @@ export const normalizeShortcutsList = (list: any[] = [], folders: CyberFolder[])
         ? 'vault'
         : validFolderIds.has(shortcut.category) && shortcut.category !== ROOT_FOLDER_ID
           ? shortcut.category
-          : fallbackFolderId,
+          : UNCATEGORIZED_ID,
     }));
 };
 

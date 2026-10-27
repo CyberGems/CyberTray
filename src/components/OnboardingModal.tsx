@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { ArrowLeft, ArrowRight, Check, LayoutGrid, Monitor, Sparkles, Store, X } from 'lucide-react';
 import { translate } from '../locales';
-import { isElectron } from '../lib/appUtils';
+import { isElectron, UNCATEGORIZED_ID } from '../lib/appUtils';
 import { useModalAccessibility } from '../lib/useModalAccessibility';
 import HotkeyInput from './HotkeyInput';
 import type { ImportSourceConfig } from '../lib/shortcutImport';
@@ -79,7 +79,7 @@ export default function OnboardingModal({
         id: 'desktop:user',
         kind: 'desktop',
         scope: 'user',
-        targetCategory: 'utils',
+        targetCategory: UNCATEGORIZED_ID,
         preserveFolders: false,
         skipUninstallers: true,
         includeFiles: false,
@@ -90,7 +90,7 @@ export default function OnboardingModal({
         id: 'start-menu:user',
         kind: 'start-menu',
         scope: 'user',
-        targetCategory: 'utils',
+        targetCategory: UNCATEGORIZED_ID,
         preserveFolders: false,
         skipUninstallers: true,
         includeFiles: false,
@@ -101,7 +101,7 @@ export default function OnboardingModal({
         id: 'store:apps',
         kind: 'store',
         scope: 'user',
-        targetCategory: 'utils',
+        targetCategory: UNCATEGORIZED_ID,
         preserveFolders: false,
         skipUninstallers: true,
         includeFiles: false,

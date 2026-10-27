@@ -8,6 +8,7 @@ import {
   isVaultLockedState,
   normalizeCategoriesList,
   normalizeShortcutsList,
+  UNCATEGORIZED_ID,
   type CyberFolder,
 } from './appUtils';
 import { setLocale } from '../locales';
@@ -79,12 +80,28 @@ describe('normalizeShortcutsList', () => {
     expect(result[0].id).toBe(1);
   });
 
-  it('mueve a la carpeta por defecto los accesos con categoría inexistente', () => {
+  it('mueve a la bandeja sin categoría los accesos con categoría inexistente', () => {
     const result = normalizeShortcutsList(
       [{ id: 1, name: 'ok', path: 'C:/a.exe', category: 'inexistente' }],
       folders
     );
-    expect(result[0].category).toBe('utils');
+    expect(result[0].category).toBe(UNCATEGORIZED_ID);
+  });
+
+  it('no deja accesos colgando de la vista raíz', () => {
+    const result = normalizeShortcutsList(
+      [{ id: 1, name: 'ok', path: 'C:/a.exe', category: ROOT_FOLDER_ID }],
+      folders
+    );
+    expect(result[0].category).toBe(UNCATEGORIZED_ID);
+  });
+
+  it('conserva la carpeta cuando existe', () => {
+    const result = normalizeShortcutsList(
+      [{ id: 1, name: 'ok', path: 'C:/a.exe', category: 'dev' }],
+      folders
+    );
+    expect(result[0].category).toBe('dev');
   });
 
   it('respeta la categoría de la bóveda', () => {
@@ -170,7 +187,14 @@ describe('getDefaultCategories', () => {
     setLocale('en');
     const english = getDefaultCategories();
 
-    expect(spanish.find((f) => f.id === 'utils')?.name).toBe('Utilidades');
-    expect(english.find((f) => f.id === 'utils')?.name).toBe('Utilities');
+    expect(spanish.find((f) => f.id === 'browsers')?.name).toBe('Navegadores');
+    expect(english.find((f) => f.id === 'browsers')?.name).toBe('Browsers');
+  });
+
+  it('no incluye una carpeta contenedora de lo que no tiene categoría', () => {
+    setLocale('en');
+    const ids = getDefaultCategories().map((f) => f.id);
+    expect(ids).not.toContain(UNCATEGORIZED_ID);
+    expect(ids).not.toContain('utils');
   });
 });

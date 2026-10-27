@@ -27,6 +27,7 @@ import {
   getFolderPath,
   densityFromIconSize,
   isVaultLockedState,
+  UNCATEGORIZED_ID,
   ICON_SIZE_MIN,
   ICON_SIZE_MAX,
 } from './lib/appUtils';
@@ -515,7 +516,7 @@ export default function App() {
   const [formArgs, setFormArgs] = useState<string>('');
   const [formCwd, setFormCwd] = useState<string>('');
   const [formDelay, setFormDelay] = useState<number>(0);
-  const [formCategory, setFormCategory] = useState<string>('utils');
+  const [formCategory, setFormCategory] = useState<string>(UNCATEGORIZED_ID);
   const [formAdmin, setFormAdmin] = useState<boolean>(false);
   const [formHotkey, setFormHotkey] = useState<string>('');
   const [formIconPath, setFormIconPath] = useState<string>('');
@@ -802,7 +803,7 @@ export default function App() {
     setFormArgs('');
     setFormCwd('');
       setFormDelay(0);
-      setFormCategory('utils');
+      setFormCategory(UNCATEGORIZED_ID);
       setFormAdmin(false);
       setFormHotkey('');
       setFormIconPath('');
@@ -1250,7 +1251,7 @@ export default function App() {
     // visible (Favoritos no es una categoría real, sino el flag isFavorite).
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const targetCategory =
-        activeCategory === 'all' || activeCategory === 'favorites' ? 'utils' : activeCategory;
+        activeCategory === 'all' || activeCategory === 'favorites' ? UNCATEGORIZED_ID : activeCategory;
       await importDroppedFiles(e.dataTransfer.files, targetCategory, { markFavorite: true });
       return;
     }
@@ -1280,7 +1281,7 @@ export default function App() {
     // Archivos del sistema soltados directamente sobre una pestaña/categoría:
     // importarlos (uno o varios) asignándolos a esa categoría concreta.
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      await importDroppedFiles(e.dataTransfer.files, cat.id === 'all' ? 'utils' : cat.id);
+      await importDroppedFiles(e.dataTransfer.files, cat.id === 'all' ? UNCATEGORIZED_ID : cat.id);
       return;
     }
 
@@ -1339,7 +1340,7 @@ export default function App() {
             if (s.id === shortcutId) {
               return {
                 ...s,
-                category: cat.id === 'all' ? 'utils' : cat.id,
+                category: cat.id === 'all' ? UNCATEGORIZED_ID : cat.id,
                 path: finalPath,
                 iconPath: finalIconPath,
                 name: finalName,
@@ -1361,9 +1362,9 @@ export default function App() {
     if (e.dataTransfer.files.length === 0) return;
 
     // Soltado sobre el cuerpo del panel: agregar a la categoría activa
-    // (o 'utils' por defecto cuando estamos en "Todos"/"Favoritos").
+    // (o la bandeja sin categoría cuando estamos en "Todos"/"Favoritos").
     const targetCategory =
-      activeCategory === 'all' || activeCategory === 'favorites' ? 'utils' : activeCategory;
+      activeCategory === 'all' || activeCategory === 'favorites' ? UNCATEGORIZED_ID : activeCategory;
     await importDroppedFiles(e.dataTransfer.files, targetCategory);
   };
 
@@ -1510,7 +1511,7 @@ export default function App() {
 
   const defaultShortcutFolder = () => (
     activeCategory === 'all' || activeCategory === 'favorites' || activeCategory === 'vault'
-      ? 'utils'
+      ? UNCATEGORIZED_ID
       : activeCategory
   );
 
@@ -1928,12 +1929,12 @@ export default function App() {
   };
 
   const handleDeleteCategory = async (id: string) => {
-    if (id === 'all' || id === 'utils') return; // Protegidos
+    if (id === 'all') return; // "Todos" es una vista, no una carpeta
     const targetFolder = categories.find(folder => folder.id === id);
     if (!targetFolder) return;
 
     const removedIds = new Set([id, ...getDescendantFolderIds(categories, id)]);
-    const destination = targetFolder.parentId || 'utils';
+    const destination = targetFolder.parentId || UNCATEGORIZED_ID;
     showConfirm(
       translate('folder_delete_confirm_title'),
       translate('folder_delete_confirm_desc'),

@@ -12,6 +12,7 @@ import { scanImportSources } from './importScanner';
 import { activateStoreApp, isStoreAppUserModelId, resolveStoreAppLauncher } from './store-app-launch';
 import { applyImportPlan, reconcileImport, type ImportPlan, type ImportSourceConfig, type ShortcutRecord } from '../src/lib/shortcutImport';
 import type { CyberFolder } from '../src/lib/appUtils';
+import { UNCATEGORIZED_ID } from '../src/lib/appUtils';
 import { createBackupService } from './backups';
 import { normalizeBackupFolder, parseBackupHours, parseBackupKeep } from '../src/lib/backup';
 
@@ -1755,7 +1756,7 @@ function normalizeImportSources(input: unknown): ImportSourceConfig[] {
       ...(sourcePath ? { path: path.normalize(sourcePath) } : {}),
       scope: source.scope === 'common' ? 'common' as const : 'user' as const,
       ...(source.label ? { label: String(source.label).slice(0, 240) } : {}),
-      targetCategory: String(source.targetCategory || 'utils').slice(0, 200),
+      targetCategory: String(source.targetCategory || UNCATEGORIZED_ID).slice(0, 200),
       preserveFolders: source.preserveFolders !== false,
       skipUninstallers: source.skipUninstallers !== false,
       includeFiles: source.includeFiles === true,
@@ -1765,10 +1766,9 @@ function normalizeImportSources(input: unknown): ImportSourceConfig[] {
 
 function currentImportCategories(): CyberFolder[] {
   if (Array.isArray(config.categoriesList) && config.categoriesList.length) return config.categoriesList;
-  return [
-    { id: 'all', name: 'All', color: '#a1a1a1', parentId: null, order: -1 },
-    { id: 'utils', name: 'Utilities', color: '#60a5fa', parentId: null, order: 0 },
-  ];
+  // Sin carpetas guardadas solo existe la vista raíz: los accesos importados
+  // caen en la bandeja sin categoría, que no es una carpeta.
+  return [{ id: 'all', name: 'All', color: '#a1a1a1', parentId: null, order: -1 }];
 }
 
 async function scanAndPlanImport(

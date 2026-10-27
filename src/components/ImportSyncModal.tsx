@@ -4,6 +4,7 @@ import { AlertTriangle, Check, FileWarning, FolderOpen, Import, RefreshCw, Searc
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { translate } from '../locales';
 import { isElectron } from '../lib/appUtils';
+import { UNCATEGORIZED_ID } from '../lib/appUtils';
 import { shortcutIconSrc } from '../lib/iconSrc';
 import { useModalAccessibility } from '../lib/useModalAccessibility';
 import type { ImportPlan, ImportSourceConfig } from '../lib/shortcutImport';
@@ -20,11 +21,11 @@ interface ImportSyncModalProps {
 }
 
 const DEFAULT_SOURCES: ImportSourceConfig[] = [
-  { id: 'desktop:user', kind: 'desktop', scope: 'user', targetCategory: 'utils', preserveFolders: false, skipUninstallers: true, includeFiles: false },
-  { id: 'desktop:common', kind: 'desktop', scope: 'common', targetCategory: 'utils', preserveFolders: false, skipUninstallers: true, includeFiles: false },
-  { id: 'start-menu:user', kind: 'start-menu', scope: 'user', targetCategory: 'utils', preserveFolders: true, skipUninstallers: true, includeFiles: false },
-  { id: 'start-menu:common', kind: 'start-menu', scope: 'common', targetCategory: 'utils', preserveFolders: true, skipUninstallers: true, includeFiles: false },
-  { id: 'store:apps', kind: 'store', scope: 'user', targetCategory: 'utils', preserveFolders: false, skipUninstallers: true, includeFiles: false },
+  { id: 'desktop:user', kind: 'desktop', scope: 'user', targetCategory: UNCATEGORIZED_ID, preserveFolders: false, skipUninstallers: true, includeFiles: false },
+  { id: 'desktop:common', kind: 'desktop', scope: 'common', targetCategory: UNCATEGORIZED_ID, preserveFolders: false, skipUninstallers: true, includeFiles: false },
+  { id: 'start-menu:user', kind: 'start-menu', scope: 'user', targetCategory: UNCATEGORIZED_ID, preserveFolders: true, skipUninstallers: true, includeFiles: false },
+  { id: 'start-menu:common', kind: 'start-menu', scope: 'common', targetCategory: UNCATEGORIZED_ID, preserveFolders: true, skipUninstallers: true, includeFiles: false },
+  { id: 'store:apps', kind: 'store', scope: 'user', targetCategory: UNCATEGORIZED_ID, preserveFolders: false, skipUninstallers: true, includeFiles: false },
 ];
 
 function sourceLabel(source: ImportSourceConfig): string {
@@ -95,7 +96,7 @@ export default function ImportSyncModal({ open, onClose, categories, initialSour
     const id = `folder:${selected.toLowerCase()}`;
     setSources(current => [
       ...current.filter(source => source.id !== id),
-      { id, kind: 'folder', path: selected, label: selected, targetCategory: 'utils', preserveFolders: true, skipUninstallers: true, includeFiles: true },
+      { id, kind: 'folder', path: selected, label: selected, targetCategory: UNCATEGORIZED_ID, preserveFolders: true, skipUninstallers: true, includeFiles: true },
     ]);
     setPlan(null);
   };
@@ -239,7 +240,8 @@ export default function ImportSyncModal({ open, onClose, categories, initialSour
 
                 <div>
                   <label className="text-[10px] font-cyber font-bold text-slate-400 tracking-widest">{translate('import_target_category')}</label>
-                  <select value={sources[0]?.targetCategory || 'utils'} disabled={busy} onChange={event => updateSources({ targetCategory: event.target.value })} className="mt-2 w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200">
+                  <select value={sources[0]?.targetCategory || UNCATEGORIZED_ID} disabled={busy} onChange={event => updateSources({ targetCategory: event.target.value })} className="mt-2 w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200">
+                    <option value={UNCATEGORIZED_ID}>{translate('folder_uncategorized')}</option>
                     {categories.filter(category => category.id !== 'all' && category.id !== 'vault').map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
                   </select>
                 </div>
@@ -309,7 +311,7 @@ export default function ImportSyncModal({ open, onClose, categories, initialSour
                                   {!item.exists && item.action !== 'missing' && <AlertTriangle className="w-3 h-3 text-amber-400" />}
                                 </div>
                                 <p className="text-[10px] font-mono text-slate-500 truncate" onMouseEnter={event => showTooltip(event, item.path || item.sourcePath)} onMouseLeave={hideTooltip}>{item.path || item.sourcePath}</p>
-                                <p className="text-[9px] text-slate-600 truncate">{sourceLabel(sources.find(source => source.id === item.sourceId) || { kind: 'folder', id: item.sourceId, targetCategory: 'utils', preserveFolders: false, skipUninstallers: true, includeFiles: false })}{item.relativeFolder ? ` · ${item.relativeFolder}` : ''}{item.changedFields?.length ? ` · ${item.changedFields.join(', ')}` : ''}</p>
+                                <p className="text-[9px] text-slate-600 truncate">{sourceLabel(sources.find(source => source.id === item.sourceId) || { kind: 'folder', id: item.sourceId, targetCategory: UNCATEGORIZED_ID, preserveFolders: false, skipUninstallers: true, includeFiles: false })}{item.relativeFolder ? ` · ${item.relativeFolder}` : ''}{item.changedFields?.length ? ` · ${item.changedFields.join(', ')}` : ''}</p>
                               </div>
                               {item.selected && <Check className="w-4 h-4 text-cyan-400 shrink-0" />}
                             </div>

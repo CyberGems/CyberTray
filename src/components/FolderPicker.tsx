@@ -1,17 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Folder, FolderOpen, Search, Shield } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder, FolderOpen, Inbox, Search, Shield } from 'lucide-react';
 import { translate } from '../locales';
 import {
   CyberFolder,
   getChildFolders,
   getFolderPath,
   ROOT_FOLDER_ID,
+  UNCATEGORIZED_ID,
 } from '../lib/appUtils';
 
 const VAULT_ID = 'vault';
 
 function displayPath(folders: CyberFolder[], folderId: string): string {
   if (folderId === VAULT_ID) return translate('explorer_vault');
+  if (folderId === UNCATEGORIZED_ID) return translate('folder_uncategorized');
   const path = getFolderPath(folders, folderId).filter(folder => folder.id !== ROOT_FOLDER_ID);
   if (path.length === 0) return translate('app_folder_placeholder');
   return path.map(folder => folder.name).join(' / ');
@@ -253,6 +255,16 @@ export default function FolderPicker({
                 >
                   <Shield className="w-4 h-4 text-purple-400 shrink-0" />
                   <span className="truncate text-[13px]">{vaultLabel}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectFolder(UNCATEGORIZED_ID)}
+                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left cursor-pointer mb-0.5 ${
+                    value === UNCATEGORIZED_ID ? 'bg-cyan-500/10 text-white' : 'text-slate-300 hover:bg-white/5'
+                  }`}
+                >
+                  <Inbox className="w-4 h-4 text-slate-400 shrink-0" />
+                  <span className="truncate text-[13px]">{translate('folder_uncategorized')}</span>
                 </button>
                 <div className="border-t border-white/5 my-1" />
                 {renderTree(null, 0)}

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CyberFolder } from './appUtils';
+import { UNCATEGORIZED_ID } from './appUtils';
 import {
   applyImportPlan,
   buildLaunchKey,
@@ -452,5 +453,32 @@ describe('ignorableShortcutReason', () => {
     'LicenseManager',
   ])('does not falsely classify ordinary name %s', name => {
     expect(ignorableShortcutReason(name, `C:/Tools/${name}.exe`, `C:/Shortcuts/${name}.lnk`)).toBeNull();
+  });
+});
+
+describe('uncategorized bucket', () => {
+  it('falls back to the uncategorized bucket instead of a real folder', () => {
+    const plan = reconcileImport([], categories(), [
+      scanned({ targetCategory: 'all', preserveFolders: false }),
+      scanned({
+        targetCategory: '',
+        preserveFolders: false,
+        sourcePath: 'C:/Import/B.lnk',
+        path: 'C:/Apps/B.exe',
+        name: 'B',
+      }),
+    ]);
+    const result = applyImportPlan([], categories(), plan);
+    expect(result.shortcuts.map(item => item.category)).toEqual([UNCATEGORIZED_ID, UNCATEGORIZED_ID]);
+  });
+
+  it('does not hang imported subfolders off the root view or the bucket', () => {
+    const plan = reconcileImport([], categories(), [
+      scanned({ targetCategory: UNCATEGORIZED_ID, preserveFolders: true, relativeFolder: 'Vendor' }),
+    ]);
+    const result = applyImportPlan([], categories(), plan);
+    const folder = result.categories.find(item => item.name === 'Vendor');
+    expect(folder?.parentId).toBeNull();
+    expect(result.shortcuts[0].category).toBe(folder?.id);
   });
 });

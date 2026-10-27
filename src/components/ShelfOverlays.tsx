@@ -207,7 +207,7 @@ export default function ShelfOverlays({
                 setCategoryMenu(null);
                 handleDeleteCategory(cat.id);
               }}
-              disabled={categoryMenu.category.id === 'all' || categoryMenu.category.id === 'utils'}
+              disabled={categoryMenu.category.id === 'all'}
               className="w-full py-1.5 px-3 text-left text-xs rounded hover:bg-red-950 hover:text-red-400 disabled:opacity-40 disabled:hover:bg-transparent text-red-500 flex items-center gap-2 cursor-pointer border-0 bg-transparent"
             >
               <Trash2 className="w-3.5 h-3.5" />
