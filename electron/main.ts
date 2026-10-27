@@ -10,11 +10,13 @@ import { initUpdater } from './updater';
 import { createDefaultConfig, sanitizeConfig, type CyberTrayConfig } from '../src/lib/configDefaults';
 import { scanImportSources } from './importScanner';
 import { activateStoreApp, isStoreAppUserModelId, resolveStoreAppLauncher } from './store-app-launch';
-import { applyImportPlan, reconcileImport, type ImportPlan, type ImportSourceConfig, type ShortcutRecord } from '../src/lib/shortcutImport';
+import { applyImportPlan, reconcileImport, type ImportPlan, type ImportSourceConfig, type ScannedShortcut, type ShortcutRecord } from '../src/lib/shortcutImport';
 import type { CyberFolder } from '../src/lib/appUtils';
 import { UNCATEGORIZED_ID } from '../src/lib/appUtils';
 import { createBackupService } from './backups';
 import { normalizeBackupFolder, parseBackupHours, parseBackupKeep } from '../src/lib/backup';
+import { refreshDesktopWatcher, markWatcherItemsHandled, stopDesktopWatcher, resetDesktopWatcherBaseline } from './desktop-watcher';
+import { readWatcherSettings } from '../src/lib/desktopWatcher';
 
 // Versiones asíncronas: nunca usar execSync en el proceso main, bloquea el
 // tray, la ventana y todo el IPC mientras el hijo de PowerShell corre.
@@ -622,6 +624,194 @@ function hideCustomTrayMenu() {
   }
 }
 
+// ── AVISO DEL VIGILANTE DE ESCRITORIO ──
+//
+// Ventana propia, no reutiliza la bandeja: la bandeja se oculta al perder el
+// foco y el aviso debe poder quedarse mientras el usuario decide. Aparece sin
+// activarse (`showInactive`) para no robar el foco a lo que estés haciendo.
+
+const WATCHER_PROMPT_WIDTH = 392;
+/** Alto del marco: cabecera, selector de carpeta y botones. */
+const WATCHER_PROMPT_CHROME = 150;
+/** Alto de cada elemento listado. */
+const WATCHER_PROMPT_ROW = 40;
+const WATCHER_PROMPT_MARGIN = 12;
+
+let watcherPromptWin: BrowserWindow | null = null;
+let watcherPromptTimer: NodeJS.Timeout | null = null;
+let watcherPromptItems: ScannedShortcut[] = [];
+
+function getWatcherPromptHtmlPath(): string {
+  const candidates = [
+    path.join(__dirname, '../public/watcher/watcher-prompt.html'),
+    path.join(__dirname, '../dist/watcher/watcher-prompt.html'),
+    path.join(app.getAppPath(), 'public/watcher/watcher-prompt.html'),
+    path.join(app.getAppPath(), 'dist/watcher/watcher-prompt.html'),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return candidates[0];
+}
+
+function watcherPromptHeight(itemCount: number): number {
+  return WATCHER_PROMPT_CHROME + Math.max(1, itemCount) * WATCHER_PROMPT_ROW;
+}
+
+/** Esquina inferior derecha del monitor donde está el puntero. */
+function watcherPromptBounds(itemCount: number) {
+  const cursor = screen.getCursorScreenPoint();
+  const display = screen.getDisplayNearestPoint(cursor);
+  const area = display.workArea;
+  const height = watcherPromptHeight(itemCount);
+  return {
+    x: area.x + area.width - WATCHER_PROMPT_WIDTH - WATCHER_PROMPT_MARGIN,
+    y: area.y + area.height - height - WATCHER_PROMPT_MARGIN,
+    width: WATCHER_PROMPT_WIDTH,
+    height,
+  };
+}
+
+/** Carpetas reales que se pueden elegir como destino del aviso. */
+function watcherPromptFolders() {
+  const folders = Array.isArray(config.categoriesList) ? config.categoriesList : [];
+  return folders
+    .filter((folder: any) => folder && folder.id && folder.id !== 'all' && folder.id !== 'vault')
+    .map((folder: any) => ({ id: String(folder.id), name: String(folder.name || folder.id) }));
+}
+
+function buildWatcherPromptState() {
+  return {
+    lang: config.language === 'es' ? 'es' : 'en',
+    seconds: readWatcherSettings(config).promptSeconds,
+    items: watcherPromptItems.map(item => ({
+      key: item.key,
+      name: item.name,
+      path: item.path,
+      iconPath: item.iconPath || '',
+      isStore: /^[^\\/]+_[a-z0-9]+!/i.test(item.path || ''),
+    })),
+    folders: watcherPromptFolders(),
+    defaultFolderId: UNCATEGORIZED_ID,
+  };
+}
+
+function ensureWatcherPromptWindow(): BrowserWindow {
+  if (watcherPromptWin && !watcherPromptWin.isDestroyed()) return watcherPromptWin;
+
+  watcherPromptWin = new BrowserWindow({
+    width: WATCHER_PROMPT_WIDTH,
+    height: watcherPromptHeight(1),
+    show: false,
+    frame: false,
+    transparent: true,
+    hasShadow: false,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    focusable: true,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.mjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      backgroundThrottling: false,
+    },
+  });
+
+  watcherPromptWin.setAlwaysOnTop(true, 'screen-saver');
+  void watcherPromptWin.loadFile(getWatcherPromptHtmlPath());
+
+  watcherPromptWin.on('closed', () => {
+    watcherPromptWin = null;
+  });
+
+  return watcherPromptWin;
+}
+
+function hideWatcherPrompt(): void {
+  if (watcherPromptTimer) { clearTimeout(watcherPromptTimer); watcherPromptTimer = null; }
+  watcherPromptItems = [];
+  if (watcherPromptWin && !watcherPromptWin.isDestroyed() && watcherPromptWin.isVisible()) {
+    watcherPromptWin.hide();
+  }
+}
+
+/**
+ * Muestra el aviso. Si ya hay uno abierto se reemplaza: dos avisos apilados
+ * serían peores que uno con la lista actualizada.
+ */
+function showWatcherPrompt(items: ScannedShortcut[]): void {
+  if (items.length === 0) return;
+  watcherPromptItems = items;
+
+  const win = ensureWatcherPromptWindow();
+  win.setBounds(watcherPromptBounds(items.length));
+
+  const reveal = () => {
+    if (!watcherPromptWin || watcherPromptWin.isDestroyed()) return;
+    watcherPromptWin.webContents.send('watcher-prompt-state', buildWatcherPromptState());
+    watcherPromptWin.showInactive();
+    if (watcherPromptTimer) clearTimeout(watcherPromptTimer);
+    const seconds = readWatcherSettings(config).promptSeconds;
+    watcherPromptTimer = setTimeout(() => {
+      watcherPromptTimer = null;
+      // Cerrar sin decidir equivale a ignorar: se marca como visto para que no
+      // vuelva a preguntar por lo mismo.
+      markWatcherItemsHandled(watcherPromptItems.map(item => item.key));
+      hideWatcherPrompt();
+    }, seconds * 1000);
+  };
+
+  if (win.webContents.isLoading()) {
+    win.webContents.once('did-finish-load', reveal);
+  } else {
+    reveal();
+  }
+}
+
+/** Añade a la librería los elementos elegidos del aviso. */
+function addWatcherItems(keys: string[], requestedFolderId: string): { added: number; folderId: string } {
+  const validIds = new Set((config.categoriesList || []).map((folder: any) => String(folder?.id || '')));
+  const folderId = validIds.has(requestedFolderId) && requestedFolderId !== 'all' && requestedFolderId !== 'vault'
+    ? requestedFolderId
+    : UNCATEGORIZED_ID;
+
+  const chosen = watcherPromptItems.filter(item => keys.includes(item.key));
+  if (chosen.length === 0) return { added: 0, folderId };
+
+  const list: any[] = Array.isArray(config.shortcutsList) ? [...config.shortcutsList] : [];
+  const knownPaths = new Set(list.map(entry => String(entry?.path || '').toLowerCase()));
+  let added = 0;
+
+  chosen.forEach((item, index) => {
+    const pathKey = String(item.path || '').toLowerCase();
+    if (!pathKey || knownPaths.has(pathKey)) return;
+    knownPaths.add(pathKey);
+    list.push({
+      id: Date.now() + index,
+      name: item.name,
+      path: item.path,
+      category: folderId,
+      iconPath: item.iconPath || '',
+      isAdmin: false,
+      delay: 0,
+      arguments: item.arguments || '',
+      cwd: item.cwd || '',
+      usageCount: 0,
+      addedTimestamp: Date.now(),
+    });
+    added += 1;
+  });
+
+  if (added > 0) saveConfig({ shortcutsList: list });
+  markWatcherItemsHandled(chosen.map(item => item.key));
+  return { added, folderId };
+}
+
 function updateCustomTrayMenuState() {
   if (trayMenuWin && !trayMenuWin.isDestroyed() && !trayMenuWin.webContents.isLoading()) {
     trayMenuWin.webContents.send('tray-menu-state', buildTrayMenuState(false));
@@ -744,6 +934,18 @@ function saveConfig(
       JSON.stringify(previous.hotspotCorners) !== JSON.stringify(config.hotspotCorners);
     if (hotspotsChanged) {
       startHotspotPolling();
+    }
+
+    // El vigilante se reconfigura solo si cambió algo que le afecte: encenderlo,
+    // apagarlo o mover sus fuentes. Cambiar la duración del aviso no re-escanea.
+    const watcherChanged =
+      previous.watcherEnabled !== config.watcherEnabled ||
+      previous.watcherWatchDesktop !== config.watcherWatchDesktop ||
+      previous.watcherWatchStartMenu !== config.watcherWatchStartMenu ||
+      previous.watcherWatchStore !== config.watcherWatchStore;
+    if (watcherChanged) {
+      startDesktopWatcherIfEnabled();
+      if (!config.watcherEnabled) hideWatcherPrompt();
     }
     return true;
   } catch (err) {
@@ -2302,6 +2504,35 @@ function registerIpcHandlers() {
     }
   });
 
+  // --- Vigilante de escritorio y menú Inicio ---
+  ipcMain.handle('watcher:add', (_event, payload: { keys?: unknown; categoryId?: unknown }) => {
+    const keys = Array.isArray(payload?.keys) ? payload!.keys.filter((key): key is string => typeof key === 'string') : [];
+    const categoryId = typeof payload?.categoryId === 'string' ? payload.categoryId : UNCATEGORIZED_ID;
+    const result = addWatcherItems(keys, categoryId);
+    hideWatcherPrompt();
+    return { success: result.added > 0, ...result };
+  });
+
+  ipcMain.handle('watcher:dismiss', () => {
+    markWatcherItemsHandled(watcherPromptItems.map(item => item.key));
+    hideWatcherPrompt();
+    return { success: true };
+  });
+
+  /** Fuerza un ciclo del vigilante; usado por el botón "Comprobar ahora". */
+  ipcMain.handle('watcher:check-now', () => {
+    resetDesktopWatcherBaseline();
+    return { success: true };
+  });
+
+  ipcMain.handle('watcher:status', () => {
+    const settings = readWatcherSettings(config);
+    return {
+      ...settings,
+      promptVisible: Boolean(watcherPromptWin && !watcherPromptWin.isDestroyed() && watcherPromptWin.isVisible()),
+    };
+  });
+
   // --- Respaldo automático de la configuración ---
   ipcMain.handle('backup:status', () => backupService.status());
   ipcMain.handle('backup:now', () => backupService.run('manual'));
@@ -2757,6 +2988,19 @@ function registerLocalResourceProtocol() {
 
 
 // ── INICIALIZACIÓN ──
+/**
+ * Arranca (o reinicia) el vigilante con la configuración actual. El vigilante
+ * solo lee: si está apagado no se registra ningún `fs.watch` ni ningún sondeo.
+ */
+function startDesktopWatcherIfEnabled(): void {
+  refreshDesktopWatcher({
+    resolveFile: resolveFullFileInfo,
+    getConfig: () => config as unknown as Record<string, unknown>,
+    onDetected: items => showWatcherPrompt(items),
+    onError: message => console.warn('[WATCHER]', message),
+  });
+}
+
 app.whenReady().then(async () => {
   if (!gotTheLock) return;
   loadConfig();
@@ -2775,6 +3019,7 @@ app.whenReady().then(async () => {
   updateCachedDisplays();
   startHotspotPolling();
   startUACGuard();
+  startDesktopWatcherIfEnabled();
   // Respaldo automático: comprueba al arrancar (diferido) y luego cada minuto.
   backupService.start();
 
@@ -2846,5 +3091,6 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   unregisterShortcutHotkeys();
   stopHotspotPolling();
+  stopDesktopWatcher();
   backupService.stop();
 });

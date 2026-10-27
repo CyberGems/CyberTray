@@ -170,6 +170,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
   },
 
+  // --- Vigilante de escritorio ---
+  watcher: {
+    onPrompt: (callback: (state: any) => void) => {
+      const handler = (_event: any, state: any) => callback(state);
+      ipcRenderer.on('watcher-prompt-state', handler);
+      return () => { ipcRenderer.removeListener('watcher-prompt-state', handler); };
+    },
+    add: (payload: { keys: string[]; categoryId: string }) => ipcRenderer.invoke('watcher:add', payload),
+    dismiss: () => ipcRenderer.invoke('watcher:dismiss'),
+    checkNow: () => ipcRenderer.invoke('watcher:check-now'),
+    status: () => ipcRenderer.invoke('watcher:status'),
+  },
+
   // --- Custom tray menu ---
   trayMenu: {
     onState: (callback: (state: any) => void) => {

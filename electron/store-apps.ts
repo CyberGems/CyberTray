@@ -111,6 +111,46 @@ function persistStoreIcon(aumid: string, dataUrl: string): string {
   }
 }
 
+/**
+ * Lista barata de apps de Microsoft Store: solo nombre y AUMID, sin leer
+ * manifiestos ni extraer iconos. Sirve para detectar altas nuevas sin pagar el
+ * coste del escaneo completo, que se reserva para cuando hay algo que enseñar.
+ */
+const START_APPS_SCRIPT = String.raw`
+$ErrorActionPreference = 'SilentlyContinue'
+$tab = [char]9
+$rows = @(Get-StartApps | Where-Object { $_.AppID -like '*!*' -and $_.AppID -like '*_*' })
+foreach ($row in $rows) { $row.AppID + $tab + $row.Name }
+`;
+
+export async function listStartAppIds(signal?: AbortSignal): Promise<Array<{ aumid: string; name: string }>> {
+  if (process.platform !== 'win32') return [];
+  try {
+    const { stdout } = await execFileAsync('powershell.exe', [
+      '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', START_APPS_SCRIPT,
+    ], {
+      windowsHide: true,
+      timeout: 20_000,
+      maxBuffer: 4 * 1024 * 1024,
+      encoding: 'utf8',
+      signal,
+    });
+    const apps: Array<{ aumid: string; name: string }> = [];
+    for (const line of String(stdout || '').split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const tab = trimmed.indexOf('\t');
+      if (tab <= 0) continue;
+      const aumid = trimmed.slice(0, tab).trim();
+      const name = trimmed.slice(tab + 1).trim();
+      if (aumid && name) apps.push({ aumid, name });
+    }
+    return apps;
+  } catch {
+    return [];
+  }
+}
+
 export async function scanStoreApps(signal?: AbortSignal): Promise<StoreAppInfo[]> {
   if (process.platform !== 'win32') return [];
   const tempPath = path.join(os.tmpdir(), `cybertray-store-${process.pid}-${Date.now()}.ps1`);

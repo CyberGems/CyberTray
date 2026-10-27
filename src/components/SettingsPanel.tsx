@@ -3,11 +3,16 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   AlertTriangle, Archive, ArrowUpDown, Droplets, Download, Eye, FileJson, FolderOpen, Globe,
   Grid, HardDrive, Image as ImageIcon, Keyboard, LayoutGrid, List as ListIcon,
-  Lock, Monitor, MousePointer2, Palette, Pin, Power, RotateCcw, Shield, Sliders, Sparkles, Terminal,
-  Trash2, Upload, Volume2, type LucideIcon,
+  Lock, Monitor, MousePointer2, Palette, Pin, Power, Radar, RotateCcw, Shield, Sliders, Sparkles, Store, Terminal,
+  Timer, Trash2, Upload, Volume2, type LucideIcon,
 } from 'lucide-react';
 import { translate } from '../locales';
 import { isElectron, getDefaultCategories } from '../lib/appUtils';
+import {
+  DEFAULT_WATCHER_PROMPT_SECONDS,
+  WATCHER_MAX_PROMPT_SECONDS,
+  WATCHER_MIN_PROMPT_SECONDS,
+} from '../lib/desktopWatcher';
 import HotkeyInput from './HotkeyInput';
 import { hashPin, verifyPin } from '../lib/pin';
 import { useBundledAssetUrl } from '../lib/useBundledAsset';
@@ -534,6 +539,69 @@ export default function SettingsPanel({
                           if (isElectron) window.electronAPI!.setAutoLaunch(next);
                         }}
                       />
+                    </div>
+
+                    {/* Vigilante de escritorio */}
+                    <div className="space-y-2">
+                      <ToggleCard
+                        icon={Radar}
+                        tone="cyan"
+                        title={translate('watcher_title')}
+                        desc={translate('watcher_desc')}
+                        on={!!config.watcherEnabled}
+                        onClick={() => handleUpdateConfigSetting('watcherEnabled', !config.watcherEnabled)}
+                      />
+                      {!!config.watcherEnabled && (
+                        <div className="ml-3 pl-3 border-l border-slate-800 space-y-2">
+                          <ToggleCard
+                            icon={Monitor}
+                            tone="slate"
+                            title={translate('watcher_desktop')}
+                            desc={translate('watcher_desktop_desc')}
+                            on={config.watcherWatchDesktop !== false}
+                            onClick={() => handleUpdateConfigSetting('watcherWatchDesktop', config.watcherWatchDesktop === false)}
+                          />
+                          <ToggleCard
+                            icon={LayoutGrid}
+                            tone="slate"
+                            title={translate('watcher_start_menu')}
+                            desc={translate('watcher_start_menu_desc')}
+                            on={config.watcherWatchStartMenu !== false}
+                            onClick={() => handleUpdateConfigSetting('watcherWatchStartMenu', config.watcherWatchStartMenu === false)}
+                          />
+                          <ToggleCard
+                            icon={Store}
+                            tone="slate"
+                            title={translate('watcher_store')}
+                            desc={translate('watcher_store_desc')}
+                            on={config.watcherWatchStore !== false}
+                            onClick={() => handleUpdateConfigSetting('watcherWatchStore', config.watcherWatchStore === false)}
+                          />
+                          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-slate-800 bg-slate-900/40">
+                            <Timer className="w-4 h-4 text-slate-400 shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-slate-200">{translate('watcher_prompt_seconds')}</p>
+                              <p className="text-[11px] text-slate-500">{translate('watcher_prompt_seconds_desc')}</p>
+                            </div>
+                            <input
+                              type="range"
+                              min={WATCHER_MIN_PROMPT_SECONDS}
+                              max={WATCHER_MAX_PROMPT_SECONDS}
+                              step={1}
+                              value={config.watcherPromptSeconds ?? DEFAULT_WATCHER_PROMPT_SECONDS}
+                              onChange={(e) => handleUpdateConfigSetting('watcherPromptSeconds', parseInt(e.target.value, 10))}
+                              className="w-24 accent-cyan-400 h-1 bg-slate-800 rounded-full cursor-pointer shrink-0"
+                              aria-label={translate('watcher_prompt_seconds')}
+                            />
+                            <span className="w-8 text-right text-xs font-mono text-cyan-300 shrink-0">
+                              {config.watcherPromptSeconds ?? DEFAULT_WATCHER_PROMPT_SECONDS}s
+                            </span>
+                          </div>
+                          <p className="px-1 text-[11px] text-slate-500 leading-relaxed">
+                            {translate('watcher_restart_note')}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {/* Hotspot Corners */}

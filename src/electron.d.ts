@@ -73,6 +73,20 @@ declare global {
       setDragActive: (active: boolean) => Promise<void>;
       onShelfStateChange: (callback: (visible: boolean) => void) => () => void;
       onPlayLaunchSound: (callback: () => void) => () => void;
+      watcher: {
+        onPrompt: (callback: (state: any) => void) => () => void;
+        add: (payload: { keys: string[]; categoryId: string }) => Promise<{ success: boolean; added: number; folderId: string }>;
+        dismiss: () => Promise<{ success: boolean }>;
+        checkNow: () => Promise<{ success: boolean }>;
+        status: () => Promise<{
+          enabled: boolean;
+          watchDesktop: boolean;
+          watchStartMenu: boolean;
+          watchStore: boolean;
+          promptSeconds: number;
+          promptVisible: boolean;
+        }>;
+      };
       runDesktopSweep: () => Promise<{ success: boolean; count?: number; error?: string }>;
       getDefaultVaultPath: () => Promise<string>;
       openVaultFolder: () => Promise<boolean>;

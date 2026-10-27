@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: local-resource:; script-src 'self'; font-src 'self';"
+  >
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberTray Watcher</title>
+  <link rel="stylesheet" href="watcher-prompt.css">
+</head>
+<body>
+  <div class="shell">
+    <div class="card" role="dialog" aria-live="polite">
+      <header class="head">
+        <span class="dot" aria-hidden="true"></span>
+        <h1 id="title" class="title"></h1>
+        <button id="close" class="close" type="button" aria-label="Close">&times;</button>
+      </header>
+
+      <ul id="items" class="items"></ul>
+
+      <div class="folder">
+        <label class="folder-label" for="folder">—</label>
+        <select id="folder" class="folder-select"></select>
+      </div>
+
+      <footer class="actions">
+        <button id="ignore" class="btn btn-ghost" type="button"></button>
+        <button id="accept" class="btn btn-accent" type="button"></button>
+      </footer>
+    </div>
+  </div>
+  <script src="watcher-prompt.js"></script>
+</body>
+</html>

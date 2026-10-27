@@ -14,6 +14,11 @@ export const FOLDER_SCHEMA_VERSION = 2;
 /** Atajo global de fábrica, compartido con el botón "Restablecer". */
 export const DEFAULT_GLOBAL_SHORTCUT = 'Alt+Shift+T';
 
+/** Segundos que el aviso del vigilante permanece en pantalla. */
+export const DEFAULT_WATCHER_PROMPT_SECONDS = 6;
+export const WATCHER_MIN_PROMPT_SECONDS = 4;
+export const WATCHER_MAX_PROMPT_SECONDS = 30;
+
 export interface CyberTrayConfig {
   monitorId: string;
   shortcut: string;
@@ -60,6 +65,16 @@ export interface CyberTrayConfig {
   autoBackupLast?: string | null;
   /** Carpeta de destino personalizada; vacía = carpeta por defecto. */
   autoBackupPath?: string;
+  /**
+   * Vigilante de escritorio: avisa cuando aparece algo nuevo en el escritorio
+   * o en el menú Inicio y ofrece añadirlo a la librería. Apagado de fábrica.
+   */
+  watcherEnabled?: boolean;
+  watcherWatchDesktop?: boolean;
+  watcherWatchStartMenu?: boolean;
+  watcherWatchStore?: boolean;
+  /** Segundos antes de que el aviso se cierre solo. */
+  watcherPromptSeconds?: number;
 }
 
 /**
@@ -110,6 +125,11 @@ const KNOWN_CONFIG_KEYS = new Set<keyof CyberTrayConfig>([
   'autoBackupKeep',
   'autoBackupLast',
   'autoBackupPath',
+  'watcherEnabled',
+  'watcherWatchDesktop',
+  'watcherWatchStartMenu',
+  'watcherWatchStore',
+  'watcherPromptSeconds',
 ]);
 
 /** Devuelve la configuración sin las claves desconocidas. */
@@ -168,5 +188,11 @@ export function createDefaultConfig(): CyberTrayConfig {
     autoBackupKeep: DEFAULT_AUTO_BACKUP_KEEP,
     autoBackupLast: null,
     autoBackupPath: '',
+    // El vigilante nunca avisa sin permiso: se enciende desde Ajustes.
+    watcherEnabled: false,
+    watcherWatchDesktop: true,
+    watcherWatchStartMenu: true,
+    watcherWatchStore: true,
+    watcherPromptSeconds: DEFAULT_WATCHER_PROMPT_SECONDS,
   };
 }

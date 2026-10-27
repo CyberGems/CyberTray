@@ -34,7 +34,7 @@ function throwIfAborted(signal?: AbortSignal): void {
   if (signal?.aborted) throw new DOMException('Import scan cancelled.', 'AbortError');
 }
 
-function resolveSourceRoot(source: ImportSourceConfig): string {
+export function resolveSourceRoot(source: ImportSourceConfig): string {
   if (source.kind === 'folder') return path.resolve(source.path || '');
   if (source.kind === 'desktop') {
     if (source.scope === 'common') return process.env.PUBLIC ? path.join(process.env.PUBLIC, 'Desktop') : '';
