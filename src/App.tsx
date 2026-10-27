@@ -2204,6 +2204,9 @@ export default function App() {
           showAlert(translate('reset_failed_title'), result?.error || translate('reset_failed_desc'));
           return;
         }
+        // El renderer es el único que conoce el idioma activo: se guardan las
+        // carpetas por defecto ya traducidas para que main y UI no diverjan.
+        await window.electronAPI!.saveConfig({ categoriesList: getDefaultCategories() }, { broadcastReload: false });
         setActiveCategory('all');
         setSearchQuery('');
         setSelectedIds(new Set());
