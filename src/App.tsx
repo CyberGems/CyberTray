@@ -2190,6 +2190,29 @@ export default function App() {
     }
   };
 
+  // Restablecer a fábrica: destructivo, siempre con confirmación explícita.
+  // El proceso main guarda antes una copia del estado actual.
+  const handleFactoryReset = () => {
+    if (!isElectron) return;
+    showConfirm(
+      translate('reset_confirm_title'),
+      translate('reset_confirm_desc'),
+      async () => {
+        const result = await window.electronAPI!.resetConfig();
+        if (!result?.success) {
+          showAlert(translate('reset_failed_title'), result?.error || translate('reset_failed_desc'));
+          return;
+        }
+        setActiveCategory('all');
+        setSearchQuery('');
+        setSelectedIds(new Set());
+        setShowSettings(false);
+        showAlert(translate('reset_done_title'), translate('reset_done_desc'));
+      },
+      true
+    );
+  };
+
   const handleImportBackup = async () => {
     if (!isElectron) return;
     const raw = await window.electronAPI!.importConfig();
@@ -3019,6 +3042,7 @@ export default function App() {
         handleApplyCustomBg={handleApplyCustomBg}
         handleExportBackup={handleExportBackup}
         handleImportBackup={handleImportBackup}
+        onFactoryReset={handleFactoryReset}
         onOpenImportSync={openImportSync}
         playFolderSound={playFolderSound}
         playLaunchSound={playLaunchSound}

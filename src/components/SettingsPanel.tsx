@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   AlertTriangle, Archive, ArrowUpDown, Droplets, Download, Eye, FileJson, FolderOpen, Globe,
   Grid, HardDrive, Image as ImageIcon, Keyboard, LayoutGrid, List as ListIcon,
-  Lock, Monitor, MousePointer2, Palette, Pin, Power, Shield, Sliders, Sparkles, Terminal,
+  Lock, Monitor, MousePointer2, Palette, Pin, Power, RotateCcw, Shield, Sliders, Sparkles, Terminal,
   Trash2, Upload, Volume2, type LucideIcon,
 } from 'lucide-react';
 import { translate } from '../locales';
@@ -168,6 +168,7 @@ export interface SettingsPanelProps {
   handleApplyCustomBg: () => void;
   handleExportBackup: () => void;
   handleImportBackup: () => void;
+  onFactoryReset: () => void;
   onOpenImportSync: () => void;
   onOpenOnboarding: () => void;
   playFolderSound: () => void;
@@ -228,6 +229,7 @@ export default function SettingsPanel({
   handleApplyCustomBg,
   handleExportBackup,
   handleImportBackup,
+  onFactoryReset,
   onOpenImportSync,
   onOpenOnboarding,
   playFolderSound,
@@ -1439,6 +1441,20 @@ export default function SettingsPanel({
                         >
                           <Trash2 className="w-4 h-4" />
                           {translate('sys_purge_btn')}
+                        </button>
+                      </ActionRow>
+                      <ActionRow
+                        icon={RotateCcw}
+                        tone="red"
+                        title={translate('reset_title')}
+                        desc={translate('reset_desc')}
+                      >
+                        <button
+                          onClick={onFactoryReset}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors text-sm font-medium border border-red-500/30 shrink-0 cursor-pointer"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                          {translate('reset_btn')}
                         </button>
                       </ActionRow>
                     </div>

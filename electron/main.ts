@@ -2268,6 +2268,40 @@ function registerIpcHandlers() {
     }
   });
 
+  // Restablecer a fábrica: nunca es irreversible. Se guarda una copia del
+  // estado actual en la carpeta de respaldos antes de escribir los valores
+  // por defecto, y se conservan el idioma y la carpeta de archivos del
+  // usuario: un reinicio de ajustes no debe traducir la interfaz ni dejar
+  // sus archivos fuera de alcance.
+  ipcMain.handle('config:reset', async () => {
+    try {
+      const backup = backupService.run('manual');
+      const defaults: CyberTrayConfig = {
+        ...createDefaultConfig(),
+        language: config.language === 'es' ? 'es' : 'en',
+        vaultPath: config.vaultPath || '',
+        shortcutsList: [],
+        categoriesList: [],
+        taskbarIds: [],
+        importSources: [],
+        monitorBounds: undefined,
+        vaultPinEnabled: false,
+        vaultPinHash: '',
+        vaultPinSalt: '',
+        vaultLockTimeout: 0,
+        onboardingDone: false,
+      };
+      if (!saveConfig(defaults)) throw new Error('Could not write the default configuration.');
+      applyRestoredConfig();
+      return {
+        success: true,
+        backup: backup.ok && backup.file && backup.folder ? path.join(backup.folder, backup.file) : null,
+      };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
   // --- Respaldo automático de la configuración ---
   ipcMain.handle('backup:status', () => backupService.status());
   ipcMain.handle('backup:now', () => backupService.run('manual'));

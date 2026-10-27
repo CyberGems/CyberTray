@@ -46,6 +46,7 @@ declare global {
       importConfig: () => Promise<string | null>;
       saveConfig: (config: any, options?: { broadcastReload?: boolean }) => Promise<{ success: boolean; revision: number }>;
       loadConfig: () => Promise<any | null>;
+      resetConfig: () => Promise<{ success: boolean; backup?: string | null; error?: string }>;
       getConfigPath: () => Promise<string>;
       openDataFolder: () => Promise<void>;
       onReloadConfig: (callback: (nextConfig?: any) => void) => () => void;

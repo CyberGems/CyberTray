@@ -73,6 +73,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveConfig: (config: any, options?: { broadcastReload?: boolean }) =>
     ipcRenderer.invoke('saveConfig', config, options),
   loadConfig: () => ipcRenderer.invoke('loadConfig'),
+  resetConfig: () => ipcRenderer.invoke('config:reset'),
   getConfigPath: () => ipcRenderer.invoke('get-config-path'),
   openDataFolder: () => ipcRenderer.invoke('open-data-folder'),
   onReloadConfig: (callback: (nextConfig?: any) => void) => {
