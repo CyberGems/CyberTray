@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultConfig, sanitizeConfig, FOLDER_SCHEMA_VERSION, DEFAULT_GLOBAL_SHORTCUT } from './configDefaults';
+import {
+  createDefaultConfig,
+  sanitizeConfig,
+  applyLegacyDefaults,
+  FOLDER_SCHEMA_VERSION,
+  DEFAULT_GLOBAL_SHORTCUT,
+  DEFAULT_WATCHER_PROMPT_SECONDS,
+  LEGACY_WATCHER_PROMPT_SECONDS,
+} from './configDefaults';
 
 describe('createDefaultConfig', () => {
   it('devuelve una copia nueva en cada llamada', () => {
@@ -81,5 +89,32 @@ describe('sanitizeConfig', () => {
 
   it('conserva el estado del onboarding', () => {
     expect(sanitizeConfig({ onboardingDone: true })).toEqual({ onboardingDone: true });
+  });
+});
+
+describe('applyLegacyDefaults', () => {
+  // El valor se guarda en disco: cambiar la constante de fábrica no basta,
+  // las instalaciones existentes seguirían con 6 s para siempre.
+  it('sube el aviso de 6 a 10 segundos', () => {
+    const result = applyLegacyDefaults({ watcherPromptSeconds: LEGACY_WATCHER_PROMPT_SECONDS });
+    expect(result.changed).toBe(true);
+    expect(result.config.watcherPromptSeconds).toBe(DEFAULT_WATCHER_PROMPT_SECONDS);
+  });
+
+  it('respeta un valor elegido a mano', () => {
+    const result = applyLegacyDefaults({ watcherPromptSeconds: 18 });
+    expect(result.changed).toBe(false);
+    expect(result.config.watcherPromptSeconds).toBe(18);
+  });
+
+  it('no toca otras claves ni muta la entrada', () => {
+    const original = { watcherPromptSeconds: LEGACY_WATCHER_PROMPT_SECONDS, theme: 'cyan' };
+    const result = applyLegacyDefaults(original);
+    expect(result.config.theme).toBe('cyan');
+    expect(original.watcherPromptSeconds).toBe(LEGACY_WATCHER_PROMPT_SECONDS);
+  });
+
+  it('no marca cambios cuando el config ya está al día', () => {
+    expect(applyLegacyDefaults(createDefaultConfig()).changed).toBe(false);
   });
 });

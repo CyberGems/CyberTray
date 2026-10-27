@@ -13,6 +13,7 @@ import { activateStoreApp, isStoreAppUserModelId, resolveStoreAppLauncher } from
 import { applyImportPlan, reconcileImport, type ImportPlan, type ImportSourceConfig, type ScannedShortcut, type ShortcutRecord } from '../src/lib/shortcutImport';
 import type { CyberFolder } from '../src/lib/appUtils';
 import { UNCATEGORIZED_ID } from '../src/lib/appUtils';
+import { isUrlPath } from '../src/lib/shortcutPath';
 import { createBackupService } from './backups';
 import { normalizeBackupFolder, parseBackupHours, parseBackupKeep } from '../src/lib/backup';
 import { refreshDesktopWatcher, markWatcherItemsHandled, stopDesktopWatcher, resetDesktopWatcherBaseline } from './desktop-watcher';
@@ -26,6 +27,7 @@ import {
   initNotificationStore,
   markNotificationsRead,
   pushNotificationItems,
+  pushNotificationMessage,
 } from './notification-store';
 import type { NotificationItem } from '../src/lib/notificationCenter';
 
@@ -213,6 +215,49 @@ function migrateConfigIconsToDisk() {
     console.log(`[CyberTray] Migrated ${migrated.filter((s: any) => String(s.iconPath || '').startsWith('local-resource:')).length} shortcut icons to disk`);
   } catch (err) {
     console.error('Error migrating shortcut icons to disk:', err);
+  }
+}
+
+/**
+ * Los `.url` sin icono propio comparten el globo genérico de Windows, copiado
+ * byte a byte en cada acceso. Si dos accesos web tienen exactamente el mismo
+ * icono es que ninguno aporta información: se vacía para que la interfaz
+ * dibuje el suyo. Idempotente: sin iconos repetidos no toca nada.
+ */
+function migrateGenericUrlIcons(): void {
+  const list: any[] = Array.isArray(config.shortcutsList) ? config.shortcutsList : [];
+  const candidates = list.filter(item => isUrlPath(item?.path) && localResourceToFsPath(item?.iconPath));
+  if (candidates.length < 2) return;
+
+  const buckets = new Map<string, any[]>();
+  for (const item of candidates) {
+    const file = localResourceToFsPath(item.iconPath);
+    if (!file) continue;
+    try {
+      const hash = crypto.createHash('sha1').update(fs.readFileSync(file)).digest('hex');
+      const bucket = buckets.get(hash);
+      if (bucket) bucket.push(item);
+      else buckets.set(hash, [item]);
+    } catch {
+      // Icono ilegible: se deja como está antes que romper el arranque.
+    }
+  }
+
+  let cleared = 0;
+  for (const bucket of buckets.values()) {
+    if (bucket.length < 2) continue;
+    for (const item of bucket) {
+      item.iconPath = '';
+      cleared += 1;
+    }
+  }
+  if (cleared === 0) return;
+
+  try {
+    saveConfig({ shortcutsList: list });
+    console.log(`[CyberTray] Cleared ${cleared} generic web icons`);
+  } catch (err) {
+    console.error('Error clearing generic web icons:', err);
   }
 }
 
@@ -1072,6 +1117,20 @@ const backupService = createBackupService({
       shelfWindow.webContents.send('backup:completed', payload);
     }
   },
+  // Un respaldo que falla cada hora sin decir nada es un respaldo que no
+  // existe. El aviso va al centro, que agrupa los intentos fallidos.
+  // El respaldo manual no entra aquí: quien lo lanzó ya ve el error en el
+  // panel en ese mismo momento.
+  onFailed: (payload) => {
+    if (payload.reason === 'manual') return;
+    const es = config.language === 'es';
+    pushNotificationMessage({
+      title: es ? 'Falló el respaldo automático' : 'Automatic backup failed',
+      detail: `${es ? 'Motivo' : 'Reason'}: ${payload.error}`,
+      level: 'error',
+      dedupeKey: 'backup-failed',
+    });
+  },
   onRestored: () => applyRestoredConfig(),
 });
 
@@ -1679,10 +1738,14 @@ async function resolveFullFileInfo(filePath: string) {
       if (!fs.existsSync(iconSourcePath)) iconSourcePath = '';
     }
 
+    // Un `.url` sin IconFile propio solo puede devolver el globo 3D genérico
+    // de Windows. No se extrae: la interfaz dibuja un glifo vectorial.
+    const skipGenericUrlIcon = ext === '.url' && !iconSourcePath;
+
     // Extracción de Icono nativo de alta calidad → PNG en userData/icons
     try {
       const effectiveIconSource = iconSourcePath || (fs.existsSync(resolvedPath) ? resolvedPath : normalized);
-      if (fs.existsSync(effectiveIconSource)) {
+      if (!skipGenericUrlIcon && fs.existsSync(effectiveIconSource)) {
         let icon = iconSourcePath
           ? nativeImage.createFromPath(effectiveIconSource)
           : await app.getFileIcon(effectiveIconSource, { size: 'large' });
@@ -1698,7 +1761,7 @@ async function resolveFullFileInfo(filePath: string) {
     }
 
     // Fallback de extracción de icono con PowerShell (para evitar iconos genéricos muy pequeños)
-    if (!iconFileUrl) {
+    if (!iconFileUrl && !skipGenericUrlIcon) {
       try {
         const fallbackIconSource = iconSourcePath || (fs.existsSync(resolvedPath) ? resolvedPath : normalized);
         const escapedPath = fallbackIconSource.replace(/'/g, "''");
@@ -2084,6 +2147,35 @@ function commitImportPlan(plan: ImportPlan, sources: ImportSourceConfig[]) {
   return { success: true, created: result.created, updated: result.updated, removed: result.removed, missing: result.missing };
 }
 
+/**
+ * Deja constancia de la sincronización de arranque en el centro. Corre sola y
+ * sin ventana, así que sin esto no hay forma de saber qué hizo.
+ */
+function notifyStartupSync(
+  created: number,
+  updated: number,
+  errors: Array<{ sourceId: string; message: string }>,
+): void {
+  const changed = created + updated;
+  if (changed === 0 && errors.length === 0) return;
+  const es = config.language === 'es';
+
+  const parts: string[] = [];
+  if (created > 0) parts.push(es ? `${created} añadidos` : `${created} added`);
+  if (updated > 0) parts.push(es ? `${updated} actualizados` : `${updated} updated`);
+
+  pushNotificationMessage({
+    title: errors.length
+      ? (es ? 'Sincronización al arrancar con problemas' : 'Startup sync had problems')
+      : (es ? 'Sincronización al arrancar' : 'Startup sync'),
+    detail: errors.length
+      ? [...parts, `${es ? 'Fuentes con error' : 'Sources with errors'}: ${errors.length}`].join(' · ')
+      : parts.join(' · '),
+    level: errors.length > 0 ? 'warning' : 'info',
+    dedupeKey: 'startup-sync',
+  });
+}
+
 async function runStartupImportSync() {
   if (!config.autoSyncOnStartup || !config.importSources?.length) return;
   const sources = normalizeImportSources(config.importSources);
@@ -2092,6 +2184,7 @@ async function runStartupImportSync() {
   if (errors.length) console.warn('[IMPORT] Startup scan completed with source errors:', errors);
   const result = commitImportPlan(plan, sources);
   console.log(`[IMPORT] Startup sync: ${result.created} added, ${result.updated} updated, ${result.missing} missing`);
+  notifyStartupSync(result.created, result.updated, errors);
 }
 
 // ── IPC INTERACTIVE COMMS BINDERS ──
@@ -3148,6 +3241,7 @@ app.whenReady().then(async () => {
   loadConfig();
   if (app.isPackaged) applyAutoLaunchSettings(!!config.autoLaunch);
   migrateConfigIconsToDisk();
+  migrateGenericUrlIcons();
   initNotificationStore({
     filePath: path.join(app.getPath('userData'), 'cyber-tray-notifications.json'),
     onChange: (next) => {

@@ -39,6 +39,8 @@ export interface BackupServiceContext {
   patchConfig: (patch: Record<string, unknown>) => void;
   /** Se llama tras escribir una copia correcta. */
   onCompleted?: (payload: { at: string; file: string; folder: string; reason: BackupReason; warning?: string }) => void;
+  /** Se llama cuando el intento falla de verdad (no cuando está desactivado). */
+  onFailed?: (payload: { at: string; reason: BackupReason; error: string }) => void;
   /** Se llama tras restaurar, para que main recargue y reemita la config. */
   onRestored?: () => void;
   /** Log interno. */
@@ -207,8 +209,10 @@ export function createBackupService(ctx: BackupServiceContext) {
       ctx.onCompleted?.({ at, file, folder, reason, ...(warning ? { warning } : {}) });
       return { ok: true, file, folder, ...(warning ? { warning } : {}) };
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       log(`[BACKUP] (${reason}) failed`, error);
-      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      ctx.onFailed?.({ at: new Date().toISOString(), reason, error: message });
+      return { ok: false, error: message };
     } finally {
       running = false;
     }

@@ -21,7 +21,10 @@ afterEach(() => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-function makeService(overrides: Partial<BackupSettings> = {}, extra: { onRestored?: () => void } = {}) {
+function makeService(
+  overrides: Partial<BackupSettings> = {},
+  extra: { onRestored?: () => void; onFailed?: (payload: { at: string; reason: string; error: string }) => void } = {},
+) {
   const settings: BackupSettings = {
     enabled: true,
     hours: 24,
@@ -40,6 +43,7 @@ function makeService(overrides: Partial<BackupSettings> = {}, extra: { onRestore
       if (typeof patch.autoBackupLast === 'string') settings.last = patch.autoBackupLast;
     },
     onRestored: extra.onRestored,
+    onFailed: extra.onFailed as never,
     log: () => undefined,
   });
   return { service, settings, patches };
@@ -273,5 +277,69 @@ describe('backup service · programación', () => {
   it('no hace nada si está desactivado', () => {
     const { service } = makeService({ enabled: false, last: null });
     expect(service.runIfDue('startup')).toBeNull();
+  });
+});
+
+describe('backup service · avisos de fallo', () => {
+  /**
+   * Una carpeta que no se puede crear es el fallo más común en la vida real
+   * (unidad de red desconectada). Se fuerza con un archivo normal haciendo
+   * de "directorio" padre: `mkdir` falla con ENOTDIR.
+   *
+   * Ojo: una carpeta *personalizada* caída no falla, porque el servicio cae a
+   * la carpeta por defecto. Para provocar el fallo hay que romper la de por
+   * defecto, que es el último recurso.
+   */
+  function breakDefaultFolder(): void {
+    const file = path.join(root, 'no-soy-una-carpeta');
+    fs.writeFileSync(file, 'x', 'utf-8');
+    defaultFolder = path.join(file, 'backups');
+  }
+
+  it('avisa cuando el respaldo programado no se puede escribir', () => {
+    const failures: Array<{ reason: string; error: string }> = [];
+    breakDefaultFolder();
+    const { service } = makeService({}, { onFailed: (payload) => failures.push(payload) });
+
+    const result = service.run('schedule');
+
+    expect(result.ok).toBe(false);
+    expect(failures).toHaveLength(1);
+    expect(failures[0].reason).toBe('schedule');
+    expect(failures[0].error).toBeTruthy();
+  });
+
+  it('una carpeta personalizada caída no cuenta como fallo', () => {
+    const failures: Array<{ reason: string }> = [];
+    const file = path.join(root, 'unidad-desconectada');
+    fs.writeFileSync(file, 'x', 'utf-8');
+    const { service } = makeService({ folder: path.join(file, 'backups') }, {
+      onFailed: (payload) => failures.push(payload),
+    });
+
+    const result = service.run('schedule');
+
+    expect(result.ok).toBe(true);
+    expect(result.warning).toBeTruthy();
+    expect(failures).toEqual([]);
+  });
+
+  it('no avisa de fallos que en realidad son "todavía no toca"', () => {
+    const failures: Array<{ reason: string }> = [];
+    const { service } = makeService({ enabled: false }, { onFailed: (payload) => failures.push(payload) });
+
+    service.runIfDue('schedule');
+
+    expect(failures).toEqual([]);
+  });
+
+  it('no avisa cuando la configuración aún no existe', () => {
+    const failures: Array<{ reason: string }> = [];
+    fs.rmSync(configFile);
+    const { service } = makeService({}, { onFailed: (payload) => failures.push(payload) });
+
+    service.run('startup');
+
+    expect(failures).toEqual([]);
   });
 });

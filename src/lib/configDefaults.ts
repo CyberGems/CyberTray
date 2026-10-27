@@ -22,6 +22,30 @@ export const DEFAULT_WATCHER_PROMPT_SECONDS = 10;
 export const WATCHER_MIN_PROMPT_SECONDS = 4;
 export const WATCHER_MAX_PROMPT_SECONDS = 30;
 
+/**
+ * Valor de fábrica anterior (6 s). Un config ya guardado nunca vuelve a leer
+ * los defaults, así que las instalaciones existentes se quedan con el valor
+ * viejo para siempre salvo que se migren explícitamente.
+ */
+export const LEGACY_WATCHER_PROMPT_SECONDS = 6;
+
+/**
+ * Migra valores por defecto que cambiaron de versión. Solo toca un ajuste
+ * cuando sigue exactamente en el valor de fábrica antiguo: si el usuario lo
+ * eligió a mano (aunque coincida con el viejo default) se respeta tal cual.
+ */
+export function applyLegacyDefaults<T extends object>(
+  config: T,
+): { config: T; changed: boolean } {
+  let changed = false;
+  const next = { ...config } as Record<string, unknown>;
+  if (next.watcherPromptSeconds === LEGACY_WATCHER_PROMPT_SECONDS) {
+    next.watcherPromptSeconds = DEFAULT_WATCHER_PROMPT_SECONDS;
+    changed = true;
+  }
+  return { config: next as T, changed };
+}
+
 export interface CyberTrayConfig {
   monitorId: string;
   shortcut: string;

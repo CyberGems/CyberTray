@@ -10,6 +10,7 @@ import {
   removeNotifications,
   type NotificationEntry,
   type NotificationItem,
+  type NotificationLevel,
   type NotificationState,
 } from '../src/lib/notificationCenter';
 
@@ -74,7 +75,33 @@ export function pushNotificationItems(items: NotificationItem[], now = Date.now(
     id: `n${now.toString(36)}${(sequence++).toString(36)}`,
     createdAt: now,
     seen: false,
+    kind: 'items',
     items,
+  };
+  const result = mergeNotificationEntry(state, entry);
+  if (!result.entry) return null;
+  commit(result.state);
+  return result.entry;
+}
+
+/**
+ * Aviso suelto que no es un acceso: un respaldo fallido, el resultado de una
+ * sincronización. `dedupeKey` evita que el mismo problema se acumule.
+ */
+export function pushNotificationMessage(
+  message: { title: string; detail?: string; level?: NotificationLevel; dedupeKey?: string },
+  now = Date.now(),
+): NotificationEntry | null {
+  const entry: NotificationEntry = {
+    id: `m${now.toString(36)}${(sequence++).toString(36)}`,
+    createdAt: now,
+    seen: false,
+    kind: 'message',
+    items: [],
+    title: message.title,
+    detail: message.detail || '',
+    level: message.level || 'info',
+    ...(message.dedupeKey ? { dedupeKey: message.dedupeKey } : {}),
   };
   const result = mergeNotificationEntry(state, entry);
   if (!result.entry) return null;

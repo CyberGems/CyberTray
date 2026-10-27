@@ -65,6 +65,11 @@ const el = {
   close: document.getElementById('close'),
 };
 
+const URL_GLYPH = '<svg viewBox="0 0 24 24" aria-hidden="true">'
+  + '<path d="M4.6 19.4v-1.9a5.2 5.2 0 0 1 5.2-5.2h9.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>'
+  + '<path d="M14.4 8.1 20.2 12.7 14.4 17.3Z" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>'
+  + '</svg>';
+
 function shortPath(value) {
   const text = String(value || '');
   if (text.length <= 46) return text;
@@ -170,11 +175,23 @@ function render() {
     const row = document.createElement('li');
     row.className = 'item';
 
-    const icon = document.createElement('img');
-    icon.className = 'item-icon';
-    icon.alt = '';
-    if (item.iconPath) icon.src = item.iconPath;
-    else icon.style.visibility = 'hidden';
+    let icon;
+    if (item.iconPath) {
+      icon = document.createElement('img');
+      icon.className = 'item-icon';
+      icon.alt = '';
+      icon.src = item.iconPath;
+    } else if (/^https?:\/\//i.test(item.path || '')) {
+      // Acceso web sin icono propio: glifo vectorial en vez del globo de Windows.
+      icon = document.createElement('span');
+      icon.className = 'item-icon item-icon-url';
+      icon.innerHTML = URL_GLYPH;
+    } else {
+      icon = document.createElement('img');
+      icon.className = 'item-icon';
+      icon.alt = '';
+      icon.style.visibility = 'hidden';
+    }
 
     const text = document.createElement('div');
     text.className = 'item-text';

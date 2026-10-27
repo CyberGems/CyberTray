@@ -18,6 +18,14 @@ export const MAX_NOTIFICATION_ITEMS = 200;
 
 export type NotificationSource = 'desktop' | 'start-menu' | 'store';
 
+/**
+ * Un lote puede ser de elementos detectados (`items`) o un aviso suelto
+ * (`message`): un respaldo que falló, el resultado de una sincronización.
+ * Los mensajes no se añaden a la librería, solo se leen.
+ */
+export type NotificationEntryKind = 'items' | 'message';
+export type NotificationLevel = 'info' | 'warning' | 'error';
+
 export interface NotificationItem {
   /** Clave estable del vigilante (`watch:desktop:...`). */
   key: string;
@@ -35,7 +43,17 @@ export interface NotificationEntry {
   createdAt: number;
   /** `false` hasta que el usuario ve el lote en el centro. */
   seen: boolean;
+  kind: NotificationEntryKind;
   items: NotificationItem[];
+  /** Solo en `kind: 'message'`. */
+  title?: string;
+  detail?: string;
+  level?: NotificationLevel;
+  /**
+   * Identifica avisos del mismo tipo para actualizar el existente en vez de
+   * acumular uno por cada intento fallido.
+   */
+  dedupeKey?: string;
 }
 
 export interface NotificationState {
@@ -90,18 +108,28 @@ export function normalizeNotificationState(raw: unknown): NotificationState {
     const rawEntry = entriesRaw[index];
     if (!rawEntry || typeof rawEntry !== 'object') continue;
     const entry = rawEntry as Record<string, unknown>;
+    const kind: NotificationEntryKind = entry.kind === 'message' ? 'message' : 'items';
     const items = readItems(entry.items).filter(item => {
       if (usedKeys.has(item.key)) return false;
       usedKeys.add(item.key);
       return true;
     });
-    if (items.length === 0) continue;
+    // Un lote de elementos sin elementos no existe; un mensaje sin texto sí
+    // puede quedar huérfano si el archivo se editó a mano.
+    if (kind === 'items' && items.length === 0) continue;
+    const title = typeof entry.title === 'string' ? entry.title.trim() : '';
+    if (kind === 'message' && !title) continue;
     const createdAt = Number(entry.createdAt);
     entries.push({
       id: typeof entry.id === 'string' && entry.id ? entry.id : `restored-${index}`,
       createdAt: Number.isFinite(createdAt) ? createdAt : 0,
       seen: entry.seen === true,
+      kind,
       items,
+      ...(title ? { title } : {}),
+      ...(typeof entry.detail === 'string' ? { detail: entry.detail } : {}),
+      ...(entry.level === 'warning' || entry.level === 'error' ? { level: entry.level } : {}),
+      ...(typeof entry.dedupeKey === 'string' && entry.dedupeKey ? { dedupeKey: entry.dedupeKey } : {}),
     });
   }
 
@@ -135,11 +163,44 @@ export function notificationKeys(state: NotificationState): Set<string> {
  * Añade un lote delante de los demás, descartando los elementos que ya
  * estuvieran en la bandeja. Devuelve `entry: null` cuando no aporta nada
  * nuevo, para que quien llama no muestre un aviso repetido.
+ *
+ * Los mensajes se agrupan por `dedupeKey`: la misma avería repetida actualiza
+ * su entrada en vez de llenar la bandeja de copias. Solo vuelve a quedar sin
+ * ver si el texto cambió, es decir si es otro problema distinto.
  */
 export function mergeNotificationEntry(
   state: NotificationState,
   entry: NotificationEntry,
 ): { state: NotificationState; entry: NotificationEntry | null } {
+  if (entry.kind === 'message') {
+    const title = (entry.title || '').trim();
+    if (!title) return { state, entry: null };
+    const clean: NotificationEntry = { ...entry, title, items: [] };
+
+    const key = entry.dedupeKey || '';
+    const previous = key
+      ? state.entries.find(item => item.kind === 'message' && item.dedupeKey === key)
+      : undefined;
+
+    if (previous) {
+      const changed = (previous.detail || '') !== (clean.detail || '');
+      const updated: NotificationEntry = {
+        ...previous,
+        createdAt: clean.createdAt,
+        detail: clean.detail,
+        level: clean.level || previous.level,
+        seen: changed ? false : previous.seen,
+      };
+      const entries = [updated, ...state.entries.filter(item => item.id !== previous.id)];
+      return { state: trimToLimits({ version: NOTIFICATION_STORE_VERSION, entries }), entry: updated };
+    }
+
+    return {
+      state: trimToLimits({ version: NOTIFICATION_STORE_VERSION, entries: [clean, ...state.entries] }),
+      entry: clean,
+    };
+  }
+
   const known = notificationKeys(state);
   const fresh = entry.items.filter(item => !known.has(item.key));
   if (fresh.length === 0) return { state, entry: null };

@@ -34,8 +34,10 @@ import {
   ICON_SIZE_MAX,
 } from './lib/appUtils';
 import { hashPin, verifyPin } from './lib/pin';
-import { createDefaultConfig } from './lib/configDefaults';
+import { createDefaultConfig, applyLegacyDefaults } from './lib/configDefaults';
 import { localResourceUrl, shortcutIconSrc } from './lib/iconSrc';
+import { isUrlPath } from './lib/shortcutPath';
+import UrlLinkIcon from './components/UrlLinkIcon';
 import { useBundledAssetUrl } from './lib/useBundledAsset';
 import {
   Search, Plus, Settings, X, Trash2, Info,
@@ -620,6 +622,10 @@ export default function App() {
         folderSchemaVersion: loadedConfig.folderSchemaVersion || FOLDER_SCHEMA_VERSION,
         autoUpdate: resolvedAutoUpdate,
       };
+      // Defaults que cambiaron después de publicarse (p. ej. los 10 s del
+      // aviso): el config guardado los conserva viejos y hay que migrarlos.
+      const legacy = applyLegacyDefaults(configWithFolderSchema);
+      const configWithLegacyDefaults = legacy.config;
 
       // El PIN de la bóveda solo se guarda hasheado. Si el config viene de
       // una versión antigua (PIN en claro) o no tiene hash pero la bóveda
@@ -630,7 +636,7 @@ export default function App() {
       const needsPinDerivation =
         !configWithFolderSchema.vaultPinHash &&
         (legacyPin.length > 0 || configWithFolderSchema.vaultPinEnabled === true);
-      const effectiveConfig: any = { ...configWithFolderSchema };
+      const effectiveConfig: any = { ...configWithLegacyDefaults };
       delete effectiveConfig.vaultPin;
       delete effectiveConfig.__rev;
 
@@ -654,6 +660,7 @@ export default function App() {
         legacyPin,
         needsPinDerivation,
         needsSchemaUpgrade: loadedConfig.folderSchemaVersion !== FOLDER_SCHEMA_VERSION,
+        needsLegacyDefaults: legacy.changed,
       };
     };
 
@@ -663,7 +670,7 @@ export default function App() {
         // Cargar config general de Electron
         const loadedConfig = providedConfig ?? await window.electronAPI!.loadConfig();
         const applied = applyConfig(loadedConfig);
-        if (applied && (applied.needsPinDerivation || applied.needsSchemaUpgrade)) {
+        if (applied && (applied.needsPinDerivation || applied.needsSchemaUpgrade || applied.needsLegacyDefaults)) {
           if (applied.needsPinDerivation) {
             try {
               const derived = await hashPin(applied.legacyPin || LEGACY_DEFAULT_PIN);
@@ -3061,6 +3068,8 @@ export default function App() {
                   <span className="w-5 h-5 rounded bg-slate-900/80 border border-white/5 flex items-center justify-center overflow-hidden shrink-0">
                     {item.iconPath ? (
                       <img src={shortcutIconSrc(item.iconPath)} alt="" className="w-3.5 h-3.5 object-contain" draggable={false} />
+                    ) : isUrlPath(item.path) ? (
+                      <UrlLinkIcon className="w-3 h-3 text-[var(--neon-glow-color)]" />
                     ) : (
                       <span className="text-[8px] font-cyber font-bold text-slate-500">&gt;_</span>
                     )}

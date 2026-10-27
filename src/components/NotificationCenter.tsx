@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bell, CheckCheck, FolderOpen, LayoutGrid, Monitor, Plus, Store, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Bell, CheckCheck, FolderOpen, Info, LayoutGrid, Monitor, Plus, Store, Trash2, X } from 'lucide-react';
 import { translate } from '../locales';
 import { shortcutIconSrc } from '../lib/iconSrc';
+import { isUrlPath } from '../lib/shortcutPath';
 import FolderDropdown from './FolderDropdown';
+import UrlLinkIcon from './UrlLinkIcon';
 import { UNCATEGORIZED_ID, type CyberFolder } from '../lib/appUtils';
 import {
   countUnseenEntries,
@@ -132,6 +134,8 @@ function ItemRow({
             draggable={false}
             onError={() => setIconBroken(true)}
           />
+        ) : isUrlPath(item.path) ? (
+          <UrlLinkIcon className="w-3.5 h-3.5 text-[var(--neon-glow-color)]" />
         ) : (
           <FolderOpen className="w-3.5 h-3.5 text-slate-600" />
         )}
@@ -260,6 +264,57 @@ function EntryCard({
   );
 }
 
+/** Aviso que no es un acceso: respaldo fallido, resultado de una sincronización. */
+function MessageCard({
+  entry,
+  onMarkSeen,
+  onRemove,
+}: {
+  entry: NotificationEntry;
+  onMarkSeen: (ids: string[]) => void;
+  onRemove: (ids: string[]) => void;
+}) {
+  const nodeRef = useSeenWhenVisible(entry.id, entry.seen, onMarkSeen);
+  const level = entry.level || 'info';
+  const tone = level === 'error'
+    ? { icon: 'text-red-400', border: 'border-red-500/25', bg: 'bg-red-500/[0.05]' }
+    : level === 'warning'
+      ? { icon: 'text-amber-400', border: 'border-amber-500/25', bg: 'bg-amber-500/[0.05]' }
+      : { icon: 'text-cyan-400', border: 'border-cyan-500/20', bg: 'bg-cyan-500/[0.04]' };
+  const Icon = level === 'info' ? Info : AlertTriangle;
+
+  return (
+    <div
+      ref={nodeRef}
+      className={`relative rounded-lg border px-2 py-1.5 transition-colors ${
+        entry.seen ? 'border-white/5 bg-white/[0.02]' : `${tone.border} ${tone.bg}`
+      }`}
+    >
+      <div className="flex items-start gap-2">
+        <Icon className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${entry.seen ? 'text-slate-500' : tone.icon}`} />
+        <div className="min-w-0 flex-1">
+          <p className={`text-[11px] font-semibold leading-tight ${entry.seen ? 'text-slate-400' : 'text-slate-200'}`}>
+            {entry.title}
+          </p>
+          {entry.detail && (
+            <p className="mt-0.5 text-[10px] leading-relaxed text-slate-500 break-words">{entry.detail}</p>
+          )}
+          <span className="text-[9px] text-slate-600 font-mono">{formatWhen(entry.createdAt)}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => onRemove([entry.id])}
+          title={translate('notifications_remove')}
+          aria-label={translate('notifications_remove')}
+          className="shrink-0 flex items-center justify-center w-4 h-4 rounded text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function NotificationCenter({
   open,
   onToggle,
@@ -374,14 +429,23 @@ export default function NotificationCenter({
                 </div>
               ) : (
                 state.entries.map(entry => (
-                  <EntryCard
-                    key={entry.id}
-                    entry={entry}
-                    folders={targetFolders}
-                    onMarkSeen={onMarkSeen}
-                    onRemove={onRemove}
-                    onAdd={onAdd}
-                  />
+                  entry.kind === 'message' ? (
+                    <MessageCard
+                      key={entry.id}
+                      entry={entry}
+                      onMarkSeen={onMarkSeen}
+                      onRemove={onRemove}
+                    />
+                  ) : (
+                    <EntryCard
+                      key={entry.id}
+                      entry={entry}
+                      folders={targetFolders}
+                      onMarkSeen={onMarkSeen}
+                      onRemove={onRemove}
+                      onAdd={onAdd}
+                    />
+                  )
                 ))
               )}
             </div>

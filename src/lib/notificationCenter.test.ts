@@ -22,7 +22,11 @@ function item(key: string, source: NotificationItem['source'] = 'desktop'): Noti
 }
 
 function entry(id: string, keys: string[], createdAt = 1_700_000_000_000): NotificationEntry {
-  return { id, createdAt, seen: false, items: keys.map(key => item(key)) };
+  return { id, createdAt, seen: false, kind: 'items', items: keys.map(key => item(key)) };
+}
+
+function message(id: string, title: string, detail = '', dedupeKey = ''): NotificationEntry {
+  return { id, createdAt: 1_700_000_000_000, seen: false, kind: 'message', items: [], title, detail, level: 'error', dedupeKey };
 }
 
 describe('normalizeNotificationState', () => {
@@ -156,8 +160,46 @@ describe('entrySources', () => {
       id: 'a',
       createdAt: 1,
       seen: false,
+      kind: 'items',
       items: [item('k1', 'desktop'), item('k2', 'store'), item('k3', 'desktop')],
     };
     expect(entrySources(mixed)).toEqual(['desktop', 'store']);
+  });
+});
+
+describe('avisos sueltos', () => {
+  it('entra un mensaje sin elementos y cuenta como no visto', () => {
+    const state = mergeNotificationEntry(emptyNotificationState(), message('m1', 'Falló el respaldo')).state;
+    expect(state.entries).toHaveLength(1);
+    expect(state.entries[0]).toMatchObject({ kind: 'message', title: 'Falló el respaldo', items: [] });
+    expect(countUnseenEntries(state)).toBe(1);
+  });
+
+  it('el mismo problema repetido actualiza la entrada en vez de acumularla', () => {
+    let state = mergeNotificationEntry(emptyNotificationState(), message('m1', 'Falló el respaldo', 'Disco lleno', 'backup')).state;
+    const again = mergeNotificationEntry(state, message('m2', 'Falló el respaldo', 'Disco lleno', 'backup'));
+    expect(again.state.entries).toHaveLength(1);
+    expect(again.state.entries[0].id).toBe('m1');
+  });
+
+  it('no vuelve a marcar sin ver si el texto no cambió', () => {
+    let state = mergeNotificationEntry(emptyNotificationState(), message('m1', 'Falló', 'Disco lleno', 'backup')).state;
+    state = markNotificationsSeen(state, ['m1']);
+    const again = mergeNotificationEntry(state, message('m2', 'Falló', 'Disco lleno', 'backup')).state;
+    expect(again.entries[0].seen).toBe(true);
+  });
+
+  it('si el motivo cambia, vuelve a quedar sin ver', () => {
+    let state = mergeNotificationEntry(emptyNotificationState(), message('m1', 'Falló', 'Disco lleno', 'backup')).state;
+    state = markNotificationsSeen(state, ['m1']);
+    const again = mergeNotificationEntry(state, message('m2', 'Falló', 'Carpeta inaccesible', 'backup')).state;
+    expect(again.entries[0].seen).toBe(false);
+    expect(again.entries[0].detail).toBe('Carpeta inaccesible');
+  });
+
+  it('un mensaje sin título se descarta', () => {
+    const result = mergeNotificationEntry(emptyNotificationState(), message('m1', '   '));
+    expect(result.entry).toBeNull();
+    expect(result.state.entries).toHaveLength(0);
   });
 });
