@@ -13,7 +13,7 @@ const VAULT_ID = 'vault';
 
 function displayPath(folders: CyberFolder[], folderId: string): string {
   if (folderId === VAULT_ID) return translate('explorer_vault');
-  if (folderId === UNCATEGORIZED_ID) return translate('folder_uncategorized');
+  if (folderId === UNCATEGORIZED_ID) return translate('folder_all');
   const path = getFolderPath(folders, folderId).filter(folder => folder.id !== ROOT_FOLDER_ID);
   if (path.length === 0) return translate('app_folder_placeholder');
   return path.map(folder => folder.name).join(' / ');
@@ -264,7 +264,7 @@ export default function FolderPicker({
                   }`}
                 >
                   <Inbox className="w-4 h-4 text-slate-400 shrink-0" />
-                  <span className="truncate text-[13px]">{translate('folder_uncategorized')}</span>
+                  <span className="truncate text-[13px]">{translate('folder_all')}</span>
                 </button>
                 <div className="border-t border-white/5 my-1" />
                 {renderTree(null, 0)}

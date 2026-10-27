@@ -241,7 +241,7 @@ export default function ImportSyncModal({ open, onClose, categories, initialSour
                 <div>
                   <label className="text-[10px] font-cyber font-bold text-slate-400 tracking-widest">{translate('import_target_category')}</label>
                   <select value={sources[0]?.targetCategory || UNCATEGORIZED_ID} disabled={busy} onChange={event => updateSources({ targetCategory: event.target.value })} className="mt-2 w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200">
-                    <option value={UNCATEGORIZED_ID}>{translate('folder_uncategorized')}</option>
+                    <option value={UNCATEGORIZED_ID}>{translate('folder_all')}</option>
                     {categories.filter(category => category.id !== 'all' && category.id !== 'vault').map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
                   </select>
                 </div>
