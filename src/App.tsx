@@ -2400,6 +2400,20 @@ export default function App() {
 
   const getFilteredShortcuts = () => filteredShortcutsList;
 
+  // La bóveda bloqueada esconde sus accesos, pero el contador sigue ahí: si la
+  // vista queda vacía hay que decirlo en lugar de fingir que no hay nada.
+  const hiddenVaultCount = useMemo(() => {
+    const locked = isVaultLockedState({
+      pinEnabled: config.vaultPinEnabled,
+      pinConfigured: !!config.vaultPinHash,
+      lockTimeout: config.vaultLockTimeout,
+      unlockedSession: vaultUnlockedSession,
+      lastUnlockTime: lastVaultUnlockTime,
+    });
+    if (!locked) return 0;
+    return (shortcuts || []).filter(item => item.category === 'vault').length;
+  }, [shortcuts, config.vaultPinEnabled, config.vaultPinHash, config.vaultLockTimeout, vaultUnlockedSession, lastVaultUnlockTime]);
+
   // Variables defensivas contra configuraciones anteriores (fallback defaults)
   const bgType = config.bgType || 'solid';
   const bgSolidColor = config.bgSolidColor || '#070b13';
@@ -2980,6 +2994,8 @@ export default function App() {
               selectionMode={selectionMode}
               lassoRect={lassoRect}
               filteredShortcutsList={filteredShortcutsList}
+              hiddenVaultCount={hiddenVaultCount}
+              onOpenVault={() => handleTabClick('vault')}
               searchQuery={searchQuery}
               viewMode={viewMode}
               iconSortOrder={iconSortOrder}

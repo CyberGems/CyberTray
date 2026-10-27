@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Check, Clock, Edit, Search, Upload } from 'lucide-react';
+import { Check, Clock, Edit, Lock, Search, Upload } from 'lucide-react';
 import { translate } from '../locales';
 import { shortcutIconSrc } from '../lib/iconSrc';
 import { densityFromIconSize } from '../lib/appUtils';
@@ -47,6 +47,9 @@ interface ShortcutGridProps {
   playCyberBeep: () => void;
   showTooltip: ShowTooltipFn;
   hideTooltip: () => void;
+  /** Accesos que existen pero están ocultos porque la bóveda está bloqueada. */
+  hiddenVaultCount?: number;
+  onOpenVault?: () => void;
 }
 
 export default function ShortcutGrid(props: ShortcutGridProps) {
@@ -78,6 +81,8 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
     playCyberBeep,
     showTooltip,
     hideTooltip,
+    hiddenVaultCount = 0,
+    onOpenVault,
   } = props;
 
   const density = densityFromIconSize(config.iconSize);
@@ -597,6 +602,20 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
               <p className="text-xs font-mono text-slate-400 max-w-md text-center leading-relaxed tracking-wider">
                 {translate('search_no_results', { query: searchQuery })}
               </p>
+            </>
+          ) : hiddenVaultCount > 0 && activeCategory === 'all' && onOpenVault ? (
+            <>
+              <Lock className="w-12 h-12 text-purple-400 opacity-70 mb-4" />
+              <p className="text-xs font-mono text-slate-200 max-w-md text-center leading-relaxed tracking-wider">
+                {translate('shortcut_hidden_in_vault', { count: String(hiddenVaultCount) })}
+              </p>
+              <button
+                type="button"
+                onClick={onOpenVault}
+                className="mt-4 px-4 py-2 rounded-xl text-sm font-medium text-purple-200 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 transition-colors cursor-pointer"
+              >
+                {translate('explorer_vault')}
+              </button>
             </>
           ) : (
             <>

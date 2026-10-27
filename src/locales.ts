@@ -53,6 +53,7 @@ export const translations = {
     shortcut_not_found: "File or application target not found",
     shortcut_admin_tag: "ADMIN",
     shortcut_no_items: "No shortcuts here yet. Drag files or apps onto this area to add them.",
+    shortcut_hidden_in_vault: "There are {count} shortcuts in Files, hidden while it is locked.",
 
     // Toasts (system action feedback)
     toast_added_one: "1 new shortcut added",
@@ -663,6 +664,7 @@ export const translations = {
     shortcut_not_found: "Ejecutable o archivo destino no encontrado",
     shortcut_admin_tag: "ADMIN",
     shortcut_no_items: "Aún no hay accesos aquí. Arrastra archivos o aplicaciones a esta área para agregarlos.",
+    shortcut_hidden_in_vault: "Hay {count} accesos en Archivos, ocultos mientras está bloqueado.",
 
     // Toasts (avisos de acciones del sistema)
     toast_added_one: "1 nuevo acceso agregado",
