@@ -181,6 +181,28 @@ contextBridge.exposeInMainWorld('electronAPI', {
     dismiss: () => ipcRenderer.invoke('watcher:dismiss'),
     checkNow: () => ipcRenderer.invoke('watcher:check-now'),
     status: () => ipcRenderer.invoke('watcher:status'),
+    resize: (delta: number) => ipcRenderer.invoke('watcher:resize', delta),
+    hold: (hold: boolean) => ipcRenderer.invoke('watcher:hold', hold),
+  },
+
+  // --- Centro de notificaciones ---
+  notifications: {
+    list: () => ipcRenderer.invoke('notifications:list'),
+    markSeen: (ids: string[]) => ipcRenderer.invoke('notifications:mark-seen', ids),
+    remove: (ids: string[]) => ipcRenderer.invoke('notifications:remove', ids),
+    clear: () => ipcRenderer.invoke('notifications:clear'),
+    addItems: (payload: { keys: string[]; categoryId: string }) => ipcRenderer.invoke('notifications:add-items', payload),
+    openCenter: () => ipcRenderer.invoke('notifications:open-center'),
+    onChanged: (callback: (state: any) => void) => {
+      const handler = (_event: any, state: any) => callback(state);
+      ipcRenderer.on('notifications:changed', handler);
+      return () => { ipcRenderer.removeListener('notifications:changed', handler); };
+    },
+    onOpenCenter: (callback: () => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('open-notification-center', handler);
+      return () => { ipcRenderer.removeListener('open-notification-center', handler); };
+    },
   },
 
   // --- Custom tray menu ---

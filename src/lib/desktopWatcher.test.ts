@@ -10,6 +10,7 @@ import {
   snapshotKeys,
   watcherIgnoreReason,
   watcherSourceConfigs,
+  watcherSourceFromId,
 } from './desktopWatcher';
 import type { ScannedShortcut } from './shortcutImport';
 
@@ -130,5 +131,20 @@ describe('limitWatcherItems', () => {
   it('recorta la lista para que el aviso siga siendo legible', () => {
     const items = Array.from({ length: 9 }, (_, index) => shortcut({ key: `k${index}` }));
     expect(limitWatcherItems(items)).toHaveLength(5);
+  });
+});
+
+describe('watcherSourceFromId', () => {
+  it('distingue escritorio, menú Inicio y Store', () => {
+    expect(watcherSourceFromId('watch:desktop:user')).toBe('desktop');
+    expect(watcherSourceFromId('watch:desktop:common')).toBe('desktop');
+    expect(watcherSourceFromId('watch:start-menu:user')).toBe('start-menu');
+    expect(watcherSourceFromId('watch:start-menu:common')).toBe('start-menu');
+    expect(watcherSourceFromId('watch:store')).toBe('store');
+  });
+
+  it('un origen ausente cae en escritorio', () => {
+    expect(watcherSourceFromId(undefined)).toBe('desktop');
+    expect(watcherSourceFromId('')).toBe('desktop');
   });
 });

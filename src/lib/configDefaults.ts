@@ -14,8 +14,11 @@ export const FOLDER_SCHEMA_VERSION = 2;
 /** Atajo global de fábrica, compartido con el botón "Restablecer". */
 export const DEFAULT_GLOBAL_SHORTCUT = 'Alt+Shift+T';
 
-/** Segundos que el aviso del vigilante permanece en pantalla. */
-export const DEFAULT_WATCHER_PROMPT_SECONDS = 6;
+/**
+ * Segundos que el aviso del vigilante permanece en pantalla. Diez alcanza
+ * para leer la lista y elegir carpeta sin que se cierre a media decisión.
+ */
+export const DEFAULT_WATCHER_PROMPT_SECONDS = 10;
 export const WATCHER_MIN_PROMPT_SECONDS = 4;
 export const WATCHER_MAX_PROMPT_SECONDS = 30;
 

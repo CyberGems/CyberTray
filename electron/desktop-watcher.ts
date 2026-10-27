@@ -6,7 +6,6 @@ import { ignorableShortcutReason, type ImportSourceConfig, type ScannedShortcut 
 import {
   diffNewItems,
   hasActiveWatcherSource,
-  limitWatcherItems,
   readWatcherSettings,
   watcherIgnoreReason,
   watcherSourceConfigs,
@@ -193,7 +192,9 @@ async function runScan(watcher: ActiveWatcher, silent: boolean): Promise<void> {
     }
 
     const announced = diffNewItems(new Set<string>(), resolved);
-    if (announced.length > 0) watcher.deps.onDetected(limitWatcherItems(announced));
+    // Se entregan todos: el aviso recorta lo que muestra, pero la bandeja
+    // guarda el lote completo.
+    if (announced.length > 0) watcher.deps.onDetected(announced);
   } catch (error) {
     watcher.deps.onError?.(error instanceof Error ? error.message : String(error));
   } finally {
@@ -243,7 +244,7 @@ async function pollStoreApps(watcher: ActiveWatcher): Promise<void> {
       exists: true,
     }));
 
-  if (items.length > 0) watcher.deps.onDetected(limitWatcherItems(items));
+  if (items.length > 0) watcher.deps.onDetected(items);
 }
 
 export function isDesktopWatcherRunning(): boolean {

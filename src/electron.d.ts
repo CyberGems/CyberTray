@@ -86,6 +86,18 @@ declare global {
           promptSeconds: number;
           promptVisible: boolean;
         }>;
+        resize: (delta: number) => Promise<boolean>;
+        hold: (hold: boolean) => Promise<boolean>;
+      };
+      notifications: {
+        list: () => Promise<import('./lib/notificationCenter').NotificationState>;
+        markSeen: (ids: string[]) => Promise<import('./lib/notificationCenter').NotificationState>;
+        remove: (ids: string[]) => Promise<import('./lib/notificationCenter').NotificationState>;
+        clear: () => Promise<import('./lib/notificationCenter').NotificationState>;
+        addItems: (payload: { keys: string[]; categoryId: string }) => Promise<{ success: boolean; added: number; folderId: string }>;
+        openCenter: () => Promise<{ success: boolean }>;
+        onChanged: (callback: (state: import('./lib/notificationCenter').NotificationState) => void) => () => void;
+        onOpenCenter: (callback: () => void) => () => void;
       };
       runDesktopSweep: () => Promise<{ success: boolean; count?: number; error?: string }>;
       getDefaultVaultPath: () => Promise<string>;

@@ -6,6 +6,7 @@ import {
 } from './configDefaults';
 import type { ImportSourceConfig, ScannedShortcut } from './shortcutImport';
 import { UNCATEGORIZED_ID } from './appUtils';
+import type { NotificationSource } from './notificationCenter';
 
 /**
  * Lógica compartida del vigilante de escritorio.
@@ -71,6 +72,17 @@ export function readWatcherSettings(config: Partial<CyberTrayConfig> | null | un
 /** `true` si hay al menos una fuente activa que justifique el vigilante. */
 export function hasActiveWatcherSource(settings: WatcherSettings): boolean {
   return settings.enabled && (settings.watchDesktop || settings.watchStartMenu || settings.watchStore);
+}
+
+/**
+ * Fuente a la que pertenece un elemento detectado, a partir del id de origen
+ * que puso el escáner. Se usa para etiquetar cada aviso en el centro.
+ */
+export function watcherSourceFromId(sourceId: string | undefined): NotificationSource {
+  const id = String(sourceId || '');
+  if (id.includes('store')) return 'store';
+  if (id.includes('start-menu')) return 'start-menu';
+  return 'desktop';
 }
 
 /**

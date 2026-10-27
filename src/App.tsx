@@ -15,6 +15,8 @@ import ImportSyncModal from './components/ImportSyncModal';
 import OnboardingModal from './components/OnboardingModal';
 import BootLoader from './components/BootLoader';
 import FolderTree from './components/FolderTree';
+import NotificationCenter from './components/NotificationCenter';
+import { emptyNotificationState, type NotificationState } from './lib/notificationCenter';
 import {
   isElectron,
   getDefaultCategories,
@@ -90,6 +92,8 @@ export default function App() {
   const updateNotifSeenRef = useRef<string>('');
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const [notifications, setNotifications] = useState<NotificationState>(emptyNotificationState);
+  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('cybertray_view_mode', viewMode);
@@ -415,6 +419,59 @@ export default function App() {
       document.removeEventListener('keydown', onKey);
     };
   }, [isMoreMenuOpen]);
+
+  // Centro de notificaciones: estado inicial y cambios empujados desde el main.
+  useEffect(() => {
+    if (!isElectron) return;
+    let cancelled = false;
+    void window.electronAPI!.notifications.list().then((next) => {
+      if (!cancelled) setNotifications(next);
+    });
+    const offChanged = window.electronAPI!.notifications.onChanged((next) => setNotifications(next));
+    const offOpen = window.electronAPI!.notifications.onOpenCenter(() => {
+      setIsNotificationCenterOpen(true);
+      setIsMoreMenuOpen(false);
+      setShowSettings(false);
+    });
+    return () => {
+      cancelled = true;
+      offChanged();
+      offOpen();
+    };
+  }, []);
+
+  const handleMarkNotificationsSeen = (ids: string[]) => {
+    if (!isElectron || ids.length === 0) return;
+    void window.electronAPI!.notifications.markSeen(ids).then(setNotifications);
+  };
+
+  const handleRemoveNotifications = (ids: string[]) => {
+    if (!isElectron || ids.length === 0) return;
+    void window.electronAPI!.notifications.remove(ids).then(setNotifications);
+  };
+
+  const handleClearNotifications = () => {
+    if (!isElectron) return;
+    showConfirm(
+      translate('notifications_clear_confirm_title'),
+      translate('notifications_clear_confirm_desc'),
+      () => {
+        void window.electronAPI!.notifications.clear().then(setNotifications);
+      },
+      true,
+    );
+  };
+
+  const handleAddNotificationItems = async (keys: string[], folderId: string) => {
+    if (!isElectron) return { success: false, added: 0 };
+    const result = await window.electronAPI!.notifications.addItems({ keys, categoryId: folderId });
+    if (result.added > 0) {
+      pushToast('success', translate('notifications_added', { count: String(result.added) }));
+    } else {
+      pushToast('error', translate('notifications_add_failed'));
+    }
+    return { success: result.success, added: result.added };
+  };
 
   useEffect(() => {
     configRef.current = config;
@@ -2719,6 +2776,28 @@ export default function App() {
               <ArrowDown className={`w-4 h-4 text-[#6C9BFF] ${updateStatus.state === 'downloading' ? 'animate-bounce' : ''}`} />
             </button>
           )}
+
+          <NotificationCenter
+            open={isNotificationCenterOpen}
+            onToggle={() => {
+              setIsNotificationCenterOpen(prev => !prev);
+              setIsMoreMenuOpen(false);
+              playCyberBeep();
+              hideTooltip();
+            }}
+            onClose={() => setIsNotificationCenterOpen(false)}
+            state={notifications}
+            folders={categories}
+            watcherEnabled={!!config.watcherEnabled}
+            onMarkSeen={handleMarkNotificationsSeen}
+            onRemove={handleRemoveNotifications}
+            onClear={handleClearNotifications}
+            onAdd={handleAddNotificationItems}
+            onOpenSettings={() => {
+              setIsNotificationCenterOpen(false);
+              setShowSettings(true);
+            }}
+          />
 
           <button
             type="button"

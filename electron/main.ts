@@ -16,7 +16,18 @@ import { UNCATEGORIZED_ID } from '../src/lib/appUtils';
 import { createBackupService } from './backups';
 import { normalizeBackupFolder, parseBackupHours, parseBackupKeep } from '../src/lib/backup';
 import { refreshDesktopWatcher, markWatcherItemsHandled, stopDesktopWatcher, resetDesktopWatcherBaseline } from './desktop-watcher';
-import { readWatcherSettings } from '../src/lib/desktopWatcher';
+import { readWatcherSettings, limitWatcherItems, watcherSourceFromId } from '../src/lib/desktopWatcher';
+import {
+  clearNotificationState,
+  deleteNotificationItems,
+  deleteNotifications,
+  findNotificationItems,
+  getNotificationState,
+  initNotificationStore,
+  markNotificationsRead,
+  pushNotificationItems,
+} from './notification-store';
+import type { NotificationItem } from '../src/lib/notificationCenter';
 
 // Versiones asíncronas: nunca usar execSync en el proceso main, bloquea el
 // tray, la ventana y todo el IPC mientras el hijo de PowerShell corre.
@@ -631,15 +642,22 @@ function hideCustomTrayMenu() {
 // activarse (`showInactive`) para no robar el foco a lo que estés haciendo.
 
 const WATCHER_PROMPT_WIDTH = 392;
-/** Alto del marco: cabecera, selector de carpeta y botones. */
-const WATCHER_PROMPT_CHROME = 150;
+/** Alto del marco: cabecera, cuenta regresiva, selector de carpeta y botones. */
+const WATCHER_PROMPT_CHROME = 148;
+/** Fila extra que aparece cuando el lote no cabe entero en el aviso. */
+const WATCHER_PROMPT_MORE_ROW = 28;
 /** Alto de cada elemento listado. */
 const WATCHER_PROMPT_ROW = 40;
 const WATCHER_PROMPT_MARGIN = 12;
 
 let watcherPromptWin: BrowserWindow | null = null;
 let watcherPromptTimer: NodeJS.Timeout | null = null;
+/** Solo lo que cabe en el aviso; la bandeja guarda el lote completo. */
 let watcherPromptItems: ScannedShortcut[] = [];
+/** Lote de la bandeja al que pertenece el aviso visible. */
+let watcherPromptEntryId: string | null = null;
+/** Elementos totales del lote, aunque el aviso solo muestre unos pocos. */
+let watcherPromptTotal = 0;
 
 function getWatcherPromptHtmlPath(): string {
   const candidates = [
@@ -654,16 +672,18 @@ function getWatcherPromptHtmlPath(): string {
   return candidates[0];
 }
 
-function watcherPromptHeight(itemCount: number): number {
-  return WATCHER_PROMPT_CHROME + Math.max(1, itemCount) * WATCHER_PROMPT_ROW;
+function watcherPromptHeight(itemCount: number, hasMore = false): number {
+  return WATCHER_PROMPT_CHROME
+    + (hasMore ? WATCHER_PROMPT_MORE_ROW : 0)
+    + Math.max(1, itemCount) * WATCHER_PROMPT_ROW;
 }
 
 /** Esquina inferior derecha del monitor donde está el puntero. */
-function watcherPromptBounds(itemCount: number) {
+function watcherPromptBounds(itemCount: number, hasMore = false) {
   const cursor = screen.getCursorScreenPoint();
   const display = screen.getDisplayNearestPoint(cursor);
   const area = display.workArea;
-  const height = watcherPromptHeight(itemCount);
+  const height = watcherPromptHeight(itemCount, hasMore);
   return {
     x: area.x + area.width - WATCHER_PROMPT_WIDTH - WATCHER_PROMPT_MARGIN,
     y: area.y + area.height - height - WATCHER_PROMPT_MARGIN,
@@ -677,13 +697,18 @@ function watcherPromptFolders() {
   const folders = Array.isArray(config.categoriesList) ? config.categoriesList : [];
   return folders
     .filter((folder: any) => folder && folder.id && folder.id !== 'all' && folder.id !== 'vault')
-    .map((folder: any) => ({ id: String(folder.id), name: String(folder.name || folder.id) }));
+    .map((folder: any) => ({
+      id: String(folder.id),
+      name: String(folder.name || folder.id),
+      color: String(folder.color || ''),
+    }));
 }
 
 function buildWatcherPromptState() {
   return {
     lang: config.language === 'es' ? 'es' : 'en',
     seconds: readWatcherSettings(config).promptSeconds,
+    total: watcherPromptTotal,
     items: watcherPromptItems.map(item => ({
       key: item.key,
       name: item.name,
@@ -735,21 +760,50 @@ function ensureWatcherPromptWindow(): BrowserWindow {
 function hideWatcherPrompt(): void {
   if (watcherPromptTimer) { clearTimeout(watcherPromptTimer); watcherPromptTimer = null; }
   watcherPromptItems = [];
+  watcherPromptEntryId = null;
+  watcherPromptTotal = 0;
   if (watcherPromptWin && !watcherPromptWin.isDestroyed() && watcherPromptWin.isVisible()) {
     watcherPromptWin.hide();
   }
 }
 
+/** Convierte un elemento detectado en una entrada de la bandeja. */
+function toNotificationItem(item: ScannedShortcut): NotificationItem {
+  return {
+    key: item.key,
+    name: item.name,
+    path: item.path,
+    iconPath: item.iconPath || '',
+    source: watcherSourceFromId(item.sourceId),
+    args: item.arguments || '',
+    cwd: item.cwd || '',
+  };
+}
+
 /**
  * Muestra el aviso. Si ya hay uno abierto se reemplaza: dos avisos apilados
  * serían peores que uno con la lista actualizada.
+ *
+ * El lote completo se guarda antes en la bandeja. El aviso enseña solo lo que
+ * cabe, pero nada se pierde: lo que no entra (o lo que se cierra solo) sigue
+ * en el centro de notificaciones.
  */
 function showWatcherPrompt(items: ScannedShortcut[]): void {
   if (items.length === 0) return;
-  watcherPromptItems = items;
+
+  const stored = pushNotificationItems(items.map(toNotificationItem));
+  // Todo el lote ya estaba en la bandeja: no se vuelve a preguntar.
+  if (!stored) return;
+
+  const storedKeys = new Set(stored.items.map(item => item.key));
+  const announced = items.filter(item => storedKeys.has(item.key));
+  watcherPromptEntryId = stored.id;
+  watcherPromptItems = limitWatcherItems(announced);
+  watcherPromptTotal = announced.length;
 
   const win = ensureWatcherPromptWindow();
-  win.setBounds(watcherPromptBounds(items.length));
+  const hasMore = watcherPromptTotal > watcherPromptItems.length;
+  win.setBounds(watcherPromptBounds(watcherPromptItems.length, hasMore));
 
   const reveal = () => {
     if (!watcherPromptWin || watcherPromptWin.isDestroyed()) return;
@@ -759,9 +813,8 @@ function showWatcherPrompt(items: ScannedShortcut[]): void {
     const seconds = readWatcherSettings(config).promptSeconds;
     watcherPromptTimer = setTimeout(() => {
       watcherPromptTimer = null;
-      // Cerrar sin decidir equivale a ignorar: se marca como visto para que no
-      // vuelva a preguntar por lo mismo.
-      markWatcherItemsHandled(watcherPromptItems.map(item => item.key));
+      // Cerrarse solo no equivale a leerlo: el lote se queda sin ver en el
+      // centro y el contador de la campana lo recuerda.
       hideWatcherPrompt();
     }, seconds * 1000);
   };
@@ -773,23 +826,44 @@ function showWatcherPrompt(items: ScannedShortcut[]): void {
   }
 }
 
-/** Añade a la librería los elementos elegidos del aviso. */
-function addWatcherItems(keys: string[], requestedFolderId: string): { added: number; folderId: string } {
+/** Candidato a entrar en la librería, venga del aviso o del centro. */
+interface LibraryCandidate {
+  key: string;
+  name: string;
+  path: string;
+  iconPath?: string;
+  args?: string;
+  cwd?: string;
+}
+
+/**
+ * Añade a la librería los elementos elegidos.
+ *
+ * Devuelve las claves procesadas, incluidas las que ya estaban en la librería:
+ * unas y otras deben salir de la bandeja, o se quedarían ahí para siempre.
+ */
+function addShortcutsToLibrary(
+  items: LibraryCandidate[],
+  requestedFolderId: string,
+): { added: number; folderId: string; keys: string[] } {
   const validIds = new Set((config.categoriesList || []).map((folder: any) => String(folder?.id || '')));
   const folderId = validIds.has(requestedFolderId) && requestedFolderId !== 'all' && requestedFolderId !== 'vault'
     ? requestedFolderId
     : UNCATEGORIZED_ID;
 
-  const chosen = watcherPromptItems.filter(item => keys.includes(item.key));
-  if (chosen.length === 0) return { added: 0, folderId };
+  if (items.length === 0) return { added: 0, folderId, keys: [] };
 
   const list: any[] = Array.isArray(config.shortcutsList) ? [...config.shortcutsList] : [];
   const knownPaths = new Set(list.map(entry => String(entry?.path || '').toLowerCase()));
+  const processed: string[] = [];
   let added = 0;
 
-  chosen.forEach((item, index) => {
+  items.forEach((item, index) => {
     const pathKey = String(item.path || '').toLowerCase();
-    if (!pathKey || knownPaths.has(pathKey)) return;
+    if (!pathKey) return;
+    processed.push(item.key);
+    // Ya está en la librería: no se duplica, pero tampoco se vuelve a ofrecer.
+    if (knownPaths.has(pathKey)) return;
     knownPaths.add(pathKey);
     list.push({
       id: Date.now() + index,
@@ -799,7 +873,7 @@ function addWatcherItems(keys: string[], requestedFolderId: string): { added: nu
       iconPath: item.iconPath || '',
       isAdmin: false,
       delay: 0,
-      arguments: item.arguments || '',
+      arguments: item.args || '',
       cwd: item.cwd || '',
       usageCount: 0,
       addedTimestamp: Date.now(),
@@ -808,8 +882,8 @@ function addWatcherItems(keys: string[], requestedFolderId: string): { added: nu
   });
 
   if (added > 0) saveConfig({ shortcutsList: list });
-  markWatcherItemsHandled(chosen.map(item => item.key));
-  return { added, folderId };
+  markWatcherItemsHandled(processed);
+  return { added, folderId, keys: processed };
 }
 
 function updateCustomTrayMenuState() {
@@ -2508,12 +2582,17 @@ function registerIpcHandlers() {
   ipcMain.handle('watcher:add', (_event, payload: { keys?: unknown; categoryId?: unknown }) => {
     const keys = Array.isArray(payload?.keys) ? payload!.keys.filter((key): key is string => typeof key === 'string') : [];
     const categoryId = typeof payload?.categoryId === 'string' ? payload.categoryId : UNCATEGORIZED_ID;
-    const result = addWatcherItems(keys, categoryId);
+    const chosen = watcherPromptItems.filter(item => keys.includes(item.key));
+    const result = addShortcutsToLibrary(chosen, categoryId);
+    deleteNotificationItems(result.keys);
     hideWatcherPrompt();
-    return { success: result.added > 0, ...result };
+    return { success: result.added > 0, added: result.added, folderId: result.folderId };
   });
 
   ipcMain.handle('watcher:dismiss', () => {
+    // "Ahora no" sí es haberlo visto: se queda en el centro, pero sin marcar
+    // como pendiente, porque ya se decidió dejarlo para después.
+    if (watcherPromptEntryId) markNotificationsRead([watcherPromptEntryId]);
     markWatcherItemsHandled(watcherPromptItems.map(item => item.key));
     hideWatcherPrompt();
     return { success: true };
@@ -2531,6 +2610,69 @@ function registerIpcHandlers() {
       ...settings,
       promptVisible: Boolean(watcherPromptWin && !watcherPromptWin.isDestroyed() && watcherPromptWin.isVisible()),
     };
+  });
+
+  /**
+   * Crece o encoge el aviso manteniendo su borde inferior: el desplegable de
+   * carpeta necesita sitio hacia arriba y no cabe en el alto original.
+   */
+  ipcMain.handle('watcher:resize', (_event, delta: unknown) => {
+    const win = watcherPromptWin;
+    if (!win || win.isDestroyed()) return false;
+    const amount = Math.max(-400, Math.min(400, Math.round(Number(delta) || 0)));
+    if (!amount) return true;
+    const bounds = win.getBounds();
+    const height = Math.max(120, bounds.height + amount);
+    win.setBounds({ x: bounds.x, y: bounds.y - (height - bounds.height), width: bounds.width, height });
+    return true;
+  });
+
+  /** Pausa la cuenta regresiva mientras el puntero está sobre el aviso. */
+  ipcMain.handle('watcher:hold', (_event, hold: unknown) => {
+    if (watcherPromptTimer) { clearTimeout(watcherPromptTimer); watcherPromptTimer = null; }
+    if (hold === true || watcherPromptItems.length === 0) return true;
+    const seconds = readWatcherSettings(config).promptSeconds;
+    watcherPromptTimer = setTimeout(() => {
+      watcherPromptTimer = null;
+      hideWatcherPrompt();
+    }, seconds * 1000);
+    return true;
+  });
+
+  // --- Centro de notificaciones ---
+  ipcMain.handle('notifications:list', () => getNotificationState());
+
+  ipcMain.handle('notifications:mark-seen', (_event, ids: unknown) => {
+    const list = Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : [];
+    return markNotificationsRead(list);
+  });
+
+  ipcMain.handle('notifications:remove', (_event, ids: unknown) => {
+    const list = Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : [];
+    return deleteNotifications(list);
+  });
+
+  ipcMain.handle('notifications:clear', () => clearNotificationState());
+
+  ipcMain.handle('notifications:add-items', (_event, payload: { keys?: unknown; categoryId?: unknown }) => {
+    const keys = Array.isArray(payload?.keys) ? payload!.keys.filter((key): key is string => typeof key === 'string') : [];
+    const categoryId = typeof payload?.categoryId === 'string' ? payload.categoryId : UNCATEGORIZED_ID;
+    const result = addShortcutsToLibrary(findNotificationItems(keys), categoryId);
+    deleteNotificationItems(result.keys);
+    return { success: result.added > 0, added: result.added, folderId: result.folderId };
+  });
+
+  ipcMain.handle('notifications:open-center', () => {
+    // Cerrar el aviso aquí no marca nada como leído: el lote sigue pendiente
+    // hasta que se vea en el centro.
+    hideWatcherPrompt();
+    showShelf();
+    setTimeout(() => {
+      if (shelfWindow && !shelfWindow.isDestroyed()) {
+        shelfWindow.webContents.send('open-notification-center');
+      }
+    }, 300);
+    return { success: true };
   });
 
   // --- Respaldo automático de la configuración ---
@@ -3006,6 +3148,14 @@ app.whenReady().then(async () => {
   loadConfig();
   if (app.isPackaged) applyAutoLaunchSettings(!!config.autoLaunch);
   migrateConfigIconsToDisk();
+  initNotificationStore({
+    filePath: path.join(app.getPath('userData'), 'cyber-tray-notifications.json'),
+    onChange: (next) => {
+      if (shelfWindow && !shelfWindow.isDestroyed() && !shelfWindow.webContents.isLoading()) {
+        shelfWindow.webContents.send('notifications:changed', next);
+      }
+    },
+  });
   registerLocalResourceProtocol();
   registerIpcHandlers();
   fetchVramInfoInBackground(); // Carga de VRAM asíncrona en segundo plano al iniciar
