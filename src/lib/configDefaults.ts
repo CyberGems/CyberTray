@@ -135,7 +135,9 @@ export function createDefaultConfig(): CyberTrayConfig {
     hideOnBlur: true,
     hotspotCorners: [],
     hotspotDelay: 300,
-    alwaysOnTop: true,
+    // El anclado (pin) no es el comportamiento por defecto: la bandeja debe
+    // ocultarse al perder el foco. Se activa a mano desde la barra superior.
+    alwaysOnTop: false,
     iconSize: 60,
     showTaskbarIcon: false,
     autoLaunch: false,

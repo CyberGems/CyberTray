@@ -38,6 +38,14 @@ describe('createDefaultConfig', () => {
   it('empieza sin onboarding completado', () => {
     expect(createDefaultConfig().onboardingDone).toBe(false);
   });
+
+  // El anclado se refleja en el botón Pin de la barra superior: si naciera
+  // activo, la bandeja parecería "fijada" desde el primer arranque.
+  it('no fija la ventana por defecto', () => {
+    const config = createDefaultConfig();
+    expect(config.alwaysOnTop).toBe(false);
+    expect(config.hideOnBlur).toBe(true);
+  });
 });
 
 describe('sanitizeConfig', () => {
