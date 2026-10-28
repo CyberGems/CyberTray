@@ -6,7 +6,7 @@
 
 ### 🚀 What's new in this release
 
-<!-- IMPORTANT FOR AGENTS & MAINTAINERS: Always rewrite this entire section and highlights with the ACTUAL release notes for this specific new version before tagging. NEVER leave or copy previous version notes! Use 25-45 words for the summary, lead with user-facing changes, and do not repeat the app name or version. -->
+<!-- IMPORTANT FOR AGENTS & MAINTAINERS: Always rewrite this entire section, the highlights and the Spanish block with the ACTUAL release notes for this specific new version before tagging. NEVER leave or copy previous version notes! Use 25-45 words for the summary, lead with user-facing changes, and do not repeat the app name or version. -->
 <!-- changelog-summary:start -->
 The tray now notices new desktop and Start menu items and asks whether to add them, imports Windows shortcuts with a reviewable sync, schedules configuration backups you can restore in one click, and adds first-run onboarding plus full keyboard control.
 <!-- changelog-summary:end -->
@@ -47,7 +47,16 @@ The tray now notices new desktop and Start menu items and asks whether to add th
 
 ---
 
-### ✨ Novedades principales
+<details>
+<summary><b>🇪🇸 Ver notas de la versión en Español</b></summary>
+
+### 🚀 Novedades de esta versión
+
+La bandeja ahora avisa de lo nuevo que aparece en el escritorio y el menú Inicio y ofrece añadirlo, importa accesos de Windows con una sincronización revisable, programa copias de la configuración que se restauran en un clic y añade asistente de primera ejecución y control total por teclado.
+
+---
+
+### ✨ Novedades destacadas
 
 - 🛰️ **Vigilante de elementos nuevos**:
   - Vigila el escritorio, el menú Inicio y las apps de Microsoft Store (desactivado por defecto, con sus propios interruptores y duración del aviso).
@@ -77,9 +86,11 @@ The tray now notices new desktop and Start menu items and asks whether to add th
 - 🗂️ **Carpetas más claras**:
   - Los accesos sin carpeta se listan en **Todo** en vez de una categoría fantasma, y el cajón oculto queda fuera del árbol, de los selectores y de las zonas donde se puede soltar.
 
+</details>
+
 ---
 
-### 📦 Download
+### 📦 Downloads & Packages
 
 > ⬇️ **Direct download:** click the file name to download it now. Same file as in **Assets** at the bottom of this page.
 
@@ -89,9 +100,15 @@ The tray now notices new desktop and Start menu items and asks whether to add th
 
 ---
 
-### 🔐 Checksum
+### 🔐 VirusTotal and SHA256
 
-- **`CyberTray-Setup-{{VERSION_NUM}}.exe`** — SHA256: `{{INSTALLER_HASH}}`
+> 🛡️ The report opens on VirusTotal in a new tab and does not download anything.
+
+- **`CyberTray-Setup-{{VERSION_NUM}}.exe`**: [View VirusTotal report](https://www.virustotal.com/gui/file/{{INSTALLER_HASH}})
+
+```text
+{{INSTALLER_HASH}}
+```
 
 ---
 
