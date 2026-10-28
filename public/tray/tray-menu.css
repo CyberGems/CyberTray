@@ -86,7 +86,7 @@ html, body {
   height: 16px;
   object-fit: contain;
   flex-shrink: 0;
-  filter: grayscale(1) opacity(0.55);
+  filter: grayscale(0.5) opacity(0.75);
   transition: filter 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
   pointer-events: none;
 }
