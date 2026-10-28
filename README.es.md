@@ -52,6 +52,7 @@ Tu escritorio está saturado. El menú Inicio es lento. La barra de tareas está
 - **Gestión de atajos**: registra, edita y lanza aplicaciones, archivos y URLs
 - **Asistente de primer inicio**: elige idioma, importa accesos y define el atajo global en tres pasos. Solo aparece en instalaciones nuevas y se puede reabrir desde Ajustes.
 - **Importación y sincronización de Windows**: revisa Escritorio, Menú Inicio, carpetas personalizadas y apps de Microsoft Store antes de importar. Las sincronizaciones posteriores añaden accesos nuevos y actualizan destinos cambiados sin sobrescribir tus carpetas, nombres, iconos, atajos, favoritos ni estadísticas. Los elementos ausentes nunca se eliminan automáticamente y la última importación se puede deshacer.
+- **Vigilante de elementos nuevos**: vigila el Escritorio, el Menú Inicio y las apps de Microsoft Store y ofrece añadir lo que aparece. El aviso nunca roba el foco, y lo que quede sin decidir espera en el centro de notificaciones hasta que lo añadas o lo descartes. Desactivado por defecto.
 - **Categorías y carpetas**: organiza los atajos con soporte de carpetas anidadas
 - **Sistema de favoritos**: marca atajos para acceso rápido
 - **Lanzamiento por grupos**: lanza todos los atajos de una categoría a la vez
