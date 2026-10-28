@@ -8,7 +8,7 @@
 
 <!-- IMPORTANT FOR AGENTS & MAINTAINERS: Always rewrite this entire section and highlights with the ACTUAL release notes for this specific new version before tagging. NEVER leave or copy previous version notes! Use 25-45 words for the summary, lead with user-facing changes, and do not repeat the app name or version. -->
 <!-- changelog-summary:start -->
-The launcher now makes fuller use of each monitor, keeps menus and tooltips visible, adds adjustable interface density, and brings update management directly into the app without changing the familiar tray and hotspot workflow.
+The tray now notices new desktop and Start menu items and asks whether to add them, imports Windows shortcuts with a reviewable sync, schedules configuration backups you can restore in one click, and adds first-run onboarding plus full keyboard control.
 <!-- changelog-summary:end -->
 
 > **New to CyberTray?** A high-performance Windows tray launcher with active zones, process monitoring, shortcuts, and a private PIN-protected vault.
@@ -17,19 +17,65 @@ The launcher now makes fuller use of each monitor, keeps menus and tooltips visi
 
 ### ✨ Key Features & Highlights
 
-- 🖥️ **Work-area overlay**:
-  - The panel fills the monitor work area instead of a thin top or bottom shelf, so menus and tooltips are no longer clipped by the window.
-  - The window is not resizable; show/hide, hotkey, tray, and hotspot activation are unchanged.
+- 🛰️ **New-item watcher**:
+  - Watches the desktop, the Start menu and Microsoft Store apps (off by default, with its own toggles and prompt duration).
+  - The notice appears bottom-right on the monitor where your cursor is and never steals focus.
+  - Anything you leave undecided waits in the new bell menu, where you can add, dismiss or clear it in one go.
 
-- 🎚️ **Density slider**:
-  - Scale shortcut cards, titles, and the folder tree from the header bar (Appearance stays in sync).
+- 🔄 **Windows import & sync**:
+  - Review every shortcut before it enters the library, choosing source, folder and which items to keep.
+  - Later synchronizations add new items and update changed targets without overwriting your folders, names, icons, hotkeys, favorites or usage stats.
+  - Missing items are never deleted automatically, and the last import can be undone.
 
-- 💬 **In-app tooltips**:
-  - Folder, grid, About, and process controls use the CyberTray tooltip instead of the native Windows balloon.
+- 💾 **Scheduled backups**:
+  - Automatic copies every 6 hours, 12 hours, 24 hours or 7 days, keeping between 1 and 7 of them (3 by default).
+  - Restore any copy in one click, and every restore saves the current state first so it can be reversed.
 
-- 🔄 **In-app updates**:
-  - Check, download, and install new versions from About without opening a browser.
-  - Optional auto-check on boot notifies you when a release is available; install still requires confirmation.
+- 🎒 **First-run onboarding**:
+  - Language, import and global hotkey in three steps, shown only on new installations and reopenable from Settings.
+
+- ⌨️ **Keyboard and recents**:
+  - Arrow keys move through the shelf, `Enter` launches, and every shortcut can carry its own global hotkey.
+  - A recent strip keeps the last launched items one click away.
+
+- 🎨 **Interface polish**:
+  - A searchable folder tree replaces the native dropdown, and the tray has its own themed context menu.
+  - A boot loader covers the first paint, the installer carries CyberTray branding, and shortcuts without an icon draw a vector glyph instead of a placeholder.
+
+- 🗂️ **Clearer folders**:
+  - Shortcuts with no folder are listed under **All** instead of a phantom category, and the hidden bucket stays out of the tree, the pickers and the drop targets.
+
+---
+
+### ✨ Novedades principales
+
+- 🛰️ **Vigilante de elementos nuevos**:
+  - Vigila el escritorio, el menú Inicio y las apps de Microsoft Store (desactivado por defecto, con sus propios interruptores y duración del aviso).
+  - El aviso aparece abajo a la derecha, en el monitor donde está el cursor, y nunca roba el foco.
+  - Lo que dejes sin decidir espera en el nuevo menú de la campana, donde puedes añadir, descartar o limpiar todo de una vez.
+
+- 🔄 **Importación y sincronización de Windows**:
+  - Revisa cada acceso antes de que entre en la biblioteca, eligiendo origen, carpeta y qué elementos conservar.
+  - Las sincronizaciones posteriores añaden lo nuevo y actualizan destinos cambiados sin sobrescribir tus carpetas, nombres, iconos, atajos, favoritos ni estadísticas de uso.
+  - Lo que desaparece nunca se borra solo, y la última importación se puede deshacer.
+
+- 💾 **Copias de seguridad programadas**:
+  - Copias automáticas cada 6 horas, 12 horas, 24 horas o 7 días, conservando entre 1 y 7 (3 por defecto).
+  - Restaura cualquier copia con un clic, y cada restauración guarda antes el estado actual para poder revertirla.
+
+- 🎒 **Asistente de primera ejecución**:
+  - Idioma, importación y atajo global en tres pasos, solo en instalaciones nuevas y reabrible desde Ajustes.
+
+- ⌨️ **Teclado y recientes**:
+  - Las flechas recorren el estante, `Enter` lanza, y cada acceso puede tener su propio atajo global.
+  - Una franja de recientes mantiene lo último lanzado a un clic.
+
+- 🎨 **Pulido de interfaz**:
+  - Un árbol de carpetas con búsqueda sustituye al desplegable nativo, y la bandeja tiene su propio menú contextual.
+  - Un cargador de arranque cubre el primer pintado, el instalador lleva la imagen de CyberTray y los accesos sin icono dibujan un glifo vectorial en lugar de un marcador.
+
+- 🗂️ **Carpetas más claras**:
+  - Los accesos sin carpeta se listan en **Todo** en vez de una categoría fantasma, y el cajón oculto queda fuera del árbol, de los selectores y de las zonas donde se puede soltar.
 
 ---
 
