@@ -28,6 +28,12 @@ export interface ImportScanProgress {
 interface ImportScanOptions {
   signal?: AbortSignal;
   onProgress?: (progress: ImportScanProgress) => void;
+  /**
+   * Precalienta recursos caros (los iconos) para todos los archivos de una vez.
+   * Se llama después de recorrer el árbol y antes de repartir el trabajo entre
+   * los workers, porque resolver cada archivo por separado multiplica el coste.
+   */
+  prefetch?: (filePaths: string[]) => Promise<void>;
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
@@ -85,6 +91,10 @@ async function scanDirectorySource(
   }
 
   await walk(root, '', 0);
+  if (options.prefetch && files.length > 0) {
+    throwIfAborted(options.signal);
+    await options.prefetch(files.map((file) => file.filePath));
+  }
   const results: ScannedShortcut[] = [];
   let cursor = 0;
   const workers = Array.from({ length: Math.min(6, Math.max(1, files.length)) }, async () => {
