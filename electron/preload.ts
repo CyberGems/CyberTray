@@ -136,6 +136,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // --- CyberTray Specific IPC channels ---
   setDragActive: (active: boolean) => ipcRenderer.invoke('set-drag-active', active),
+  setShelfHold: (reason: string, active: boolean) => ipcRenderer.invoke('set-shelf-hold', reason, active),
   onShelfStateChange: (callback: (visible: boolean) => void) => {
     const handler = (_event: any, visible: boolean) => callback(visible);
     ipcRenderer.on('shelf-state-change', handler);

@@ -753,6 +753,23 @@ export default function App() {
     }
   }, []);
 
+  // El modal de importación guarda en memoria el plan escaneado. Si el panel se
+  // ocultara al perder el foco, React desmontaría el árbol entero (ver el
+  // `if (!isShelfVisible)` del render) y ese trabajo se perdería. Mientras el
+  // modal está abierto se retiene el panel: solo se cierra de forma manual.
+  useEffect(() => {
+    if (!isElectron) return;
+    const api = window.electronAPI;
+    if (!api?.setShelfHold) return;
+    // Al ocultarse el panel la retención se libera; si vuelve a mostrarse con
+    // el modal todavía abierto se vuelve a pedir.
+    if (!showImportSync || !isShelfVisible) return;
+    void api.setShelfHold('import-sync', true);
+    return () => {
+      void api.setShelfHold('import-sync', false);
+    };
+  }, [showImportSync, isShelfVisible]);
+
   const [isScanningProcesses, setIsScanningProcesses] = useState<boolean>(false);
 
   const handleScanProcesses = async () => {

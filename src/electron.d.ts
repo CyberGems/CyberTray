@@ -71,6 +71,7 @@ declare global {
       openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
       onUpdateStatus: (callback: (status: any) => void) => () => void;
       setDragActive: (active: boolean) => Promise<void>;
+      setShelfHold: (reason: string, active: boolean) => Promise<{ success: boolean; held: boolean }>;
       onShelfStateChange: (callback: (visible: boolean) => void) => () => void;
       onPlayLaunchSound: (callback: () => void) => () => void;
       watcher: {

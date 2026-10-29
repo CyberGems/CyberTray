@@ -86,6 +86,15 @@ let isDialogOpen = false;
 // Atajo global registrado actualmente (en formato de Electron).
 let currentGlobalShortcut: string | null = null;
 
+// Motivos por los que el renderer pide no ocultar el panel al perder el foco.
+// Se guardan por nombre (no un booleano) para que dos operaciones simultáneas
+// no se pisen al liberar la retención la primera de ellas.
+const shelfHoldReasons = new Set<string>();
+
+function isShelfHeld(): boolean {
+  return shelfHoldReasons.size > 0;
+}
+
 // ── CONFIGURACIÓN PREDETERMINADA ──
 // Los valores por defecto viven en src/lib/configDefaults.ts, compartidos con
 // el renderer para que main y UI nunca discrepen.
@@ -1408,7 +1417,7 @@ function createWindows() {
     // Windows steals focus on frameless show(); wait out the guard then re-check.
     const delay = Math.max(200, blurGuardUntil - Date.now() + 50);
     setTimeout(() => {
-      if (isDragActive || isDialogOpen) return;
+      if (isDragActive || isDialogOpen || isShelfHeld()) return;
       if (!shelfOpen) return;
       if (Date.now() < blurGuardUntil) return;
       if (shelfWindow && !shelfWindow.isDestroyed() && !shelfWindow.isFocused()) {
@@ -2933,6 +2942,29 @@ function registerIpcHandlers() {
     saveConfig({ alwaysOnTop: enabled });
     alignWindows();
     return { success: true };
+  });
+
+  // Retención del panel: mientras haya un motivo activo el panel no se oculta
+  // al perder el foco. Lo usa la UI para las vistas con estado en memoria que
+  // se perdería al desmontarse (el escaneo de importación, por ejemplo). No
+  // bloquea el cierre manual: botón, atajo global, bandeja y UAC siguen
+  // ocultando el panel con normalidad.
+  ipcMain.handle('set-shelf-hold', async (_, reason, active) => {
+    const key = String(reason || 'default');
+    if (active) {
+      shelfHoldReasons.add(key);
+    } else {
+      shelfHoldReasons.delete(key);
+    }
+    if (!isShelfHeld() && shelfWindow && !shelfWindow.isDestroyed() && shelfWindow.isVisible() && !shelfWindow.isFocused() && config.hideOnBlur) {
+      setTimeout(() => {
+        if (isShelfHeld() || isDragActive || isDialogOpen) return;
+        if (shelfWindow && !shelfWindow.isDestroyed() && !shelfWindow.isFocused()) {
+          hideShelf();
+        }
+      }, 200);
+    }
+    return { success: true, held: isShelfHeld() };
   });
 
   // --- Canales de CyberTray ---
