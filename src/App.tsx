@@ -42,7 +42,8 @@ import {
   Search, Plus, Settings, X, Trash2, Info,
   Pin, Play, ArrowDown, Shrink, MoreHorizontal,
   RefreshCw, Check, Activity, Lock, FolderOpen,
-  CheckSquare, Heart, BookOpen, HelpCircle, Tag, Globe, Sliders, History
+  CheckSquare, Heart, BookOpen, HelpCircle, Tag, Globe, Sliders, History,
+  LayoutGrid, List, Download, Eye, EyeOff
 } from 'lucide-react';
 
 let globalAudioCtx: AudioContext | null = null;
@@ -2684,6 +2685,78 @@ export default function App() {
             aria-label={translate('tooltip_size_slider')}
           />
         </div>
+
+        {/* Vista: cuadrícula o lista, sin salir de la barra */}
+        <div
+          className="flex items-center gap-0.5 h-8 px-1 rounded-lg border border-slate-800/80 bg-slate-950/50 shrink-0"
+          role="radiogroup"
+          aria-label={translate('app_view_mode')}
+        >
+          <button
+            type="button"
+            onClick={() => { setViewMode('grid'); playCyberBeep(); }}
+            onMouseEnter={(e) => showTooltip(e, translate('view_mode_grid'))}
+            onMouseLeave={hideTooltip}
+            role="radio"
+            aria-checked={viewMode === 'grid'}
+            aria-label={translate('view_mode_grid')}
+            className={`h-6 w-7 rounded-md flex items-center justify-center transition-all cursor-pointer ${
+              viewMode === 'grid'
+                ? 'bg-[var(--neon-glow-color-raw)]/15 border border-[var(--neon-glow-border)] text-[var(--neon-glow-color)]'
+                : 'border border-transparent text-slate-500 hover:text-slate-200 hover:bg-white/5'
+            }`}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => { setViewMode('list'); playCyberBeep(); }}
+            onMouseEnter={(e) => showTooltip(e, translate('view_mode_list'))}
+            onMouseLeave={hideTooltip}
+            role="radio"
+            aria-checked={viewMode === 'list'}
+            aria-label={translate('view_mode_list')}
+            className={`h-6 w-7 rounded-md flex items-center justify-center transition-all cursor-pointer ${
+              viewMode === 'list'
+                ? 'bg-[var(--neon-glow-color-raw)]/15 border border-[var(--neon-glow-border)] text-[var(--neon-glow-color)]'
+                : 'border border-transparent text-slate-500 hover:text-slate-200 hover:bg-white/5'
+            }`}
+          >
+            <List className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => { handleUpdateConfigSetting('watcherEnabled', !config.watcherEnabled); playCyberBeep(); }}
+          onMouseEnter={(e) => showTooltip(
+            e,
+            translate('watcher_title'),
+            translate('watcher_desc'),
+            config.watcherEnabled ? 'rgba(16,185,129,0.5)' : 'rgba(100,116,139,0.5)'
+          )}
+          onMouseLeave={hideTooltip}
+          aria-pressed={!!config.watcherEnabled}
+          aria-label={translate('watcher_title')}
+          className={`h-8 w-8 rounded-lg border flex items-center justify-center transition-all cursor-pointer ${
+            config.watcherEnabled
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:border-emerald-400 hover:bg-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.25)]'
+              : 'bg-slate-800/40 border-slate-700/50 text-slate-500 hover:text-slate-300 hover:border-slate-500'
+          }`}
+        >
+          {config.watcherEnabled ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => { openImportSync(); hideTooltip(); }}
+          onMouseEnter={(e) => showTooltip(e, translate('import_open_title'), translate('import_open_desc'), 'rgba(6,182,212,0.5)')}
+          onMouseLeave={hideTooltip}
+          aria-label={translate('import_open_title')}
+          className="h-8 w-8 bg-cyan-500/10 border border-cyan-500/30 hover:border-cyan-400 hover:bg-cyan-500/20 text-cyan-400 hover:text-cyan-300 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+        >
+          <Download className="w-4 h-4" />
+        </button>
 
         <div className="ml-auto flex items-center gap-2 shrink-0 overflow-visible">
           {selectionMode && (

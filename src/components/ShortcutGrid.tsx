@@ -315,10 +315,10 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
           onDragStart={(e) => handleShortcutDragStart(e, item)}
           onMouseEnter={(e) => showTooltip(e, item.name, item.path)}
           onMouseLeave={hideTooltip}
-          className={`cyber-panel-glow bg-slate-950/45 rounded-lg p-2 flex items-center justify-between gap-3 transition-all duration-300 hover:scale-102 hover:bg-slate-900/60 cursor-pointer relative group border focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--neon-glow-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+          className={`rounded-xl p-2.5 flex items-center justify-between gap-3 cursor-pointer relative group bg-black/20 backdrop-blur-xl border shadow-lg shadow-black/30 transition-[transform,border-color,background-color,box-shadow] duration-150 ease-out hover:bg-white/[0.07] hover:border-white/25 hover:shadow-[0_4px_14px_rgba(0,0,0,0.4)] hover:scale-[1.005] active:scale-[0.995] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--neon-glow-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
             selectedIds.has(item.id)
               ? 'border-[var(--neon-glow-color)] ring-1 ring-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10'
-              : 'border-slate-900/30 hover:border-[var(--neon-glow-border)]'
+              : 'border-white/5'
           }`}
         >
           {selectionMode && (
@@ -334,7 +334,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
           )}
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div
-              className="flex-shrink-0 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:border-[var(--neon-glow-color)] group-hover:shadow-[0_0_6px_var(--neon-glow-color-raw)]"
+              className="flex-shrink-0 bg-black/30 border border-white/10 rounded-lg flex items-center justify-center overflow-hidden transition-colors duration-150 group-hover:border-white/25"
               style={{ width: `${density.listIconPx}px`, height: `${density.listIconPx}px` }}
             >
               {item.iconPath ? (
@@ -438,10 +438,10 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
         onDragStart={(e) => handleShortcutDragStart(e, item)}
         onMouseEnter={(e) => showTooltip(e, item.name, item.path)}
         onMouseLeave={hideTooltip}
-        className={`cyber-panel-glow rounded-xl transition-all duration-300 hover:scale-103 cursor-pointer relative group focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--neon-glow-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+        className={`rounded-2xl cursor-pointer relative group bg-black/20 backdrop-blur-xl border shadow-xl shadow-black/30 transition-[transform,border-color,background-color,box-shadow] duration-150 ease-out hover:bg-white/[0.07] hover:border-white/25 hover:shadow-[0_4px_14px_rgba(0,0,0,0.4)] hover:scale-[1.01] hover:-translate-y-0.5 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--neon-glow-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
           selectedIds.has(item.id)
-            ? 'bg-[var(--neon-glow-color-raw)]/10 ring-1 ring-[var(--neon-glow-color)]'
-            : 'bg-slate-950/45'
+            ? 'border-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10 ring-1 ring-[var(--neon-glow-color)]'
+            : 'border-white/5'
         } ${
           isSmallGrid
             ? 'p-2 flex flex-col items-center justify-center gap-1.5 text-center'
@@ -460,7 +460,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
           </span>
         )}
         <div
-          className="flex-shrink-0 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-center overflow-hidden transition-all duration-300 group-hover:border-[var(--neon-glow-color)] group-hover:shadow-[0_0_6px_var(--neon-glow-color-raw)] relative"
+          className="flex-shrink-0 bg-black/30 border border-white/10 rounded-lg flex items-center justify-center overflow-hidden transition-colors duration-150 group-hover:border-white/25 relative"
           style={{ width: `${config.iconSize}px`, height: `${config.iconSize}px` }}
         >
           {item.iconPath ? (
