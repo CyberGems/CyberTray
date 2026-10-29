@@ -2630,7 +2630,10 @@ export default function App() {
           <CyberTrayWordmark className="text-[13px]" />
         </button>
 
-        <div className="relative w-52 shrink-0 ml-5">
+        {/* Búsqueda integrada: ocupa el espacio flexible del centro y comparte
+            el lenguaje visual de las tarjetas (fondo translúcido, borde blanco
+            tenue, foco con relleno sutil + halo del color de acento). */}
+        <div className="relative flex-1 min-w-[150px] max-w-[340px] flex items-center bg-black/20 border border-white/5 hover:border-white/25 rounded-lg transition-[border-color,background-color,box-shadow] duration-150 focus-within:border-[var(--neon-glow-color)] focus-within:bg-white/[0.06] focus-within:shadow-[0_0_14px_-2px_var(--neon-glow-color)]">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
           <input
             ref={searchInputRef}
@@ -2648,7 +2651,7 @@ export default function App() {
                 }
               }
             }}
-            className="w-full bg-slate-950/70 border border-[var(--neon-glow-border)] hover:border-[var(--neon-glow-color)] rounded-lg py-1.5 pl-8 pr-7 text-[11px] font-sans tracking-wide text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-[var(--neon-glow-color)] transition-all"
+            className="w-full bg-transparent rounded-lg py-1.5 pl-8 pr-7 text-[11px] font-sans tracking-wide text-white placeholder:text-slate-500 focus:outline-none"
           />
           {searchQuery && (
             <button
