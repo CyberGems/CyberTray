@@ -47,6 +47,8 @@ export default function ImportSyncModal({ open, onClose, categories, initialSour
   const [query, setQuery] = useState('');
   const [applyError, setApplyError] = useState('');
   const [backupAvailable, setBackupAvailable] = useState(false);
+  // Deshacer reemplaza la lista entera, así que pide confirmación explícita.
+  const [confirmUndo, setConfirmUndo] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -58,6 +60,7 @@ export default function ImportSyncModal({ open, onClose, categories, initialSour
     setApplyError('');
     setFilter('all');
     setQuery('');
+    setConfirmUndo(false);
     if (isElectron) {
       void window.electronAPI!.getImportBackupStatus()
         .then(status => setBackupAvailable(!!status.available))
@@ -135,6 +138,9 @@ export default function ImportSyncModal({ open, onClose, categories, initialSour
     try {
       const result = await window.electronAPI!.applyImportPlan(plan, sources);
       if (!result.success) throw new Error(result.error || translate('import_apply_error'));
+      // La importación deja copia del estado anterior: el botón de deshacer ya
+      // tiene algo que restaurar aunque este panel se cierre acto seguido.
+      setBackupAvailable(true);
       onApplied(result);
       onClose();
     } catch (error) {
@@ -151,9 +157,12 @@ export default function ImportSyncModal({ open, onClose, categories, initialSour
     try {
       const result = await window.electronAPI!.undoLastImport();
       if (!result.success) throw new Error(result.error || translate('import_undo_error'));
+      setBackupAvailable(false);
+      setConfirmUndo(false);
       onApplied({ undone: true });
       onClose();
     } catch (error) {
+      setConfirmUndo(false);
       setApplyError(error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
@@ -328,11 +337,24 @@ export default function ImportSyncModal({ open, onClose, categories, initialSour
                     {applyError || errors.map(error => `${error.sourceId}: ${error.message}`).join(' · ')}
                   </div>
                 )}
-                <div className="flex items-center justify-between px-5 py-3 border-t border-slate-900">
+                <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-slate-900">
                   <span className="text-[10px] text-slate-500">{translate('import_selected', { count: String(selectedChanges) })}</span>
-                  <div className="flex gap-2">
-                    {backupAvailable && (
-                      <button disabled={busy} onClick={undoLastImport} className="px-3 py-2 rounded-lg border border-amber-500/30 text-xs text-amber-300 disabled:opacity-40">{translate('import_undo')}</button>
+                  <div className="flex items-center gap-2">
+                    {backupAvailable && !confirmUndo && (
+                      <button
+                        disabled={busy}
+                        onClick={() => setConfirmUndo(true)}
+                        onMouseEnter={event => showTooltip(event, translate('import_undo_hint'))}
+                        onMouseLeave={hideTooltip}
+                        className="px-3 py-2 rounded-lg border border-amber-500/30 text-xs text-amber-300 hover:border-amber-400/60 disabled:opacity-40"
+                      >{translate('import_undo')}</button>
+                    )}
+                    {backupAvailable && confirmUndo && (
+                      <div className="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-lg border border-amber-500/40 bg-amber-500/5">
+                        <span className="text-[10px] leading-snug text-amber-200/90 max-w-[260px]">{translate('import_undo_confirm')}</span>
+                        <button disabled={busy} onClick={() => setConfirmUndo(false)} className="px-2 py-1 rounded border border-slate-700 text-[10px] text-slate-300 hover:border-slate-500 disabled:opacity-40">{translate('modal_btn_cancel_short')}</button>
+                        <button disabled={busy} onClick={undoLastImport} className="px-2 py-1 rounded border border-amber-500/40 bg-amber-500/10 text-[10px] font-bold text-amber-200 hover:bg-amber-500/20 disabled:opacity-40">{translate('import_undo_confirm_btn')}</button>
+                      </div>
                     )}
                     <button onClick={requestClose} disabled={busy && !scanning} className="px-4 py-2 rounded-lg border border-slate-800 text-xs text-slate-400 disabled:opacity-40">{translate('modal_btn_cancel_short')}</button>
                     <button disabled={!plan || busy || selectedChanges === 0} onClick={applyPlan} className="px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold disabled:opacity-40">{translate('import_apply')}</button>

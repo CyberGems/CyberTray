@@ -360,6 +360,20 @@ export default function App() {
     setShowSettings(false);
     setShowImportSync(true);
   }, []);
+  // Deshacer también desde el aviso posterior: el panel del importador se cierra
+  // al aplicar, así que si el botón solo viviera ahí habría que reabrirlo y
+  // volver a escanear para poder arrepentirse.
+  const handleUndoLastImport = useCallback(async () => {
+    if (!isElectron) return;
+    try {
+      const res = await window.electronAPI!.undoLastImport();
+      if (!res?.success) throw new Error(res?.error || '');
+      pushToast('success', translate('import_undone'));
+    } catch {
+      pushToast('error', translate('import_undo_error'));
+    }
+  }, []);
+
   const handleImportApplied = useCallback((result: { created?: number; updated?: number; removed?: number; undone?: boolean }) => {
     if (result.undone) {
       pushToast('success', translate('import_undone'));
@@ -369,7 +383,10 @@ export default function App() {
       created: String(result.created || 0),
       updated: String(result.updated || 0),
       removed: String(result.removed || 0),
-    }));
+    }), {
+      actionLabel: translate('import_undo_short'),
+      onAction: () => { void handleUndoLastImport(); },
+    });
   }, []);
 
   // ── Selección múltiple / borrado en masa ──

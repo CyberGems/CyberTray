@@ -10,6 +10,7 @@ import { initUpdater } from './updater';
 import { createDefaultConfig, sanitizeConfig, type CyberTrayConfig } from '../src/lib/configDefaults';
 import { scanImportSources } from './importScanner';
 import { activateStoreApp, isStoreAppUserModelId, resolveStoreAppLauncher } from './store-app-launch';
+import { resolveSteamGameExecutable, steamAppIdFromUrl } from './steam-library';
 import { applyImportPlan, reconcileImport, type ImportPlan, type ImportSourceConfig, type ScannedShortcut, type ShortcutRecord } from '../src/lib/shortcutImport';
 import type { CyberFolder } from '../src/lib/appUtils';
 import { UNCATEGORIZED_ID } from '../src/lib/appUtils';
@@ -177,6 +178,9 @@ public class CybertrayIcon {
 
 const ICON_EXTRACT_SIZE = 256;
 const ICON_BATCH_WINDOW_MS = 120;
+// Por debajo de este tamaño un icono se ve blando en el estante (el hueco mide
+// entre 28 y 40 px y la pantalla puede estar al 150 %).
+const SMALL_ICON_PX = 128;
 
 const pendingIconRequests = new Map<string, Array<(buffer: Buffer | null) => void>>();
 let iconBatchTimer: NodeJS.Timeout | null = null;
@@ -836,6 +840,15 @@ function setTrayRecents(items: unknown[]): void {
   rebuildTrayMenu();
 }
 
+/**
+ * Protocolo de un destino (`steam://`, `https://`, `mailto:`), o cadena vacía si
+ * es una ruta. Se exigen dos letras o más para no confundir la unidad `C:`.
+ */
+function protocolScheme(target: string): string {
+  const match = String(target || '').trim().match(/^([a-z][a-z0-9+.\-]+):/i);
+  return match ? match[1].toLowerCase() : '';
+}
+
 async function launchAppInternal(
   appPath: string,
   isAdmin?: boolean,
@@ -848,8 +861,11 @@ async function launchAppInternal(
       return { success: false, error: 'Empty target' };
     }
 
-    // Las URL se abren con el navegador, no con openPath (que espera rutas de archivo).
-    if (/^https?:\/\//i.test(target)) {
+    // Las URL se entregan al manejador del sistema: `openPath` espera una ruta
+    // de archivo y falla con `steam://`, `mailto:` o `ms-settings:`. El
+    // protocolo `file:` sí es una ruta, así que sigue su curso normal.
+    const scheme = protocolScheme(target);
+    if (scheme && scheme !== 'file') {
       await shell.openExternal(target);
       return { success: true };
     }
@@ -2139,6 +2155,9 @@ async function resolveFullFileInfo(filePath: string) {
     // accesos de apps empaquetadas apuntan a un AUMID (que sirve para lanzar
     // pero no es un archivo del que extraer un icono).
     let iconTargetPath = '';
+    // Un acceso de Steam resuelto a su ejecutable: el icono del `.exe` manda
+    // sobre el `.ico` que declara el propio acceso.
+    let preferTargetIcon = false;
     let targetExists = true;
 
     if (ext === '.lnk') {
@@ -2203,9 +2222,26 @@ async function resolveFullFileInfo(filePath: string) {
       if (customIcon) {
         iconSourcePath = customIcon.replace(/%([^%]+)%/g, (match, name) => process.env[String(name)] || match);
       }
-      resolvedPath = url;
       resolvedName = path.basename(normalized, ext);
+      resolvedPath = url;
       targetExists = true;
+
+      // Steam guarda sus accesos como `steam://rungameid/<id>`: es una orden de
+      // lanzamiento, no una ruta, así que bajo el nombre no informa de nada y no
+      // permite abrir la carpeta. Se busca el ejecutable real en los manifiestos
+      // del cliente; si el juego ya no está instalado se conserva la URL, que
+      // sigue siendo lanzable.
+      const steamAppId = steamAppIdFromUrl(url);
+      if (steamAppId) {
+        const executable = await resolveSteamGameExecutable(steamAppId, { iconPath: iconSourcePath });
+        if (executable) {
+          resolvedPath = executable;
+          ext = '.exe';
+          // El `.ico` de Steam a veces solo trae 32 px; el ejecutable del juego
+          // suele tener el icono a resolución completa.
+          preferTargetIcon = true;
+        }
+      }
     }
 
     const iconKey = iconKeyForPath(resolvedPath);
@@ -2226,17 +2262,26 @@ async function resolveFullFileInfo(filePath: string) {
     // El icono se busca en el icono propio del acceso, luego en el destino real
     // y solo al final en el propio `.lnk` (que para las apps empaquetadas es lo
     // único que hay, y Windows resuelve ahí el logo del paquete).
-    const iconLookupSource = iconSourcePath
-      || iconTargetPath
-      || (fs.existsSync(resolvedPath) ? resolvedPath : normalized);
+    const targetIsFile = fs.existsSync(resolvedPath) && !resolvedPath.toLowerCase().endsWith('.lnk');
+    const iconLookupSource = (preferTargetIcon && targetIsFile)
+      ? resolvedPath
+      : (iconSourcePath || iconTargetPath || (fs.existsSync(resolvedPath) ? resolvedPath : normalized));
 
     // 1) Icono propio declarado por el acceso (`.ico`): suele traer 256 px.
+    let pendingSmallIconPath = '';
     if (!skipGenericUrlIcon && iconSourcePath) {
       try {
         const icon = nativeImage.createFromPath(iconSourcePath);
         if (icon && !icon.isEmpty() && !(await isGenericShortcutIcon(icon))) {
-          iconFileUrl = persistNativeIcon(icon, iconKey);
-          iconDebugStep = 'ico';
+          const size = icon.getSize();
+          if (preferTargetIcon && Math.max(size.width, size.height) < SMALL_ICON_PX) {
+            // Demasiado pequeño para el estante: se guarda como último recurso
+            // y se deja pasar antes al icono del ejecutable.
+            pendingSmallIconPath = iconSourcePath;
+          } else {
+            iconFileUrl = persistNativeIcon(icon, iconKey);
+            iconDebugStep = 'ico';
+          }
         }
       } catch (e) {
         console.warn('Error reading shortcut icon file:', e);
@@ -2308,15 +2353,36 @@ async function resolveFullFileInfo(filePath: string) {
       }
     }
 
+    // 5) Último recurso: el `.ico` que declaraba el acceso aunque sea pequeño.
+    // Mejor su logo real a 32 px que un glifo o un icono ajeno.
+    if (!iconFileUrl && pendingSmallIconPath) {
+      try {
+        const icon = nativeImage.createFromPath(pendingSmallIconPath);
+        if (icon && !icon.isEmpty()) {
+          iconFileUrl = persistNativeIcon(icon, iconKey);
+          iconDebugStep = 'ico-small';
+        }
+      } catch (e) {
+        console.warn('Error reading small shortcut icon:', e);
+      }
+    }
+
     if (process.env.CYBERTRAY_ICON_DEBUG) {
       console.log(`[icons] ${path.basename(normalized)} -> ${iconDebugStep || 'glyph'} (${Date.now() - iconStartedAt}ms)`);
     }
 
+    const resolvedScheme = protocolScheme(resolvedPath);
     return {
       name: resolvedName,
       path: resolvedPath,
       ext,
-      exists: targetExists && (isStoreAppUserModelId(resolvedPath) || /^https?:\/\//i.test(resolvedPath) || fs.existsSync(resolvedPath)),
+      // Un destino con protocolo no es un archivo: existe mientras el sistema
+      // sepa abrirlo (es el caso de `steam://` de un juego desinstalado).
+      exists: targetExists && (
+        isStoreAppUserModelId(resolvedPath)
+        || (resolvedScheme !== '' && resolvedScheme !== 'file')
+        || fs.existsSync(resolvedPath)
+      ),
       iconPath: iconFileUrl,
       arguments: resolvedArgs,
       cwd: resolvedCwd,
@@ -2663,11 +2729,15 @@ function commitImportPlan(plan: ImportPlan, sources: ImportSourceConfig[]) {
   );
   const removedIds = new Set(plan.items.filter(item => item.action === 'missing' && item.selected).map(item => item.existingId));
   const taskbarIds = (config.taskbarIds || []).filter(id => !removedIds.has(id) && result.shortcuts.some(item => item.id === id));
-  if (fs.existsSync(CONFIG_FILE)) {
-    fs.copyFileSync(CONFIG_FILE, IMPORT_BACKUP_FILE);
-  } else {
-    fs.writeFileSync(IMPORT_BACKUP_FILE, JSON.stringify(config, null, 2), 'utf-8');
-  }
+  // Copia fiel del estado anterior. No sirve un `copyFileSync` del archivo tal
+  // cual: una instalación reciente puede no tener aún la clave `shortcutsList`
+  // en el JSON, y la restauración la exigiría. Se normaliza al escribir.
+  const snapshot = JSON.stringify({
+    ...config,
+    shortcutsList: config.shortcutsList || [],
+    categoriesList: config.categoriesList || [],
+  }, null, 2);
+  fs.writeFileSync(IMPORT_BACKUP_FILE, snapshot, 'utf-8');
   const success = saveConfig({
     shortcutsList: result.shortcuts,
     categoriesList: result.categories,
@@ -3149,9 +3219,12 @@ function registerIpcHandlers() {
     try {
       if (!fs.existsSync(IMPORT_BACKUP_FILE)) return { success: false, error: 'No import backup is available.' };
       const backup = JSON.parse(await fs.promises.readFile(IMPORT_BACKUP_FILE, 'utf-8')) as Record<string, unknown>;
-      const shortcutsList = backup.shortcutsList;
-      const categoriesList = backup.categoriesList;
-      if (!Array.isArray(shortcutsList) || shortcutsList.length > 100000 || !Array.isArray(categoriesList) || categoriesList.length > 20000) {
+      // Una instalación nueva guarda el JSON sin `shortcutsList`: ausencia no
+      // es corrupción, significa "no había accesos". Un arreglo roto (no array,
+      // o un tamaño imposible) sí se rechaza.
+      const shortcutsList = Array.isArray(backup.shortcutsList) ? backup.shortcutsList : [];
+      const categoriesList = Array.isArray(backup.categoriesList) ? backup.categoriesList : [];
+      if (shortcutsList.length > 100000 || categoriesList.length > 20000) {
         throw new Error('The import backup is invalid.');
       }
       const success = saveConfig({
