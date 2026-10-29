@@ -239,7 +239,13 @@ export default function ImportSyncModal({ open, onClose, categories, initialSour
                       );
                     })}
                   </div>
-                  <button onClick={addFolder} disabled={busy} className="mt-2 w-full px-3 py-2 rounded-lg border border-slate-800 text-xs text-slate-300 hover:border-cyan-500/50 hover:text-cyan-300 disabled:opacity-40">{translate('import_add_folder')}</button>
+                  <button
+                    onClick={addFolder}
+                    disabled={busy}
+                    onMouseEnter={event => showTooltip(event, translate('import_add_folder_hint'))}
+                    onMouseLeave={hideTooltip}
+                    className="mt-2 w-full px-3 py-2 rounded-lg border border-slate-800 text-xs text-slate-300 hover:border-cyan-500/50 hover:text-cyan-300 disabled:opacity-40"
+                  >{translate('import_add_folder')}</button>
                   {sources.filter(source => source.kind === 'folder').map(source => (
                     <div key={source.id} className="mt-2 flex items-center gap-2 text-[10px] text-slate-500">
                       <span className="truncate flex-1">{source.path}</span>

@@ -148,7 +148,8 @@ export default function App() {
     placement: 'top' | 'bottom';
     visible: boolean;
     shiftX: number;
-  }>({ text: '', x: 0, y: 0, placement: 'top', visible: false, shiftX: 0 });
+    shiftY: number;
+  }>({ text: '', x: 0, y: 0, placement: 'top', visible: false, shiftX: 0, shiftY: 0 });
   const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tooltipNodeRef = useRef<HTMLDivElement | null>(null);
 
@@ -177,6 +178,7 @@ export default function App() {
         placement,
         visible: true,
         shiftX: 0,
+        shiftY: 0,
       });
     }, 450);
   }, []);
@@ -198,10 +200,16 @@ export default function App() {
     let dx = 0;
     if (r.right > window.innerWidth - pad) dx = (window.innerWidth - pad) - r.right;
     if (r.left + dx < pad) dx = pad - r.left;
-    if (Math.abs(dx) > 0.5) {
-      setGlobalTooltip(prev => ({ ...prev, shiftX: prev.shiftX + dx }));
+    // La altura real solo se conoce una vez renderizado el cuadro: los textos
+    // largos ocupan varias líneas y la estimación previa se queda corta, con lo
+    // que el tooltip se salía por el borde inferior de la pantalla.
+    let dy = 0;
+    if (r.bottom > window.innerHeight - pad) dy = (window.innerHeight - pad) - r.bottom;
+    if (r.top + dy < pad) dy = pad - r.top;
+    if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+      setGlobalTooltip(prev => ({ ...prev, shiftX: prev.shiftX + dx, shiftY: prev.shiftY + dy }));
     }
-  }, [globalTooltip.visible, globalTooltip.x, globalTooltip.y, globalTooltip.text, globalTooltip.subText, globalTooltip.shiftX]);
+  }, [globalTooltip.visible, globalTooltip.x, globalTooltip.y, globalTooltip.text, globalTooltip.subText, globalTooltip.shiftX, globalTooltip.shiftY]);
 
   useEffect(() => () => {
     if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
@@ -3381,8 +3389,8 @@ export default function App() {
             left: `${globalTooltip.x}px`,
             top: `${globalTooltip.y}px`,
             transform: globalTooltip.placement === 'bottom'
-              ? `translate(calc(-50% + ${globalTooltip.shiftX}px), 0)`
-              : `translate(calc(-50% + ${globalTooltip.shiftX}px), -100%)`,
+              ? `translate(calc(-50% + ${globalTooltip.shiftX}px), ${globalTooltip.shiftY}px)`
+              : `translate(calc(-50% + ${globalTooltip.shiftX}px), calc(-100% + ${globalTooltip.shiftY}px))`,
           }}
         >
           <div className="font-bold text-white uppercase tracking-wider leading-snug">{globalTooltip.text}</div>

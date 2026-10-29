@@ -313,6 +313,8 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
           }}
           draggable={!selectionMode}
           onDragStart={(e) => handleShortcutDragStart(e, item)}
+          onMouseEnter={(e) => showTooltip(e, item.name, item.path)}
+          onMouseLeave={hideTooltip}
           className={`cyber-panel-glow bg-slate-950/45 rounded-lg p-2 flex items-center justify-between gap-3 transition-all duration-300 hover:scale-102 hover:bg-slate-900/60 cursor-pointer relative group border focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--neon-glow-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
             selectedIds.has(item.id)
               ? 'border-[var(--neon-glow-color)] ring-1 ring-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10'
@@ -352,8 +354,6 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
               <p
                 className={`font-mono truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
                 style={{ fontSize: `${density.pathPx}px` }}
-                onMouseEnter={(e) => showTooltip(e, item.path)}
-                onMouseLeave={hideTooltip}
               >
                 {item.category === 'vault' ? translate('vault_real_path', { path: item.path }) : item.path}
               </p>
@@ -436,6 +436,8 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
         }}
         draggable={!selectionMode}
         onDragStart={(e) => handleShortcutDragStart(e, item)}
+        onMouseEnter={(e) => showTooltip(e, item.name, item.path)}
+        onMouseLeave={hideTooltip}
         className={`cyber-panel-glow rounded-xl transition-all duration-300 hover:scale-103 cursor-pointer relative group focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--neon-glow-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
           selectedIds.has(item.id)
             ? 'bg-[var(--neon-glow-color-raw)]/10 ring-1 ring-[var(--neon-glow-color)]'
@@ -493,8 +495,6 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
           {!isSmallGrid && (
             <p
               className={`font-mono truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
-              onMouseEnter={(e) => showTooltip(e, item.path)}
-              onMouseLeave={hideTooltip}
               style={{ fontSize: `${density.pathPx}px` }}
             >
               {item.category === 'vault' ? translate('vault_real_path', { path: item.path }) : item.path}
