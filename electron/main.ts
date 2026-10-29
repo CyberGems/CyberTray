@@ -964,13 +964,18 @@ function getTrayIcon(): Electron.NativeImage {
   return nativeImage.createEmpty();
 }
 
+function formatTrayTooltip(shortcut?: string): string {
+  const clean = String(shortcut || '').trim();
+  return clean ? `CyberTray · ${clean}` : 'CyberTray';
+}
+
 // ── SYSTEM TRAY (Bandeja del sistema) ──
 function createTray() {
   const trayIcon = getTrayIcon();
 
   if (!tray) {
     tray = new Tray(trayIcon);
-    tray.setToolTip(`CyberTray v${app.getVersion()}`);
+    tray.setToolTip(formatTrayTooltip(config.shortcut));
     try { tray.setContextMenu(null); } catch { /* ignore */ }
     tray.on('click', () => {
       hideCustomTrayMenu();
@@ -1589,6 +1594,9 @@ function registerGlobalShortcutKey(shortcut: string): boolean {
       globalShortcut.unregister(currentGlobalShortcut);
       currentGlobalShortcut = null;
     }
+    if (tray && !tray.isDestroyed()) {
+      tray.setToolTip(formatTrayTooltip(''));
+    }
     return true;
   }
 
@@ -1611,6 +1619,9 @@ function registerGlobalShortcutKey(shortcut: string): boolean {
     globalShortcut.unregister(currentGlobalShortcut);
   }
   currentGlobalShortcut = electronShortcut;
+  if (tray && !tray.isDestroyed()) {
+    tray.setToolTip(formatTrayTooltip(trimmed));
+  }
   return true;
 }
 
