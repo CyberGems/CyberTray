@@ -6,85 +6,55 @@
 
 ### 🚀 What's new in this release
 
-<!-- IMPORTANT FOR AGENTS & MAINTAINERS: Always rewrite this entire section, the highlights and the Spanish block with the ACTUAL release notes for this specific new version before tagging. NEVER leave or copy previous version notes! Use 25-45 words for the summary, lead with user-facing changes, and do not repeat the app name or version. -->
+<!-- IMPORTANT FOR AGENTS & MAINTAINERS: Always rewrite this entire section and highlights with the ACTUAL release notes for this specific new version before tagging. NEVER leave or copy previous version notes! Use 25-45 words for the summary, lead with user-facing changes, and do not repeat the app name or version. -->
 <!-- changelog-summary:start -->
-The tray now notices new desktop and Start menu items and asks whether to add them, imports Windows shortcuts with a reviewable sync, schedules configuration backups you can restore in one click, and adds first-run onboarding plus full keyboard control.
+Shortcut icons now render at full resolution and Steam entries resolve to the real game executable. The toolbar gains quick view, watcher and import controls, tooltips reach every card and stay on screen, and watcher notices stop duplicating installed apps.
 <!-- changelog-summary:end -->
-
-> **New to CyberTray?** A high-performance Windows tray launcher with active zones, process monitoring, shortcuts, and a private PIN-protected vault.
-
----
 
 ### ✨ Key Features & Highlights
 
-- 🛰️ **New-item watcher**:
-  - Watches the desktop, the Start menu and Microsoft Store apps (off by default, with its own toggles and prompt duration).
-  - The notice appears bottom-right on the monitor where your cursor is and never steals focus.
-  - Anything you leave undecided waits in the new bell menu, where you can add, dismiss or clear it in one go.
+- 🖼️ **Real shortcut icons at full resolution**:
+  - Icons are extracted at 256 px with intact alpha and no shortcut arrow, so tiles stay sharp while the grid grows.
+  - Packaged Store apps take their logo from the AppxManifest, preferring the 256 px asset, with a strict package match that never borrows another app's logo.
+  - Windows' two generic placeholders are detected and rejected on both rasterization routes, letting the fallback render the real logo.
+  - Icon files carry a content digest, so an upgraded icon gets a new URL and the grid stops serving the cached one.
 
-- 🔄 **Windows import & sync**:
-  - Review every shortcut before it enters the library, choosing source, folder and which items to keep.
-  - Later synchronizations add new items and update changed targets without overwriting your folders, names, icons, hotkeys, favorites or usage stats.
-  - Missing items are never deleted automatically, and the last import can be undone.
+- 🎮 **Steam shortcuts resolve to the real game executable**:
+  - Library manifests locate the install folder and score its executables, so the tile shows the game path instead of an opaque `steam://` string and the containing folder can be opened.
+  - Launchers kept in subfolders are found too, and helper binaries like crash handlers are skipped.
+  - Uninstalled games keep the original entry and now launch through the system protocol handler instead of failing.
 
-- 💾 **Scheduled backups**:
-  - Automatic copies every 6 hours, 12 hours, 24 hours or 7 days, keeping between 1 and 7 of them (3 by default).
-  - Restore any copy in one click, and every restore saves the current state first so it can be reversed.
+- 🧰 **Toolbar quick controls and a card facelift**:
+  - The toolbar gains a grid/list view toggle, a watcher on/off button and an import button, keeping the full controls in Settings.
+  - The search bar becomes a flexible pill sharing the card language, with an accent focus state instead of a hard ring.
+  - Shortcut cards adopt the CyberLauncher recipe: soft blur, gentle borders and lift on hover, dropping the neon inset glow.
+  - The app icon is refreshed everywhere, including the installer and the tray branding.
 
-- 🎒 **First-run onboarding**:
-  - Language, import and global hotkey in three steps, shown only on new installations and reopenable from Settings.
+- 💬 **Tooltips that reach everything and stay on screen**:
+  - Every shortcut tile shows its name and real path on hover, including small grid tiles that previously offered nothing.
+  - The tooltip box is corrected vertically as well as horizontally, so long texts never spill past the screen edge.
+  - The tray tooltip is standardized to the application name and global shortcut, and the importer's folder button explains what it opens.
 
-- ⌨️ **Keyboard and recents**:
-  - Arrow keys move through the shelf, `Enter` launches, and every shortcut can carry its own global hotkey.
-  - A recent strip keeps the last launched items one click away.
+- 🛰️ **Cleaner watcher notices**:
+  - Announcements are deduplicated by resolved launch target, so an installer dropping the same shortcut on the desktop and the Start menu prompts once instead of twice.
+  - Different executables or arguments are still announced separately, with the desktop copy winning.
 
-- 🎨 **Interface polish**:
-  - A searchable folder tree replaces the native dropdown, and the tray has its own themed context menu.
-  - A boot loader covers the first paint, the installer carries CyberTray branding, and shortcuts without an icon draw a vector glyph instead of a placeholder.
-
-- 🗂️ **Clearer folders**:
-  - Shortcuts with no folder are listed under **All** instead of a phantom category, and the hidden bucket stays out of the tree, the pickers and the drop targets.
-
----
+- 🔧 **Reliability**:
+  - The shelf stays mounted while hidden, so opening it no longer flashes an empty panel or resizes a visible window.
+  - The import dialog keeps the shelf open while active, so the scanned plan survives a focus change.
+  - Import undo works on fresh installations and is now reachable right from the success toast.
 
 <details>
-<summary><b>🇪🇸 Ver notas de la versión en Español</b></summary>
+<summary><b>🌐 Ver notas de la versión en Español</b></summary>
 
 ### 🚀 Novedades de esta versión
 
-La bandeja ahora avisa de lo nuevo que aparece en el escritorio y el menú Inicio y ofrece añadirlo, importa accesos de Windows con una sincronización revisable, programa copias de la configuración que se restauran en un clic y añade asistente de primera ejecución y control total por teclado.
-
----
-
-### ✨ Novedades destacadas
-
-- 🛰️ **Vigilante de elementos nuevos**:
-  - Vigila el escritorio, el menú Inicio y las apps de Microsoft Store (desactivado por defecto, con sus propios interruptores y duración del aviso).
-  - El aviso aparece abajo a la derecha, en el monitor donde está el cursor, y nunca roba el foco.
-  - Lo que dejes sin decidir espera en el nuevo menú de la campana, donde puedes añadir, descartar o limpiar todo de una vez.
-
-- 🔄 **Importación y sincronización de Windows**:
-  - Revisa cada acceso antes de que entre en la biblioteca, eligiendo origen, carpeta y qué elementos conservar.
-  - Las sincronizaciones posteriores añaden lo nuevo y actualizan destinos cambiados sin sobrescribir tus carpetas, nombres, iconos, atajos, favoritos ni estadísticas de uso.
-  - Lo que desaparece nunca se borra solo, y la última importación se puede deshacer.
-
-- 💾 **Copias de seguridad programadas**:
-  - Copias automáticas cada 6 horas, 12 horas, 24 horas o 7 días, conservando entre 1 y 7 (3 por defecto).
-  - Restaura cualquier copia con un clic, y cada restauración guarda antes el estado actual para poder revertirla.
-
-- 🎒 **Asistente de primera ejecución**:
-  - Idioma, importación y atajo global en tres pasos, solo en instalaciones nuevas y reabrible desde Ajustes.
-
-- ⌨️ **Teclado y recientes**:
-  - Las flechas recorren el estante, `Enter` lanza, y cada acceso puede tener su propio atajo global.
-  - Una franja de recientes mantiene lo último lanzado a un clic.
-
-- 🎨 **Pulido de interfaz**:
-  - Un árbol de carpetas con búsqueda sustituye al desplegable nativo, y la bandeja tiene su propio menú contextual.
-  - Un cargador de arranque cubre el primer pintado, el instalador lleva la imagen de CyberTray y los accesos sin icono dibujan un glifo vectorial en lugar de un marcador.
-
-- 🗂️ **Carpetas más claras**:
-  - Los accesos sin carpeta se listan en **Todo** en vez de una categoría fantasma, y el cajón oculto queda fuera del árbol, de los selectores y de las zonas donde se puede soltar.
+- **Iconos reales a resolución completa**: extracción a 256 píxeles con alfa intacto y sin flecha de acceso, logos de apps de la Store desde el AppxManifest y rechazo de los marcadores genéricos de Windows. Los archivos de icono llevan un digest de contenido para que la cuadrícula deje de servir la copia cacheada.
+- **Steam resuelve al ejecutable real**: los manifiestos de la biblioteca localizan la carpeta de instalación y puntúan sus ejecutables, así la tarjeta muestra la ruta del juego y se puede abrir su carpeta. Los juegos sin instalar conservan su entrada y se lanzan por el gestor de protocolos del sistema.
+- **Controles rápidos y tarjetas renovadas**: la barra añade conmutador de vista, botón del vigilante e importación; el buscador se vuelve una píldora con foco de acento; las tarjetas adoptan el estilo CyberLauncher y el icono de la app se renueva en todas partes.
+- **Tooltips en todo y dentro de la pantalla**: cada tarjeta muestra nombre y ruta real, también en las pequeñas; el cuadro se corrige en vertical para no salirse; el tooltip de la bandeja se estandariza y el botón de carpeta del importador se explica.
+- **Avisos del vigilante más limpios**: se deduplican por destino real, así un instalador que suelta el mismo acceso en escritorio y menú Inicio avisa una sola vez.
+- **Fiabilidad**: el estante abre sin destello, el diálogo de importación sobrevive al cambio de foco y deshacer la importación funciona en instalaciones nuevas y se ofrece desde el toast de éxito.
 
 </details>
 
@@ -104,7 +74,7 @@ La bandeja ahora avisa de lo nuevo que aparece en el escritorio y el menú Inici
 
 > 🛡️ The report opens on VirusTotal in a new tab and does not download anything.
 
-- **`CyberTray-Setup-{{VERSION_NUM}}.exe`**: [View VirusTotal report](https://www.virustotal.com/gui/file/{{INSTALLER_HASH}})
+**Installer**: [View VirusTotal report](https://www.virustotal.com/gui/file/{{INSTALLER_HASH}})
 
 ```text
 {{INSTALLER_HASH}}
