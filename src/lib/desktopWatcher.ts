@@ -170,3 +170,25 @@ export const MAX_WATCHER_ITEMS = 5;
 export function limitWatcherItems(items: ScannedShortcut[]): ScannedShortcut[] {
   return items.slice(0, MAX_WATCHER_ITEMS);
 }
+
+/**
+ * Quita avisos repetidos de la misma aplicación.
+ *
+ * Un instalador normal deja el mismo acceso en el escritorio Y en el menú
+ * Inicio: son archivos distintos (claves distintas para el vigilante) pero
+ * apuntan al mismo ejecutable con los mismos argumentos, y preguntar dos
+ * veces por la misma app es ruido. Se queda la primera aparición, que por el
+ * orden de las fuentes es la del escritorio.
+ */
+export function dedupeWatcherItems(items: ScannedShortcut[]): ScannedShortcut[] {
+  const seen = new Set<string>();
+  const unique: ScannedShortcut[] = [];
+  for (const item of items) {
+    if (!item?.path) continue;
+    const identity = `${item.path.toLowerCase()}\u0000${item.arguments || ''}`;
+    if (seen.has(identity)) continue;
+    seen.add(identity);
+    unique.push(item);
+  }
+  return unique;
+}

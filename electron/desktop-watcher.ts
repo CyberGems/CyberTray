@@ -4,6 +4,7 @@ import { resolveSourceRoot, type ResolvedImportFile } from './importScanner';
 import { listStartAppIds, scanStoreApps } from './store-apps';
 import { ignorableShortcutReason, type ImportSourceConfig, type ScannedShortcut } from '../src/lib/shortcutImport';
 import {
+  dedupeWatcherItems,
   diffNewItems,
   hasActiveWatcherSource,
   readWatcherSettings,
@@ -191,7 +192,9 @@ async function runScan(watcher: ActiveWatcher, silent: boolean): Promise<void> {
       resolved.push(item);
     }
 
-    const announced = diffNewItems(new Set<string>(), resolved);
+    // La misma app suele dejar acceso en el escritorio Y en el menú Inicio:
+    // se avisa una sola vez por destino (escritorio gana por orden de fuentes).
+    const announced = dedupeWatcherItems(diffNewItems(new Set<string>(), resolved));
     // Se entregan todos: el aviso recorta lo que muestra, pero la bandeja
     // guarda el lote completo.
     if (announced.length > 0) watcher.deps.onDetected(announced);
@@ -230,7 +233,7 @@ async function pollStoreApps(watcher: ActiveWatcher): Promise<void> {
 
   const freshIds = new Set(fresh.map(entry => entry.aumid.toLowerCase()));
   const resolved = await scanStoreApps();
-  const items: ScannedShortcut[] = resolved
+  const items: ScannedShortcut[] = dedupeWatcherItems(resolved
     .filter(entry => freshIds.has(entry.path.toLowerCase()))
     .map(entry => ({
       key: `watch:store:${entry.path.toLowerCase()}`,
@@ -242,7 +245,7 @@ async function pollStoreApps(watcher: ActiveWatcher): Promise<void> {
       targetCategory: UNCATEGORIZED_ID,
       preserveFolders: false,
       exists: true,
-    }));
+    })));
 
   if (items.length > 0) watcher.deps.onDetected(items);
 }

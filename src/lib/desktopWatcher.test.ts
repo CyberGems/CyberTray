@@ -3,6 +3,7 @@ import {
   DEFAULT_WATCHER_PROMPT_SECONDS,
   WATCHER_MAX_PROMPT_SECONDS,
   WATCHER_MIN_PROMPT_SECONDS,
+  dedupeWatcherItems,
   diffNewItems,
   hasActiveWatcherSource,
   limitWatcherItems,
@@ -131,6 +132,35 @@ describe('limitWatcherItems', () => {
   it('recorta la lista para que el aviso siga siendo legible', () => {
     const items = Array.from({ length: 9 }, (_, index) => shortcut({ key: `k${index}` }));
     expect(limitWatcherItems(items)).toHaveLength(5);
+  });
+});
+
+describe('dedupeWatcherItems', () => {
+  it('quita el acceso repetido del mismo ejecutable (escritorio + menú Inicio)', () => {
+    const desktop = shortcut({ key: 'watch:desktop:user:c:\\...\\cyberfeeds.lnk', sourceId: 'watch:desktop:user', name: 'CyberFeeds', path: 'C:\\Apps\\CyberFeeds\\CyberFeeds.exe' });
+    const startMenu = shortcut({ key: 'watch:start-menu:user:c:\\...\\cyberfeeds.lnk', sourceId: 'watch:start-menu:user', name: 'CyberFeeds', path: 'C:\\Apps\\CyberFeeds\\CyberFeeds.exe' });
+    const announced = dedupeWatcherItems([desktop, startMenu]);
+    expect(announced).toHaveLength(1);
+    expect(announced[0].sourceId).toBe('watch:desktop:user');
+  });
+
+  it('conserva accesos distintos aunque el nombre coincida', () => {
+    const a = shortcut({ key: 'a', name: 'CyberFeeds', path: 'C:\\Apps\\CyberFeeds\\CyberFeeds.exe' });
+    const b = shortcut({ key: 'b', name: 'CyberFeeds', path: 'C:\\Portables\\CyberFeeds\\CyberFeeds.exe' });
+    expect(dedupeWatcherItems([a, b])).toHaveLength(2);
+  });
+
+  it('conserva los accesos con argumentos distintos (perfiles, banderas)', () => {
+    const normal = shortcut({ key: 'a', path: 'C:\\Apps\\App.exe' });
+    const flag = shortcut({ key: 'b', path: 'C:\\Apps\\App.exe', arguments: '--profile work' });
+    expect(dedupeWatcherItems([normal, flag])).toHaveLength(2);
+  });
+
+  it('compara rutas sin distinguir mayúsculas y deja pasar lo sin ruta', () => {
+    const upper = shortcut({ key: 'a', path: 'C:\\Apps\\App.EXE' });
+    const lower = shortcut({ key: 'b', path: 'c:\\apps\\app.exe' });
+    expect(dedupeWatcherItems([upper, lower])).toHaveLength(1);
+    expect(dedupeWatcherItems([shortcut({ key: 'c', path: '' })])).toHaveLength(0);
   });
 });
 
