@@ -125,13 +125,117 @@ function iconKeyForPath(filePath: string): string {
 
 function persistPngBuffer(buffer: Buffer, key: string): string {
   const safe = String(key).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80) || 'icon';
-  const dest = path.join(getIconsDir(), `${safe}.png`);
+  // El nombre incluye un resumen del contenido: si el icono cambia (por ejemplo
+  // al pasar de genérico a real) la URL también cambia, así que la interfaz
+  // vuelve a pedir la imagen en vez de seguir mostrando la anterior en caché.
+  const digest = crypto.createHash('sha1').update(buffer).digest('hex').slice(0, 8);
+  const dest = path.join(getIconsDir(), `${safe}-${digest}.png`);
   fs.writeFileSync(dest, buffer);
   return toLocalResourceUrl(dest);
 }
 
 function persistNativeIcon(icon: Electron.NativeImage, key: string): string {
   return persistPngBuffer(icon.toPNG(), key);
+}
+
+/**
+ * Iconos genéricos de Windows. Hay dos y ninguno identifica a la app, además de
+ * tapar el glifo vectorial que dibuja la interfaz:
+ *
+ * - la página blanca con la flecha de acceso (un `.lnk` sin destino resoluble);
+ * - la ventana genérica de aplicación (un `.exe` sin recursos de icono).
+ *
+ * La referencia se calcula una sola vez por sesión creando un `.lnk` de prueba
+ * hacia un ejecutable inexistente y un `.exe` vacío: así el icono comparado es
+ * exactamente el que devolvería Windows en esta máquina y en este tema.
+ */
+// La línea base se comparte como promesa, no como resultado ya calculado: el
+// escáner de importación resuelve los archivos con seis workers en paralelo, y
+// con un simple `Set` cada worker entraba antes de que el primero terminara,
+// creaba y borraba su propio `.lnk` de prueba y los demás se quedaban sin icono
+// que leer (línea base vacía → no se descartaba ningún genérico).
+let genericShortcutIconHashesPromise: Promise<Set<string>> | null = null;
+
+function hashNativeImageBitmap(icon: Electron.NativeImage): string {
+  return crypto.createHash('sha1').update(icon.toBitmap()).digest('hex');
+}
+
+/**
+ * Extrae el icono asociado a un archivo con System.Drawing. Es la única vía que
+ * devuelve el logo real de ejecutables cuyo icono `app.getFileIcon` no sabe
+ * leer (varias apps Electron y Tauri de esta máquina caen aquí).
+ */
+async function extractIconPngWithPowerShell(targetPath: string): Promise<Buffer | null> {
+  const escapedPath = String(targetPath).replace(/'/g, "''");
+  const psScript = `Add-Type -AssemblyName System.Drawing; $icon=[System.Drawing.Icon]::ExtractAssociatedIcon('${escapedPath}'); if ($icon) { $bmp=$icon.ToBitmap(); $tmp=[System.IO.Path]::GetTempFileName()+'.png'; $bmp.Save($tmp,[System.Drawing.Imaging.ImageFormat]::Png); Write-Output $tmp; $icon.Dispose(); $bmp.Dispose() }`;
+  const { stdout } = await execFileAsync('powershell', ['-NoProfile', '-Command', psScript], {
+    windowsHide: true,
+    timeout: 8000,
+    encoding: 'utf-8',
+  });
+  const outPath = String(stdout || '').trim();
+  if (!outPath || !fs.existsSync(outPath)) return null;
+  const buffer = fs.readFileSync(outPath);
+  try { fs.unlinkSync(outPath); } catch { /* ignore */ }
+  return buffer.length > 100 ? buffer : null;
+}
+
+async function computeGenericShortcutIconHashes(): Promise<Set<string>> {
+  const hashes = new Set<string>();
+  const stamp = `${process.pid}-${Date.now()}`;
+  const tempDir = app.getPath('temp');
+  const probeLnk = path.join(tempDir, `cybertray-icon-probe-${stamp}.lnk`);
+  const probeExe = path.join(tempDir, `cybertray-icon-probe-${stamp}.exe`);
+  try {
+    // Acceso directo sin destino → página blanca con flecha.
+    const escaped = probeLnk.replace(/'/g, "''");
+    const script = `$s = New-Object -ComObject WScript.Shell; $l = $s.CreateShortcut('${escaped}'); $l.TargetPath = 'C:\\__cybertray_missing_target__.exe'; $l.Save()`;
+    await execFileAsync('powershell', ['-NoProfile', '-Command', script], { windowsHide: true, timeout: 8000 });
+    // Ejecutable sin recursos → ventana genérica de aplicación.
+    fs.writeFileSync(probeExe, '');
+
+    for (const probe of [probeLnk, probeExe]) {
+      if (!fs.existsSync(probe)) continue;
+      for (const size of ['large', 'normal'] as const) {
+        const icon = await app.getFileIcon(probe, { size });
+        if (icon && !icon.isEmpty()) hashes.add(hashNativeImageBitmap(icon));
+      }
+      // System.Drawing rasteriza el mismo icono de otra forma, así que su hash
+      // no coincide con el de Chromium y hay que registrarlo aparte.
+      try {
+        const png = await extractIconPngWithPowerShell(probe);
+        if (png) {
+          const icon = nativeImage.createFromBuffer(png);
+          if (!icon.isEmpty()) hashes.add(hashNativeImageBitmap(icon));
+        }
+      } catch { /* sin referencia para esta vía */ }
+    }
+  } catch {
+    // Sin línea base no se descarta nada: mejor un icono genérico que ninguno.
+  } finally {
+    for (const probe of [probeLnk, probeExe]) {
+      try { fs.unlinkSync(probe); } catch { /* ignore */ }
+    }
+  }
+  if (hashes.size === 0) {
+    // Un fallo no se memoriza: la siguiente resolución lo vuelve a intentar.
+    genericShortcutIconHashesPromise = null;
+  }
+  return hashes;
+}
+
+function getGenericShortcutIconHashes(): Promise<Set<string>> {
+  if (!genericShortcutIconHashesPromise) {
+    genericShortcutIconHashesPromise = computeGenericShortcutIconHashes();
+  }
+  return genericShortcutIconHashesPromise;
+}
+
+async function isGenericShortcutIcon(icon: Electron.NativeImage): Promise<boolean> {
+  if (!icon || icon.isEmpty()) return true;
+  const baseline = await getGenericShortcutIconHashes();
+  if (baseline.size === 0) return false;
+  return baseline.has(hashNativeImageBitmap(icon));
 }
 
 function persistDataUrlIfNeeded(iconPath: string, key: string): string {
@@ -1700,6 +1804,10 @@ async function resolveFullFileInfo(filePath: string) {
     let resolvedCwd = '';
     let iconFileUrl = '';
     let iconSourcePath = '';
+    // Destino real del acceso. Se guarda aparte de `resolvedPath` porque los
+    // accesos de apps empaquetadas apuntan a un AUMID (que sirve para lanzar
+    // pero no es un archivo del que extraer un icono).
+    let iconTargetPath = '';
     let targetExists = true;
 
     if (ext === '.lnk') {
@@ -1713,11 +1821,14 @@ async function resolveFullFileInfo(filePath: string) {
         resolvedArgs = shortcut.args || '';
         resolvedCwd = shortcut.cwd || '';
         iconSourcePath = shortcut.icon || '';
+        if (shortcut.target && fs.existsSync(shortcut.target)) {
+          iconTargetPath = path.resolve(shortcut.target);
+        }
         if (shortcut.appUserModelId) {
           resolvedPath = shortcut.appUserModelId;
           targetExists = true;
-        } else if (shortcut.target && fs.existsSync(shortcut.target)) {
-          resolvedPath = path.resolve(shortcut.target);
+        } else if (iconTargetPath) {
+          resolvedPath = iconTargetPath;
         } else {
           // Fallback con PowerShell (asíncrono para no bloquear el proceso main).
           const escapedPath = normalized.replace(/'/g, "''");
@@ -1730,6 +1841,7 @@ async function resolveFullFileInfo(filePath: string) {
           const output = String(stdout || '').trim();
           if (output && fs.existsSync(output)) {
             resolvedPath = path.resolve(output);
+            iconTargetPath = resolvedPath;
             targetExists = true;
           } else {
             targetExists = false;
@@ -1770,17 +1882,23 @@ async function resolveFullFileInfo(filePath: string) {
     // de Windows. No se extrae: la interfaz dibuja un glifo vectorial.
     const skipGenericUrlIcon = ext === '.url' && !iconSourcePath;
 
+    // El icono se busca en el icono propio del acceso, luego en el destino real
+    // y solo al final en el propio `.lnk` (que para las apps empaquetadas es lo
+    // único que hay, y Windows resuelve ahí el logo del paquete).
+    const iconLookupSource = iconSourcePath
+      || iconTargetPath
+      || (fs.existsSync(resolvedPath) ? resolvedPath : normalized);
+
     // Extracción de Icono nativo de alta calidad → PNG en userData/icons
     try {
-      const effectiveIconSource = iconSourcePath || (fs.existsSync(resolvedPath) ? resolvedPath : normalized);
-      if (!skipGenericUrlIcon && fs.existsSync(effectiveIconSource)) {
+      if (!skipGenericUrlIcon && fs.existsSync(iconLookupSource)) {
         let icon = iconSourcePath
-          ? nativeImage.createFromPath(effectiveIconSource)
-          : await app.getFileIcon(effectiveIconSource, { size: 'large' });
+          ? nativeImage.createFromPath(iconLookupSource)
+          : await app.getFileIcon(iconLookupSource, { size: 'large' });
         if ((!icon || icon.isEmpty()) && !iconSourcePath) {
-          icon = await app.getFileIcon(effectiveIconSource, { size: 'normal' });
+          icon = await app.getFileIcon(iconLookupSource, { size: 'normal' });
         }
-        if (icon && !icon.isEmpty()) {
+        if (icon && !icon.isEmpty() && !(await isGenericShortcutIcon(icon))) {
           iconFileUrl = persistNativeIcon(icon, iconKey);
         }
       }
@@ -1788,22 +1906,14 @@ async function resolveFullFileInfo(filePath: string) {
       console.warn('Error getFileIcon:', e);
     }
 
-    // Fallback de extracción de icono con PowerShell (para evitar iconos genéricos muy pequeños)
+    // Fallback de extracción de icono con PowerShell: es la vía que sí devuelve
+    // el logo real cuando `getFileIcon` solo sabe dar la ventana genérica.
     if (!iconFileUrl && !skipGenericUrlIcon) {
       try {
-        const fallbackIconSource = iconSourcePath || (fs.existsSync(resolvedPath) ? resolvedPath : normalized);
-        const escapedPath = fallbackIconSource.replace(/'/g, "''");
-        const psScript = `Add-Type -AssemblyName System.Drawing; $icon=[System.Drawing.Icon]::ExtractAssociatedIcon('${escapedPath}'); if ($icon) { $bmp=$icon.ToBitmap(); $tmp=[System.IO.Path]::GetTempFileName()+'.png'; $bmp.Save($tmp,[System.Drawing.Imaging.ImageFormat]::Png); Write-Output $tmp; $icon.Dispose(); $bmp.Dispose() }`;
-        const { stdout } = await execFileAsync('powershell', ['-NoProfile', '-Command', psScript], {
-          windowsHide: true,
-          timeout: 8000,
-          encoding: 'utf-8',
-        });
-        const psOutput = String(stdout || '').trim();
-        if (psOutput && fs.existsSync(psOutput)) {
-          const pngBuffer = fs.readFileSync(psOutput);
-          fs.unlinkSync(psOutput);
-          if (pngBuffer.length > 100) {
+        const pngBuffer = await extractIconPngWithPowerShell(iconLookupSource);
+        if (pngBuffer) {
+          const candidate = nativeImage.createFromBuffer(pngBuffer);
+          if (!(await isGenericShortcutIcon(candidate))) {
             iconFileUrl = persistPngBuffer(pngBuffer, iconKey);
           }
         }
