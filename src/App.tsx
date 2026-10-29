@@ -802,6 +802,15 @@ export default function App() {
     }
   }, [isShelfVisible]);
 
+  // Al ocultarse el panel se cierran los menús y el tooltip: el árbol ya no se
+  // desmonta, así que sin esto reaparecerían abiertos en la siguiente apertura.
+  useEffect(() => {
+    if (isShelfVisible) return;
+    setIsMoreMenuOpen(false);
+    setIsNotificationCenterOpen(false);
+    hideTooltip();
+  }, [isShelfVisible, hideTooltip]);
+
   // El shelf está anclado: no se oculta al perder el foco. Se avisa (con sonido
   // y destello) y se ofrece desanclarlo, en lugar de dejar al usuario sin
   // explicación de por qué el panel sigue encima.
@@ -2519,10 +2528,11 @@ export default function App() {
     : getChildFolders(categories, activeCategory);
   const density = densityFromIconSize(config.iconSize);
 
-  if (!isShelfVisible) {
-    return <div className={`theme-${config.theme} w-full h-screen bg-[#070b13]`} />;
-  }
-
+  // El árbol se mantiene montado aunque el panel esté oculto: desmontarlo
+  // obligaba a React a reconstruir toda la UI (iconos incluidos) en cada
+  // apertura, y el panel se veía vacío durante los primeros fotogramas.
+  // `isShelfVisible` sigue gobernando el trabajo en segundo plano (telemetría,
+  // procesos) y los efectos que deben correr solo con el panel a la vista.
   return (
     <div 
       className={`theme-${config.theme} ${isShelfVisible && bgType !== 'image' ? 'cyber-scanlines' : ''} w-full h-screen bg-[#070b13] flex flex-col justify-between overflow-hidden shadow-2xl relative select-none`}

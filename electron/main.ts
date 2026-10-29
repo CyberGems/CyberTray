@@ -1288,6 +1288,14 @@ function getShelfBounds(display: Electron.Display): Electron.Rectangle {
 function applyOverlayBounds(display?: Electron.Display) {
   if (!shelfWindow || shelfWindow.isDestroyed()) return;
   const wa = getShelfBounds(display ?? getTargetDisplay());
+  // Si ya está en su sitio no se toca: mover o redimensionar una ventana
+  // visible justo después de mostrarla provoca un parpadeo.
+  try {
+    const current = shelfWindow.getContentBounds();
+    if (current.x === wa.x && current.y === wa.y && current.width === wa.width && current.height === wa.height) {
+      return;
+    }
+  } catch { /* si no se puede leer, se aplica igualmente */ }
   try {
     shelfWindow.setResizable(true);
     shelfWindow.setContentBounds(wa, false);
