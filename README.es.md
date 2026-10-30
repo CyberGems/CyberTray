@@ -52,6 +52,8 @@ Tu escritorio está saturado. El menú Inicio es lento. La barra de tareas está
 - **Gestión de atajos**: registra, edita y lanza aplicaciones, archivos y URLs
 - **Asistente de primer inicio**: elige idioma, importa accesos y define el atajo global en tres pasos. Solo aparece en instalaciones nuevas y se puede reabrir desde Ajustes.
 - **Importación y sincronización de Windows**: revisa Escritorio, Menú Inicio, carpetas personalizadas y apps de Microsoft Store antes de importar. Las sincronizaciones posteriores añaden accesos nuevos y actualizan destinos cambiados sin sobrescribir tus carpetas, nombres, iconos, atajos, favoritos ni estadísticas. Los elementos ausentes nunca se eliminan automáticamente y la última importación se puede deshacer.
+- **Iconos reales y resolución de Steam**: los accesos importados muestran el logo real de la aplicación hasta 256 px (incluidas las apps de la Store), y los accesos de Steam resuelven al ejecutable real del juego, así la tarjeta muestra una ruta con sentido y se puede abrir la carpeta del juego.
+- **Controles rápidos en la barra**: cambia entre cuadrícula y lista, enciende el vigilante y abre la importación sin salir de la barra.
 - **Vigilante de elementos nuevos**: vigila el Escritorio, el Menú Inicio y las apps de Microsoft Store y ofrece añadir lo que aparece. El aviso nunca roba el foco, y lo que quede sin decidir espera en el centro de notificaciones hasta que lo añadas o lo descartes. Desactivado por defecto.
 - **Categorías y carpetas**: organiza los atajos con soporte de carpetas anidadas
 - **Sistema de favoritos**: marca atajos para acceso rápido

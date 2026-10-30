@@ -53,6 +53,8 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 - **First-Run Assistant**: Pick language, import shortcuts and set the global hotkey in three steps. It only appears on new installations and can be reopened from Settings.
 - **Drag & Drop Import**: Drag files or executables directly into the shelf
 - **Windows Import & Sync**: Review Desktop, Start Menu, custom folders and Microsoft Store apps before importing. Later synchronizations add new shortcuts and update changed targets without overwriting your folders, names, icons, hotkeys, favorites or usage stats. Missing items are never deleted automatically, and the last import can be undone.
+- **Real Icons & Steam Resolution**: Imported shortcuts render the real application logo at up to 256 px (Store apps included), and Steam shortcuts resolve to the actual game executable so the tile shows a meaningful path and the game folder can be opened.
+- **Shelf Toolbar Quick Controls**: Switch grid/list view, toggle the watcher and open the import without leaving the bar.
 - **New-Item Watcher**: Watches the Desktop, Start Menu and Microsoft Store apps and offers to add whatever appears there. The notice never steals focus, and anything left undecided waits in the notification center until you add or dismiss it. Off by default.
 - **Categories & Folders**: Organize shortcuts with nested folder support
 - **Favorites System**: Mark shortcuts for quick access
