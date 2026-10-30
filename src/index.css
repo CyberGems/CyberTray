@@ -225,3 +225,27 @@ textarea:focus-visible,
   }
 }
 
+
+/* ── Marquesina del destino de un acceso ──
+   La clase la pone `MarqueeText` solo cuando el texto no cabe, y el vaivén lo
+   dispara el `:hover` de la ficha (el marcador `.group` de Tailwind), así que
+   no hay estado de React ni re-render por cada elemento que el puntero toca. */
+.ct-marquee {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+}
+
+.group:hover .ct-marquee {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+@keyframes ct-marquee-slide {
+  0%, 6% { transform: translateX(0); }
+  46%, 54% { transform: translateX(var(--ct-marquee-shift, 0px)); }
+  94%, 100% { transform: translateX(0); }
+}
+
+.group:hover .ct-marquee-run {
+  animation: ct-marquee-slide var(--ct-marquee-duration, 6s) ease-in-out infinite;
+}

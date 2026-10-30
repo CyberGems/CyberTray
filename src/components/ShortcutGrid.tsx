@@ -3,6 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { Check, Clock, Edit, ListFilter, Lock, Search, Upload } from 'lucide-react';
 import { translate } from '../locales';
 import { shortcutIconSrc } from '../lib/iconSrc';
+import MarqueeText from './MarqueeText';
 import ShortcutGlyph from './ShortcutGlyph';
 import { densityFromIconSize } from '../lib/appUtils';
 import { SHORTCUT_KIND_LABEL_KEYS, isStoreAppId, type ShortcutKindFilter } from '../lib/shortcutKind';
@@ -370,12 +371,11 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
               >
                 <span className="truncate">{item.name}</span>
               </h4>
-              <p
-                className={`font-sans tracking-tight truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
+              <MarqueeText
+                className={`font-sans tracking-tight w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
                 style={{ fontSize: `${density.pathPx}px` }}
-              >
-                {item.category === 'vault' ? translate('vault_real_path', { path: displayTarget(item) }) : displayTarget(item)}
-              </p>
+                text={item.category === 'vault' ? translate('vault_real_path', { path: displayTarget(item) }) : displayTarget(item)}
+              />
             </div>
           </div>
 
@@ -512,12 +512,11 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
           </h4>
 
           {!isSmallGrid && (
-            <p
-              className={`font-sans tracking-tight truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
+            <MarqueeText
+              className={`font-sans tracking-tight w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
               style={{ fontSize: `${density.pathPx}px` }}
-            >
-              {item.category === 'vault' ? translate('vault_real_path', { path: displayTarget(item) }) : displayTarget(item)}
-            </p>
+              text={item.category === 'vault' ? translate('vault_real_path', { path: displayTarget(item) }) : displayTarget(item)}
+            />
           )}
 
           {(!isSmallGrid || (activeCategory === 'all')) && (
@@ -555,8 +554,11 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                 </span>
               )}
               {item.usageCount > 0 && !isSmallGrid && (
-                <span className="text-[8px] font-mono text-slate-500">
-                  {item.usageCount} ex.
+                <span className="text-[8px] font-ui tracking-wide text-slate-500/75 whitespace-nowrap">
+                  {translate(
+                    item.usageCount === 1 ? 'launch_count_one' : 'launch_count_many',
+                    { count: String(item.usageCount) }
+                  )}
                 </span>
               )}
             </div>
