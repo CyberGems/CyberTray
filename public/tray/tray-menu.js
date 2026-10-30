@@ -238,7 +238,7 @@ function recentItem(r, label, shortcut) {
     icon: r.icon ? undefined : 'clock',
     label,
     shortcut: shortcut || undefined,
-    title: r.path || undefined,
+    title: r.title || r.path || undefined,
   });
 }
 

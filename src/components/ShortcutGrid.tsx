@@ -5,7 +5,7 @@ import { translate } from '../locales';
 import { shortcutIconSrc } from '../lib/iconSrc';
 import ShortcutGlyph from './ShortcutGlyph';
 import { densityFromIconSize } from '../lib/appUtils';
-import { SHORTCUT_KIND_LABEL_KEYS, type ShortcutKindFilter } from '../lib/shortcutKind';
+import { SHORTCUT_KIND_LABEL_KEYS, isStoreAppId, type ShortcutKindFilter } from '../lib/shortcutKind';
 import VaultPanel from './VaultPanel';
 
 type ShowTooltipFn = (e: React.MouseEvent, text: string, subText?: string, borderColor?: string) => void;
@@ -113,6 +113,19 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
   const minColumnWidth = viewMode === 'list' ? 280 : config.iconSize * 2.8;
   const columnCount = Math.max(1, Math.floor((gridWidth + ROW_GAP) / (minColumnWidth + ROW_GAP)));
   const gridTemplateColumns = `repeat(${columnCount}, minmax(${minColumnWidth}px, 1fr))`;
+
+  /**
+   * Lo que se enseña bajo el nombre. Un AUMID (`Familia_editor!App`) no es una
+   * ruta: no informa de nada y parece un error. Las apps de Store muestran su
+   * origen, con una etiqueta corta porque la columna de la rejilla no da para
+   * más; el identificador sigue a mano en el diálogo de edición.
+   */
+  const displayTarget = (shortcut: any): string =>
+    isStoreAppId(shortcut?.path) ? translate('store_app_short') : String(shortcut?.path || '');
+
+  /** En el tooltip sí cabe la explicación completa. */
+  const tooltipTarget = (shortcut: any): string =>
+    isStoreAppId(shortcut?.path) ? translate('store_app_location') : String(shortcut?.path || '');
 
   useEffect(() => {
     const grid = gridRef.current;
@@ -319,7 +332,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
           }}
           draggable={!selectionMode}
           onDragStart={(e) => handleShortcutDragStart(e, item)}
-          onMouseEnter={(e) => showTooltip(e, item.name, item.path)}
+          onMouseEnter={(e) => showTooltip(e, item.name, tooltipTarget(item))}
           onMouseLeave={hideTooltip}
           className={`rounded-xl p-2.5 flex items-center justify-between gap-3 cursor-pointer relative group bg-black/20 backdrop-blur-xl border shadow-lg shadow-black/30 transition-[transform,border-color,background-color,box-shadow] duration-150 ease-out hover:bg-white/[0.07] hover:border-white/25 hover:shadow-[0_4px_14px_rgba(0,0,0,0.4)] hover:scale-[1.005] active:scale-[0.995] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--neon-glow-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
             selectedIds.has(item.id)
@@ -361,7 +374,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                 className={`font-mono truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
                 style={{ fontSize: `${density.pathPx}px` }}
               >
-                {item.category === 'vault' ? translate('vault_real_path', { path: item.path }) : item.path}
+                {item.category === 'vault' ? translate('vault_real_path', { path: displayTarget(item) }) : displayTarget(item)}
               </p>
             </div>
           </div>
@@ -442,7 +455,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
         }}
         draggable={!selectionMode}
         onDragStart={(e) => handleShortcutDragStart(e, item)}
-        onMouseEnter={(e) => showTooltip(e, item.name, item.path)}
+        onMouseEnter={(e) => showTooltip(e, item.name, tooltipTarget(item))}
         onMouseLeave={hideTooltip}
         className={`rounded-2xl cursor-pointer relative group bg-black/20 backdrop-blur-xl border shadow-xl shadow-black/30 transition-[transform,border-color,background-color,box-shadow] duration-150 ease-out hover:bg-white/[0.07] hover:border-white/25 hover:shadow-[0_4px_14px_rgba(0,0,0,0.4)] hover:scale-[1.01] hover:-translate-y-0.5 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--neon-glow-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
           selectedIds.has(item.id)
@@ -503,7 +516,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
               className={`font-mono truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
               style={{ fontSize: `${density.pathPx}px` }}
             >
-              {item.category === 'vault' ? translate('vault_real_path', { path: item.path }) : item.path}
+              {item.category === 'vault' ? translate('vault_real_path', { path: displayTarget(item) }) : displayTarget(item)}
             </p>
           )}
 

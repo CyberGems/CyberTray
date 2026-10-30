@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Copy, Edit, ExternalLink, Folder, FolderOpen, Pin, Play, Power, Shield, Terminal, Trash2 } from 'lucide-react';
 import { translate } from '../locales';
 import { getFolderPath, isElectron } from '../lib/appUtils';
+import { isStoreAppId } from '../lib/shortcutKind';
 import { useModalAccessibility } from '../lib/useModalAccessibility';
 
 interface ShelfOverlaysProps {
@@ -314,7 +315,7 @@ export default function ShelfOverlays({
               {translate('shortcut_run_admin')}
             </button>
 
-            {isElectron && shortcutMenu.item.path && !/^(https?:\/\/)/i.test(shortcutMenu.item.path) && (
+            {isElectron && shortcutMenu.item.path && !isStoreAppId(shortcutMenu.item.path) && !/^(https?:\/\/)/i.test(shortcutMenu.item.path) && (
               <button
                 onClick={async () => {
                   const item = shortcutMenu.item;
@@ -328,7 +329,7 @@ export default function ShelfOverlays({
               </button>
             )}
 
-            {isElectron && shortcutMenu.item.path && !/^(https?:\/\/)/i.test(shortcutMenu.item.path) && (
+            {isElectron && shortcutMenu.item.path && !isStoreAppId(shortcutMenu.item.path) && !/^(https?:\/\/)/i.test(shortcutMenu.item.path) && (
               <button
                 onClick={async () => {
                   const item = shortcutMenu.item;
@@ -342,7 +343,7 @@ export default function ShelfOverlays({
               </button>
             )}
 
-            {isElectron && shortcutMenu.item.path && !/^(https?:\/\/)/i.test(shortcutMenu.item.path) && (
+            {isElectron && shortcutMenu.item.path && !isStoreAppId(shortcutMenu.item.path) && !/^(https?:\/\/)/i.test(shortcutMenu.item.path) && (
               <button
                 onClick={async () => {
                   const item = shortcutMenu.item;

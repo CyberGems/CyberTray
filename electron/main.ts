@@ -798,6 +798,7 @@ const NATIVE_TRANSLATIONS = {
     selectFolder: 'Select folder',
     vaultFolder: 'Select vault folder',
     backupFolder: 'Select backup folder',
+    storeApp: 'Microsoft Store app',
   },
   es: {
     cut: 'Cortar',
@@ -814,6 +815,7 @@ const NATIVE_TRANSLATIONS = {
     selectBackground: 'Seleccionar imagen de fondo',
     selectSound: 'Seleccionar archivo de sonido',
     selectFolder: 'Seleccionar carpeta',
+    storeApp: 'App de Microsoft Store',
     vaultFolder: 'Seleccionar carpeta de la bóveda',
     backupFolder: 'Seleccionar carpeta de respaldos',
   },
@@ -1127,6 +1129,10 @@ function buildTrayMenuState(resetView = false) {
         index,
         name: item.name,
         path: item.path,
+        // El tooltip nativo del menú muestra el destino; un AUMID ahí es un
+        // identificador incomprensible, así que las apps de Store muestran su
+        // origen.
+        title: isStoreAppUserModelId(item.path) ? nativeStrings().storeApp : item.path,
         icon: icon ? icon.toDataURL() : '',
       };
     }),
