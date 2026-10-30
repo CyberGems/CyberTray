@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Check, Clock, Edit, Lock, Search, Upload } from 'lucide-react';
+import { Check, Clock, Edit, ListFilter, Lock, Search, Upload } from 'lucide-react';
 import { translate } from '../locales';
 import { shortcutIconSrc } from '../lib/iconSrc';
 import ShortcutGlyph from './ShortcutGlyph';
 import { densityFromIconSize } from '../lib/appUtils';
+import { SHORTCUT_KIND_LABEL_KEYS, type ShortcutKindFilter } from '../lib/shortcutKind';
 import VaultPanel from './VaultPanel';
 
 type ShowTooltipFn = (e: React.MouseEvent, text: string, subText?: string, borderColor?: string) => void;
@@ -51,6 +52,9 @@ interface ShortcutGridProps {
   /** Accesos que existen pero están ocultos porque la bóveda está bloqueada. */
   hiddenVaultCount?: number;
   onOpenVault?: () => void;
+  /** Tipo activo en el filtro, para explicar una lista vacía. */
+  kindFilter?: ShortcutKindFilter;
+  onClearKindFilter?: () => void;
 }
 
 export default function ShortcutGrid(props: ShortcutGridProps) {
@@ -84,6 +88,8 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
     hideTooltip,
     hiddenVaultCount = 0,
     onOpenVault,
+    kindFilter = 'all',
+    onClearKindFilter,
   } = props;
 
   const density = densityFromIconSize(config.iconSize);
@@ -599,6 +605,24 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
               <p className="text-xs font-mono text-slate-400 max-w-md text-center leading-relaxed tracking-wider">
                 {translate('search_no_results', { query: searchQuery })}
               </p>
+            </>
+          ) : kindFilter !== 'all' ? (
+            <>
+              <ListFilter className="w-12 h-12 text-[var(--neon-glow-color)] opacity-60 mb-4" />
+              <p className="text-xs font-mono text-slate-300 max-w-md text-center leading-relaxed tracking-wider">
+                {translate('filter_type_empty', {
+                  kind: translate(SHORTCUT_KIND_LABEL_KEYS[kindFilter] as any).toLowerCase(),
+                })}
+              </p>
+              {onClearKindFilter && (
+                <button
+                  type="button"
+                  onClick={onClearKindFilter}
+                  className="mt-4 px-4 py-2 rounded-xl text-sm font-medium text-[var(--neon-glow-color)] bg-white/[0.04] hover:bg-white/[0.08] border border-[var(--neon-glow-border)] transition-colors cursor-pointer"
+                >
+                  {translate('filter_type_show_all')}
+                </button>
+              )}
             </>
           ) : hiddenVaultCount > 0 && activeCategory === 'all' && onOpenVault ? (
             <>

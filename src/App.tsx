@@ -16,6 +16,8 @@ import OnboardingModal from './components/OnboardingModal';
 import BootLoader from './components/BootLoader';
 import FolderTree from './components/FolderTree';
 import NotificationCenter from './components/NotificationCenter';
+import TypeFilterMenu from './components/TypeFilterMenu';
+import { classifyShortcut, countShortcutKinds, type ShortcutKindFilter } from './lib/shortcutKind';
 import { emptyNotificationState, type NotificationState } from './lib/notificationCenter';
 import {
   isElectron,
@@ -67,6 +69,7 @@ export default function App() {
   const [shortcuts, setShortcuts] = useState<any[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [kindFilter, setKindFilter] = useState<ShortcutKindFilter>('all');
   
   // UI States
   const [isPinned, setIsPinned] = useState<boolean>(true);
@@ -2324,6 +2327,7 @@ export default function App() {
         await window.electronAPI!.saveConfig({ categoriesList: getDefaultCategories() }, { broadcastReload: false });
         setActiveCategory('all');
         setSearchQuery('');
+        setKindFilter('all');
         setSelectedIds(new Set());
         setShowSettings(false);
         showAlert(translate('reset_done_title'), translate('reset_done_desc'));
@@ -2485,7 +2489,10 @@ export default function App() {
       .slice(0, 8);
   }, [shortcuts]);
 
-  const filteredShortcutsList = useMemo(() => {
+  // Accesos del alcance actual (carpeta + búsqueda) antes de filtrar por tipo:
+  // el menú de tipos necesita sus recuentos reales para no ofrecer filtros
+  // vacíos.
+  const scopedShortcuts = useMemo(() => {
     const vaultLocked = isVaultLockedState({
       pinEnabled: config.vaultPinEnabled,
       pinConfigured: !!config.vaultPinHash,
@@ -2494,7 +2501,7 @@ export default function App() {
       lastUnlockTime: lastVaultUnlockTime,
     });
 
-    let list = shortcuts.filter(s => {
+    return shortcuts.filter(s => {
       const matchSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           s.path.toLowerCase().includes(searchQuery.toLowerCase());
       if (!matchSearch) return false;
@@ -2505,6 +2512,14 @@ export default function App() {
       }
       return s.category === activeCategory;
     });
+  }, [shortcuts, searchQuery, activeCategory, config.vaultPinEnabled, config.vaultLockTimeout, vaultUnlockedSession, lastVaultUnlockTime]);
+
+  const kindCounts = useMemo(() => countShortcutKinds(scopedShortcuts), [scopedShortcuts]);
+
+  const filteredShortcutsList = useMemo(() => {
+    let list = kindFilter === 'all'
+      ? scopedShortcuts
+      : scopedShortcuts.filter(s => classifyShortcut(s) === kindFilter);
 
     if (iconSortOrder === 'alpha') {
       list = [...list].sort((a, b) => a.name.localeCompare(b.name));
@@ -2514,7 +2529,7 @@ export default function App() {
       list = [...list].sort((a, b) => (b.addedTimestamp || 0) - (a.addedTimestamp || 0));
     }
     return list;
-  }, [shortcuts, searchQuery, activeCategory, iconSortOrder, config.vaultPinEnabled, config.vaultLockTimeout, vaultUnlockedSession, lastVaultUnlockTime]);
+  }, [scopedShortcuts, kindFilter, iconSortOrder]);
 
   const getFilteredShortcuts = () => filteredShortcutsList;
 
@@ -2630,49 +2645,10 @@ export default function App() {
           <CyberTrayWordmark className="text-[13px]" />
         </button>
 
-        {/* Búsqueda integrada: ocupa el espacio flexible del centro y comparte
-            el lenguaje visual de las tarjetas (fondo translúcido, borde blanco
-            tenue, foco con relleno sutil + halo del color de acento). */}
-        <div className="relative flex-1 min-w-[150px] max-w-[340px] flex items-center bg-black/20 border border-white/5 hover:border-white/25 rounded-lg transition-[border-color,background-color,box-shadow] duration-150 focus-within:border-[var(--neon-glow-color)] focus-within:bg-white/[0.06] focus-within:shadow-[0_0_14px_-2px_var(--neon-glow-color)]">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder={translate('search_placeholder')}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => {
-              // Esc o la flecha abajo llevan el foco a la rejilla de accesos.
-              if (e.key === 'Escape' || e.key === 'ArrowDown') {
-                const first = document.querySelector<HTMLElement>('[data-shortcut-id][tabindex="0"]');
-                if (first) {
-                  e.preventDefault();
-                  first.focus();
-                }
-              }
-            }}
-            className="w-full bg-transparent rounded-lg py-1.5 pl-8 pr-7 text-[11px] font-sans tracking-wide text-white placeholder:text-slate-500 focus:outline-none"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery('');
-                playCyberBeep();
-                hideTooltip();
-              }}
-              onMouseDown={(e) => e.preventDefault()}
-              onMouseEnter={(e) => showTooltip(e, translate('clear_search'))}
-              onMouseLeave={hideTooltip}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-
+        {/* La búsqueda ya no vive aquí: comparte barra con el contenido que
+            filtra (migas de pan), justo debajo. */}
         <div
-          className="flex items-center gap-2 h-8 px-2.5 rounded-lg border border-slate-800/80 bg-slate-950/50 shrink-0"
+          className="ml-auto flex items-center gap-2 h-8 px-2.5 rounded-lg border border-slate-800/80 bg-slate-950/50 shrink-0"
           onMouseEnter={(e) => showTooltip(e, translate('tooltip_size_slider'))}
           onMouseLeave={hideTooltip}
         >
@@ -2761,7 +2737,7 @@ export default function App() {
           <Download className="w-4 h-4" />
         </button>
 
-        <div className="ml-auto flex items-center gap-2 shrink-0 overflow-visible">
+        <div className="flex items-center gap-2 shrink-0 overflow-visible">
           {selectionMode && (
             <>
               <button
@@ -3131,7 +3107,8 @@ export default function App() {
         />
 
         <main className="min-w-0 flex-1 min-h-0 flex flex-col">
-          <div data-no-dead-zone className="h-10 shrink-0 flex items-center gap-1.5 px-5 border-b border-slate-900/80 bg-slate-950/25 overflow-x-auto">
+          <div data-no-dead-zone className="h-11 shrink-0 flex items-center gap-3 px-5 border-b border-slate-900/80 bg-slate-950/25">
+            <nav className="flex items-center gap-1.5 min-w-0 flex-1 overflow-x-auto custom-scrollbar" aria-label={translate('explorer_folder_contents')}>
             <span
               className="text-slate-600 font-mono uppercase tracking-wider shrink-0"
               style={{ fontSize: `${density.breadcrumbPx}px` }}
@@ -3156,6 +3133,62 @@ export default function App() {
                 </button>
               </React.Fragment>
             ))}
+            </nav>
+
+            {/* Búsqueda: comparte barra con las migas de pan, es decir con el
+                contenido al que filtra. El foco se dibuja con un subrayado que
+                se abre desde el centro y un halo suave, sin el anillo duro de
+                caja completa. */}
+            <div className="group relative flex items-center shrink-0 h-8 w-[clamp(180px,24vw,300px)] focus-within:w-[clamp(200px,27vw,340px)] rounded-lg bg-white/[0.02] border border-white/[0.06] transition-[width,background-color,border-color,box-shadow] duration-300 ease-out hover:border-white/[0.14] hover:bg-white/[0.04] focus-within:border-white/[0.14] focus-within:bg-white/[0.05] focus-within:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_12px_28px_-20px_rgba(0,0,0,0.95),0_0_24px_-14px_var(--neon-glow-color)]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none transition-colors duration-200 group-focus-within:text-[var(--neon-glow-color)]" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder={translate('search_placeholder')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  // Esc o la flecha abajo llevan el foco a la rejilla de accesos.
+                  if (e.key === 'Escape' || e.key === 'ArrowDown') {
+                    const first = document.querySelector<HTMLElement>('[data-shortcut-id][tabindex="0"]');
+                    if (first) {
+                      e.preventDefault();
+                      first.focus();
+                    }
+                  }
+                }}
+                className="w-full h-full bg-transparent rounded-lg pl-8 pr-7 text-[11px] font-sans tracking-wide text-white placeholder:text-slate-500 caret-[var(--neon-glow-color)] focus:outline-none"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    playCyberBeep();
+                    hideTooltip();
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseEnter={(e) => showTooltip(e, translate('clear_search'))}
+                  onMouseLeave={hideTooltip}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -bottom-px left-2 right-2 h-[2px] rounded-full bg-[linear-gradient(90deg,transparent,var(--neon-glow-color),transparent)] opacity-0 scale-x-0 shadow-[0_0_10px_var(--neon-glow-color)] transition-all duration-300 ease-out group-focus-within:opacity-100 group-focus-within:scale-x-100"
+              />
+            </div>
+
+            <TypeFilterMenu
+              value={kindFilter}
+              counts={kindCounts}
+              total={scopedShortcuts.length}
+              onChange={(next) => { setKindFilter(next); playCyberBeep(); }}
+              showTooltip={showTooltip}
+              hideTooltip={hideTooltip}
+            />
           </div>
 
           {visibleChildFolders.length > 0 && activeCategory !== 'favorites' && activeCategory !== 'vault' && (
@@ -3216,6 +3249,8 @@ export default function App() {
               hiddenVaultCount={hiddenVaultCount}
               onOpenVault={() => handleTabClick('vault')}
               searchQuery={searchQuery}
+              kindFilter={kindFilter}
+              onClearKindFilter={() => setKindFilter('all')}
               viewMode={viewMode}
               iconSortOrder={iconSortOrder}
               config={config}
