@@ -38,13 +38,19 @@ export default function BootLoader() {
         style={{ background: 'radial-gradient(circle at 50% 45%, rgba(34, 211, 238, 0.13), transparent 62%)' }}
       />
 
-      <motion.div
-        className="relative flex flex-col items-center"
-        initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: reduceMotion ? 0 : 0.4, ease: 'easeOut' }}
-      >
-        <div className="relative">
+      <motion.div className="relative flex flex-col items-center">
+        {/*
+          El icono entra rápido y sin desplazamiento: la secuencia de pulsos
+          arranca a los 180 ms, así que si compartiera el fundido de 400 ms del
+          texto el primer cuadrado crecería mientras el conjunto todavía está
+          medio transparente y no se vería.
+        */}
+        <motion.div
+          className="relative"
+          initial={reduceMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: reduceMotion ? 0 : 0.16, ease: 'easeOut' }}
+        >
           <div
             className="pointer-events-none absolute left-1/2 top-1/2 h-[250%] w-[250%] -translate-x-1/2 -translate-y-1/2 rounded-full"
             aria-hidden="true"
@@ -57,25 +63,32 @@ export default function BootLoader() {
             animated={!reduceMotion}
             className="relative h-[clamp(140px,20vmin,260px)] w-[clamp(140px,20vmin,260px)] drop-shadow-[0_0_26px_rgba(112,204,221,0.22)]"
           />
-        </div>
+        </motion.div>
 
-        <CyberTrayWordmark className="mt-8 text-[22px] uppercase tracking-[0.34em] text-slate-300" />
+        <motion.div
+          className="flex flex-col items-center"
+          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.4, delay: reduceMotion ? 0 : 0.08, ease: 'easeOut' }}
+        >
+          <CyberTrayWordmark className="mt-8 text-[22px] uppercase tracking-[0.34em] text-slate-300" />
 
-        <div className="mt-6 h-[3px] w-64 overflow-hidden rounded-full bg-slate-800/70" aria-hidden="true">
-          {reduceMotion ? (
-            <span className="block h-full w-1/3 rounded-full bg-[var(--neon-glow-color)] opacity-70" />
-          ) : (
-            <motion.span
-              className="block h-full w-1/3 rounded-full bg-[var(--neon-glow-color)]"
-              animate={{ x: ['-120%', '340%'] }}
-              transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-            />
-          )}
-        </div>
+          <div className="mt-6 h-[3px] w-64 overflow-hidden rounded-full bg-slate-800/70" aria-hidden="true">
+            {reduceMotion ? (
+              <span className="block h-full w-1/3 rounded-full bg-[var(--neon-glow-color)] opacity-70" />
+            ) : (
+              <motion.span
+                className="block h-full w-1/3 rounded-full bg-[var(--neon-glow-color)]"
+                animate={{ x: ['-120%', '340%'] }}
+                transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+              />
+            )}
+          </div>
 
-        <span className="mt-4 text-[10px] font-mono uppercase tracking-[0.32em] text-slate-500">
-          {translate('boot_loading')}
-        </span>
+          <span className="mt-4 text-[10px] font-mono uppercase tracking-[0.32em] text-slate-500">
+            {translate('boot_loading')}
+          </span>
+        </motion.div>
       </motion.div>
     </motion.div>
   );

@@ -27,6 +27,12 @@ const TILE_SIZE = 264;
 const PULSE = 0.44;
 /** Separación entre pulsos: el ciclo completo recorre las cuatro piezas. */
 const BEAT = 0.62;
+/**
+ * Espera antes del primer pulso. El icono entra con un fundido de 160 ms; sin
+ * este margen el primer cuadrado empezaría a crecer mientras todavía se está
+ * haciendo visible y pasaría desapercibido.
+ */
+const START_DELAY = 0.18;
 
 type Tile = { key: string; x: number; y: number };
 
@@ -48,7 +54,7 @@ function pulseTransition(index: number) {
     repeat: Infinity,
     // Un elemento cada BEAT, así que el hueco es lo que resta del ciclo.
     repeatDelay: BEAT * 4 - PULSE,
-    delay: index * BEAT,
+    delay: START_DELAY + index * BEAT,
   };
 }
 

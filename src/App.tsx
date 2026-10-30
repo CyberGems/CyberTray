@@ -69,11 +69,11 @@ const withPathBreaks = (text: string) =>
 // hash de instalaciones antiguas que nunca tocaron el PIN.
 const LEGACY_DEFAULT_PIN = '1234';
 // Tiempo mínimo que se muestra la pantalla de arranque. La carga de config es
-// instantánea y sin este margen el loader se va antes de que se vea. Un ciclo
-// completo de los cuatro pulsos del icono dura ~2.2 s desde que se monta, así
-// que 2.3 s deja que el último (el "+") termine justo antes del fundido y evita
-// que el ciclo reinicie a media transición.
-const BOOT_MIN_DURATION_MS = 2300;
+// instantánea y sin este margen el loader se va antes de que se vea. La
+// secuencia espera 180 ms a que el icono termine de aparecer y el último pulso
+// (el "+") acaba a los ~2.48 s, así que 2.6 s lo deja terminar justo antes del
+// fundido y evita que el ciclo reinicie a media transición.
+const BOOT_MIN_DURATION_MS = 2600;
 // Con movimiento reducido no hay animación que mirar: esperar lo mismo solo
 // estorba.
 const BOOT_MIN_DURATION_REDUCED_MS = 900;
