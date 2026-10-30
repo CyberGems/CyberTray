@@ -10,11 +10,17 @@ import { initUpdater } from './updater';
 import { createDefaultConfig, sanitizeConfig, type CyberTrayConfig } from '../src/lib/configDefaults';
 import { scanImportSources } from './importScanner';
 import { activateStoreApp, isStoreAppUserModelId, resolveStoreAppLauncher } from './store-app-launch';
+import { listStartAppIds } from './store-apps';
 import { resolveSteamGameExecutable, steamAppIdFromUrl } from './steam-library';
 import { applyImportPlan, reconcileImport, type ImportPlan, type ImportSourceConfig, type ScannedShortcut, type ShortcutRecord } from '../src/lib/shortcutImport';
 import type { CyberFolder } from '../src/lib/appUtils';
 import { UNCATEGORIZED_ID } from '../src/lib/appUtils';
 import { isUrlPath } from '../src/lib/shortcutPath';
+import {
+  aumidForFamily,
+  packageFamilyFromLnkText,
+  packageIdentityFromLnkText,
+} from '../src/lib/packagedApp';
 import { createBackupService } from './backups';
 import { normalizeBackupFolder, parseBackupHours, parseBackupKeep } from '../src/lib/backup';
 import { refreshDesktopWatcher, markWatcherItemsHandled, stopDesktopWatcher, resetDesktopWatcherBaseline } from './desktop-watcher';
@@ -297,21 +303,61 @@ async function flushIconRequests(): Promise<void> {
 // Logos de apps empaquetadas ya resueltos en esta sesión, por nombre en
 // minúsculas del acceso.
 const packagedIconCache = new Map<string, Buffer>();
+// Nombres que ya se buscaron sin éxito: sin esto, cada resolución de un acceso
+// empaquetado volvería a lanzar PowerShell para el mismo logo.
+const packagedIconMisses = new Set<string>();
 
 /**
- * Lee el nombre de familia del paquete del propio `.lnk`. Los accesos de las
- * apps MSIX no exponen destino ni AUMID a través del shell, pero muchos llevan
- * el identificador como texto dentro del archivo.
+ * Lee el texto UTF-16 de un `.lnk`. Los accesos de las apps MSIX no exponen
+ * destino ni AUMID a través del shell, pero el archivo sí guarda la ruta del
+ * paquete (y a veces el AUMID entero).
  */
-function readPackageFamilyFromLnk(filePath: string): string {
+function readLnkText(filePath: string): string {
   try {
-    const text = fs.readFileSync(filePath).toString('utf16le');
-    const match = text.match(/([A-Za-z0-9.\-]+_[a-z0-9]{13})(?:!|\b)/);
-    return match ? match[1] : '';
+    return fs.readFileSync(filePath).toString('utf16le');
   } catch {
     return '';
   }
 }
+
+function readPackageFamilyFromLnk(filePath: string): string {
+  return packageFamilyFromLnkText(readLnkText(filePath));
+}
+
+/**
+ * Lista de apps del sistema (`Get-StartApps`), compartida por toda la sesión.
+ *
+ * Se usa para completar el AUMID cuando el `.lnk` solo lleva el nombre del
+ * paquete. Se cachea porque el escáner resuelve seis archivos en paralelo y
+ * cada consulta cuesta un proceso de PowerShell.
+ */
+let startAppsListingPromise: Promise<Array<{ aumid: string; name: string }>> | null = null;
+
+function getStartAppsListing(): Promise<Array<{ aumid: string; name: string }>> {
+  if (!startAppsListingPromise) {
+    startAppsListingPromise = listStartAppIds().then((listing) => {
+      // Un fallo puntual no se memoriza: la próxima resolución lo reintenta.
+      if (listing.length === 0) startAppsListingPromise = null;
+      return listing;
+    });
+  }
+  return startAppsListingPromise;
+}
+
+/**
+ * Identidad de paquete que se puede leer del propio `.lnk`. Devuelve el AUMID
+ * cuando el archivo ya lo trae y, si solo trae la familia, lo completa con la
+ * lista de apps del sistema.
+ */
+async function packagedIdentityFromLnk(filePath: string): Promise<{ family: string; aumid: string } | null> {
+  const identity = packageIdentityFromLnkText(readLnkText(filePath));
+  if (!identity) return null;
+  if (identity.aumid) return identity;
+  const listing = await getStartAppsListing();
+  const aumid = aumidForFamily(identity.family, listing, path.basename(filePath, path.extname(filePath)));
+  return aumid ? { family: identity.family, aumid } : null;
+}
+
 
 /**
  * Nombre utilizable para buscar el paquete: los accesos añaden sufijos como
@@ -353,7 +399,13 @@ async function resolvePackagedAppLogos(requests: Array<{ name: string; family: s
       `  $family = if ($parts.Length -gt 1) { $parts[1] } else { '' }`,
       `  $needle = if ($parts.Length -gt 2) { $parts[2] } else { $name }`,
       `  $pkg = $null`,
-      `  if ($family) { $pkg = Get-AppxPackage -PackageFamilyName $family | Select-Object -First 1 }`,
+      `  if ($family) {`,
+      // `Get-AppxPackage -PackageFamilyName` no existe en todas las versiones
+      // del módulo Appx: se filtra a mano sobre el nombre del paquete, que sí
+      // está soportado en todas.
+      `    $packageName = $family.Split('_')[0]`,
+      `    $pkg = @(Get-AppxPackage -Name $packageName) | Where-Object { $_.PackageFamilyName -eq $family } | Select-Object -First 1`,
+      `  }`,
       `  if (-not $pkg) {`,
       `    $candidates = @(Get-AppxPackage -Name "*$needle*")`,
       `    if ($candidates.Count -eq 1) { $pkg = $candidates[0] }`,
@@ -2175,6 +2227,9 @@ async function resolveFullFileInfo(filePath: string) {
     // sobre el `.ico` que declara el propio acceso.
     let preferTargetIcon = false;
     let targetExists = true;
+    // App empaquetada resuelta a su AUMID: el icono ya no puede salir del
+    // destino (un AUMID no es un archivo), así que se usa el logo del paquete.
+    let packagedFamily = '';
 
     if (ext === '.lnk') {
       // Conservar el nombre propio del acceso (ej. "factorio SeaBlock") en vez del
@@ -2199,6 +2254,7 @@ async function resolveFullFileInfo(filePath: string) {
         const isPackagedAumid = shortcutAumid.includes('!');
         if (isPackagedAumid) {
           resolvedPath = shortcutAumid;
+          packagedFamily = shortcutAumid.split('!')[0];
           targetExists = true;
         } else if (iconTargetPath) {
           resolvedPath = iconTargetPath;
@@ -2206,27 +2262,42 @@ async function resolveFullFileInfo(filePath: string) {
           resolvedPath = shortcutAumid;
           targetExists = true;
         } else {
-          // Fallback con PowerShell (asíncrono para no bloquear el proceso main).
-          const escapedPath = normalized.replace(/'/g, "''");
-          const psCommand = `$s = New-Object -ComObject WScript.Shell; $s.CreateShortcut('${escapedPath}').TargetPath`;
-          const { stdout } = await execFileAsync('powershell', ['-NoProfile', '-Command', psCommand], {
-            windowsHide: true,
-            timeout: 8000,
-            encoding: 'utf-8',
-          });
-          const output = String(stdout || '').trim();
-          if (output && fs.existsSync(output)) {
-            resolvedPath = path.resolve(output);
-            iconTargetPath = resolvedPath;
+          // App empaquetada importada del escritorio: su destino vive en
+          // `C:\Program Files\WindowsApps`, que el proceso no puede leer, así
+          // que el shell no da ni target ni AUMID. La identidad del paquete sí
+          // está escrita en el propio `.lnk`; con ella el acceso se guarda
+          // como app de Store y deja de depender del archivo original.
+          const packaged = await packagedIdentityFromLnk(normalized);
+          if (packaged) {
+            resolvedPath = packaged.aumid;
+            packagedFamily = packaged.family;
             targetExists = true;
           } else {
-            targetExists = false;
+            // Fallback con PowerShell (asíncrono para no bloquear el proceso main).
+            const escapedPath = normalized.replace(/'/g, "''");
+            const psCommand = `$s = New-Object -ComObject WScript.Shell; $s.CreateShortcut('${escapedPath}').TargetPath`;
+            const { stdout } = await execFileAsync('powershell', ['-NoProfile', '-Command', psCommand], {
+              windowsHide: true,
+              timeout: 8000,
+              encoding: 'utf-8',
+            });
+            const output = String(stdout || '').trim();
+            if (output && fs.existsSync(output)) {
+              resolvedPath = path.resolve(output);
+              iconTargetPath = resolvedPath;
+              targetExists = true;
+            } else {
+              targetExists = false;
+            }
           }
         }
         // El target solo se usa para lanzar y extraer el icono; el nombre visible
         // sigue siendo el del .lnk.
         ext = path.extname(resolvedPath).toLowerCase();
         resolvedName = lnkName;
+        // Una app de Store no admite directorio de trabajo: conservarlo haría
+        // que el lanzamiento fallara.
+        if (isStoreAppUserModelId(resolvedPath)) resolvedCwd = '';
       } catch (e) {
         console.error('Error resolving .lnk file:', e);
       }
@@ -2326,8 +2397,13 @@ async function resolveFullFileInfo(filePath: string) {
 
     // 2b) App empaquetada sin destino: el logo del paquete es el único que
     // existe a resolución completa y sin la flecha de acceso.
-    if (!iconFileUrl && !skipGenericUrlIcon && ext === '.lnk' && !iconTargetPath) {
-      const packaged = packagedIconCache.get(resolvedName.toLowerCase());
+    if (!iconFileUrl && !skipGenericUrlIcon && !iconTargetPath && (packagedFamily || ext === '.lnk')) {
+      const cacheKey = resolvedName.toLowerCase();
+      if (packagedFamily && !packagedIconCache.has(cacheKey) && !packagedIconMisses.has(cacheKey)) {
+        packagedIconMisses.add(cacheKey);
+        await resolvePackagedAppLogos([{ name: resolvedName, family: packagedFamily }]);
+      }
+      const packaged = packagedIconCache.get(cacheKey);
       if (packaged) {
         const candidate = nativeImage.createFromBuffer(packaged);
         if (!candidate.isEmpty() && !(await isGenericShortcutIcon(candidate))) {
@@ -2792,6 +2868,86 @@ function notifyStartupSync(
     dedupeKey: 'startup-sync',
   });
 }
+
+/**
+ * Accesos de Microsoft Store importados desde el escritorio.
+ *
+ * El `.lnk` de una app del Store apunta a `C:\Program Files\WindowsApps\...`,
+ * una carpeta que el proceso no puede leer: el shell no devuelve ni destino ni
+ * AUMID, la resolución se queda con el propio `.lnk` y la app acaba tratada
+ * como un programa normal. La identidad del paquete sí está escrita dentro del
+ * archivo, así que esta pasada la lee y reescribe el destino al AUMID.
+ *
+ * Dos consecuencias: la app pasa a clasificarse y lanzarse como app de Store, y
+ * deja de depender del acceso del escritorio, que se puede borrar sin romper
+ * nada. Cuando ya no queda ningún acceso apuntando a un `.lnk`, la pasada no
+ * hace nada.
+ */
+async function upgradePackagedShortcuts(): Promise<void> {
+  const shortcuts = (config.shortcutsList || []) as any[];
+  const pending = shortcuts.filter(item => String(item?.path || '').toLowerCase().endsWith('.lnk'));
+  if (pending.length === 0) return;
+
+  const upgrades: Array<{ id: unknown; name: string; aumid: string; family: string }> = [];
+  for (const item of pending) {
+    const lnkPath = String(item.path);
+    try {
+      const link = shell.readShortcutLink(lnkPath);
+      // Un destino legible es un programa normal que ya se resolvió (o que se
+      // resuelve solo): aquí solo interesan los `.lnk` sin destino utilizable.
+      if (link.target && fs.existsSync(link.target)) continue;
+    } catch { /* acceso ilegible: se intenta por el texto */ }
+    const identity = await packagedIdentityFromLnk(lnkPath);
+    if (!identity) continue;
+    upgrades.push({ id: item.id, name: String(item.name || ''), aumid: identity.aumid, family: identity.family });
+  }
+  if (upgrades.length === 0) return;
+
+  // Un solo proceso para todos los logos: los accesos importados del escritorio
+  // suelen traer el icono del `.lnk` (32 px y con la flecha de acceso).
+  await resolvePackagedAppLogos(upgrades.map(entry => ({ name: entry.name, family: entry.family })))
+    .catch(() => undefined);
+
+  const byId = new Map(upgrades.map(entry => [entry.id, entry]));
+  let changed = 0;
+  const next = shortcuts.map(item => {
+    const upgrade = byId.get(item.id);
+    if (!upgrade) return item;
+    // El icono solo se reemplaza si lo gestiona la app: si el usuario puso uno
+    // propio, se respeta.
+    const iconManaged = !item.sourceIconPath || (item.iconPath || '') === item.sourceIconPath;
+    const logo = packagedIconCache.get(String(item.name || '').toLowerCase());
+    const iconPath = iconManaged && logo && logo.length > 100
+      ? persistPngBuffer(logo, iconKeyForPath(upgrade.aumid))
+      : (item.iconPath || '');
+    changed += 1;
+    return {
+      ...item,
+      path: upgrade.aumid,
+      // Una app de Store no admite directorio de trabajo propio: conservarlo
+      // haría que el lanzamiento fallara.
+      cwd: '',
+      iconPath,
+      ...(iconManaged ? { sourceIconPath: iconPath } : {}),
+      syncState: 'active',
+    };
+  });
+  if (changed === 0) return;
+
+  saveConfig({ shortcutsList: next });
+  console.log(`[STORE] ${changed} desktop shortcuts now point at their Microsoft Store app id`);
+
+  const es = config.language === 'es';
+  pushNotificationMessage({
+    title: es ? 'Apps de Microsoft Store detectadas' : 'Microsoft Store apps detected',
+    detail: es
+      ? `${changed} accesos del escritorio ahora se lanzan como apps de Store`
+      : `${changed} desktop shortcuts now launch as Store apps`,
+    level: 'info',
+    dedupeKey: 'store-lnk-upgrade',
+  });
+}
+
 
 async function runStartupImportSync() {
   if (!config.autoSyncOnStartup || !config.importSources?.length) return;
@@ -3898,6 +4054,12 @@ app.whenReady().then(async () => {
   fetchVramInfoInBackground(); // Carga de VRAM asíncrona en segundo plano al iniciar
   createWindows();
   createTray();
+  // Pasada única sobre los accesos que siguen apuntando a un `.lnk` porque su
+  // destino vive en la carpeta protegida de las apps de Store. Se difiere para
+  // no competir con el arranque de la ventana.
+  setTimeout(() => {
+    void upgradePackagedShortcuts().catch(error => console.warn('[STORE] Shortcut upgrade failed:', error));
+  }, 2500);
   // La referencia de iconos genéricos se calcula mientras la app está ociosa:
   // si se dejara para la primera importación, bloquearía a todos los workers.
   setTimeout(() => { void getGenericShortcutIconHashes(); }, 1500);
