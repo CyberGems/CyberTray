@@ -17,7 +17,7 @@ import BootLoader from './components/BootLoader';
 import FolderTree from './components/FolderTree';
 import NotificationCenter from './components/NotificationCenter';
 import TypeFilterMenu from './components/TypeFilterMenu';
-import { classifyShortcut, countShortcutKinds, type ShortcutKindFilter } from './lib/shortcutKind';
+import { classifyShortcut, countShortcutKinds, isStoreAppId, type ShortcutKindFilter } from './lib/shortcutKind';
 import { emptyNotificationState, type NotificationState } from './lib/notificationCenter';
 import {
   isElectron,
@@ -3237,7 +3237,7 @@ export default function App() {
                   type="button"
                   onClick={() => handleLaunch(item)}
                   onContextMenu={(e) => handleShortcutContextMenu(e, item)}
-                  onMouseEnter={(e) => showTooltip(e, item.name, item.path)}
+                  onMouseEnter={(e) => showTooltip(e, item.name, isStoreAppId(item.path) ? translate('store_app_location') : item.path)}
                   onMouseLeave={hideTooltip}
                   className="flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-md border border-slate-800 bg-slate-950/40 hover:border-[var(--neon-glow-border)] hover:bg-slate-900/80 text-slate-400 hover:text-white transition-all cursor-pointer shrink-0"
                 >

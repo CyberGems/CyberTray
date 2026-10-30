@@ -81,12 +81,25 @@ export function classifyShortcut(item: { path?: string; cwd?: string } | null | 
   return 'file';
 }
 
-export function countShortcutKinds(list: Array<{ path?: string; cwd?: string }> = []): Record<ShortcutKind, number> {
-  const counts: Record<ShortcutKind, number> = { program: 0, store: 0, steam: 0, link: 0, file: 0, script: 0 };
+export function countShortcutKinds(list: Array<{ path?: string; cwd?: string }> = []): Record<ShortcutKind, number> {  const counts: Record<ShortcutKind, number> = { program: 0, store: 0, steam: 0, link: 0, file: 0, script: 0 };
   for (const item of list) {
     counts[classifyShortcut(item)] += 1;
   }
   return counts;
+}
+
+/**
+ * `true` si el icono se puede volver a extraer.
+ *
+ * Hace falta un archivo real o un paquete instalado: un enlace, o un juego de
+ * Steam que ya no está instalado (su destino se quedó en `steam://`), no tienen
+ * de dónde sacar el logo.
+ */
+export function hasExtractableIcon(item: { path?: string; cwd?: string } | null | undefined): boolean {
+  const kind = classifyShortcut(item);
+  if (kind === 'link') return false;
+  if (kind === 'steam') return protocolScheme(String(item?.path || '').trim()) === '';
+  return true;
 }
 
 /** Clave de traducción del nombre de cada tipo. */

@@ -29,6 +29,7 @@ declare global {
       getRunningProcesses: () => Promise<Array<{ pid: number; name: string; path: string; memory: number }>>;
       killProcess: (pid: number) => Promise<{ success: boolean; error?: string }>;
       resolveFilePath: (filePath: string) => Promise<{ name: string; path: string; ext: string; exists: boolean; iconPath: string; arguments?: string; cwd?: string } | null>;
+      refreshShortcutIcon: (targetPath: string, shortcutName: string) => Promise<{ success: boolean; iconPath?: string; error?: string }>;
       scanImportSources: (sources: ImportSourceConfig[]) => Promise<{ plan: ImportPlan; errors: Array<{ sourceId: string; message: string }> }>;
       cancelImportScan: () => Promise<{ success: boolean }>;
       onImportProgress: (callback: (progress: { completed: number; total: number; sourceId: string }) => void) => () => void;

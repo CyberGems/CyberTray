@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyShortcut, countShortcutKinds, isStoreAppId } from './shortcutKind';
+import { classifyShortcut, countShortcutKinds, hasExtractableIcon, isStoreAppId } from './shortcutKind';
 
 describe('classifyShortcut', () => {
   it('treats executables and shortcuts to executables as programs', () => {
@@ -56,5 +56,21 @@ describe('countShortcutKinds', () => {
       { path: 'https://example.com' },
     ]);
     expect(counts).toEqual({ program: 2, store: 1, steam: 0, link: 1, file: 0, script: 0 });
+  });
+});
+
+describe('hasExtractableIcon', () => {
+  it('accepts anything backed by a file or an installed package', () => {
+    expect(hasExtractableIcon({ path: 'C:////Program Files\\App\\app.exe' })).toBe(true);
+    expect(hasExtractableIcon({ path: 'C:////Users////Me////Desktop////App.lnk' })).toBe(true);
+    expect(hasExtractableIcon({ path: '5319275A.WhatsAppDesktop_cv1g1gvanyjgm!App' })).toBe(true);
+    // Un juego de Steam instalado ya apunta a su ejecutable real.
+    expect(hasExtractableIcon({ path: 'D:////Steam////steamapps////common////Game////game.exe' })).toBe(true);
+  });
+
+  it('rejects links and uninstalled Steam games, which have no file to read', () => {
+    expect(hasExtractableIcon({ path: 'https://example.com' })).toBe(false);
+    expect(hasExtractableIcon({ path: 'mailto:someone@example.com' })).toBe(false);
+    expect(hasExtractableIcon({ path: 'steam://rungameid/1234' })).toBe(false);
   });
 });

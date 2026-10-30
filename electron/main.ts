@@ -2491,6 +2491,49 @@ async function resolveFullFileInfo(filePath: string) {
   }
 }
 
+/**
+ * Vuelve a extraer el icono de un acceso ya guardado.
+ *
+ * Sirve para el caso en que la aplicación cambia su logo después de una
+ * actualización: la copia persistida en `userData/icons` sigue siendo válida,
+ * así que nada la reemplaza por sí solo. Aquí se descarta lo memorizado y se
+ * repite la resolución, que vuelve a guardar el PNG con un nombre nuevo (lleva
+ * un resumen del contenido), de modo que la interfaz pide la imagen otra vez.
+ */
+async function refreshShortcutIcon(
+  targetPath: string,
+  shortcutName: string,
+): Promise<{ success: boolean; iconPath?: string; error?: string }> {
+  const raw = String(targetPath || '').trim();
+  if (!raw) return { success: false, error: 'empty-path' };
+
+  try {
+    // Una app de Store no tiene archivo del que extraer nada: su logo sale del
+    // manifiesto del paquete y solo se puede volver a pedir por su familia.
+    if (isStoreAppUserModelId(raw)) {
+      const family = raw.split('!')[0];
+      const name = String(shortcutName || '').trim() || family.split('_')[0];
+      const cacheKey = name.toLowerCase();
+      packagedIconCache.delete(cacheKey);
+      packagedIconMisses.delete(cacheKey);
+      await resolvePackagedAppLogos([{ name, family }]);
+      const buffer = packagedIconCache.get(cacheKey);
+      if (!buffer) return { success: false, error: 'not-found' };
+      return { success: true, iconPath: persistPngBuffer(buffer, iconKeyForPath(raw)) };
+    }
+
+    // La extracción a 256 px también está memorizada por ruta: sin vaciarla, un
+    // cambio de logo en el mismo ejecutable devolvería el PNG antiguo.
+    iconPngCache.clear();
+    const info = await resolveFullFileInfo(raw);
+    if (!info || !info.iconPath) return { success: false, error: 'not-found' };
+    return { success: true, iconPath: info.iconPath };
+  } catch (error) {
+    console.error('Error refreshing shortcut icon:', error);
+    return { success: false, error: String((error as Error)?.message || error) };
+  }
+}
+
 // ── ACTIVE CORNERS (Esquinas activas / Hotspots) ──
 function stopHotspotPolling() {
   if (hotspotTimer) {
@@ -3355,6 +3398,10 @@ function registerIpcHandlers() {
 
   ipcMain.handle('resolve-file-path', async (_, filePath) => {
     return await resolveFullFileInfo(filePath);
+  });
+
+  ipcMain.handle('shortcut:refresh-icon', async (_, targetPath, shortcutName) => {
+    return await refreshShortcutIcon(targetPath, shortcutName);
   });
 
   const importScans = new Map<number, AbortController>();

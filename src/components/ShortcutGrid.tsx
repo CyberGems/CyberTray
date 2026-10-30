@@ -371,7 +371,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                 <span className="truncate">{item.name}</span>
               </h4>
               <p
-                className={`font-mono truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
+                className={`font-sans tracking-tight truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
                 style={{ fontSize: `${density.pathPx}px` }}
               >
                 {item.category === 'vault' ? translate('vault_real_path', { path: displayTarget(item) }) : displayTarget(item)}
@@ -513,7 +513,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
 
           {!isSmallGrid && (
             <p
-              className={`font-mono truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
+              className={`font-sans tracking-tight truncate w-full ${item.category === 'vault' ? 'text-purple-400/80' : 'text-slate-500'}`}
               style={{ fontSize: `${density.pathPx}px` }}
             >
               {item.category === 'vault' ? translate('vault_real_path', { path: displayTarget(item) }) : displayTarget(item)}

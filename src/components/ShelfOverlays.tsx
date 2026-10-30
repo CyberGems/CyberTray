@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Copy, Edit, ExternalLink, Folder, FolderOpen, Pin, Play, Power, Shield, Terminal, Trash2 } from 'lucide-react';
+import { Copy, Edit, ExternalLink, Folder, FolderOpen, Pin, Play, Power, RotateCcw, Shield, Terminal, Trash2 } from 'lucide-react';
 import { translate } from '../locales';
 import { getFolderPath, isElectron } from '../lib/appUtils';
-import { isStoreAppId } from '../lib/shortcutKind';
+import { hasExtractableIcon, isStoreAppId } from '../lib/shortcutKind';
 import { useModalAccessibility } from '../lib/useModalAccessibility';
 
 interface ShelfOverlaysProps {
@@ -78,6 +78,58 @@ export default function ShelfOverlays({
 }: ShelfOverlaysProps) {
   const confirmDialogRef = useRef<HTMLDivElement>(null);
   const [moveMenuOpen, setMoveMenuOpen] = useState(false);
+  const [refreshingIconId, setRefreshingIconId] = useState<number | null>(null);
+
+  // El menú contextual se coloca midiendo su altura real: una estimación fija
+  // dejaba los últimos elementos fuera de la ventana al abrirlo cerca del borde
+  // inferior.
+  const shortcutMenuRef = useRef<HTMLDivElement>(null);
+  const [menuBox, setMenuBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const menu = shortcutMenuRef.current;
+    if (!shortcutMenu?.visible || !menu) {
+      if (menuBox) setMenuBox(null);
+      return;
+    }
+    const margin = 8;
+    const { width, height } = menu.getBoundingClientRect();
+    const left = Math.max(margin, Math.min(shortcutMenu.x, window.innerWidth - width - margin));
+    const top = Math.max(margin, Math.min(shortcutMenu.y, window.innerHeight - height - margin));
+    if (menuBox && menuBox.left === left && menuBox.top === top
+      && menuBox.width === width && menuBox.height === height) return;
+    setMenuBox({ left, top, width, height });
+  });
+
+  /** El menú se abrió hacia arriba porque no cabía: el submenú debe crecer en el mismo sentido. */
+  const menuFlipped = !!menuBox && shortcutMenu?.y > menuBox.top;
+  const submenuToLeft = menuBox
+    ? menuBox.left + menuBox.width + 208 > window.innerWidth - 8
+    : shortcutMenu?.x > window.innerWidth - 380;
+
+  /**
+   * Reextrae el icono del acceso. La copia guardada no se invalida sola cuando
+   * la aplicación cambia su logo (una actualización de Store, por ejemplo).
+   */
+  const handleRefreshIcon = async (item: any) => {
+    if (!isElectron || refreshingIconId !== null) return;
+    setRefreshingIconId(item.id);
+    try {
+      const res = await window.electronAPI!.refreshShortcutIcon(item.path, item.name);
+      if (res?.success && res.iconPath) {
+        const updated = shortcuts.map((s: any) => (s.id === item.id ? { ...s, iconPath: res.iconPath } : s));
+        await saveDataToConfig(updated, categories);
+        showToast?.(translate('menu_refresh_icon_done', { name: item.name }));
+      } else {
+        showToast?.(translate('menu_refresh_icon_failed', { name: item.name }));
+      }
+    } catch (error) {
+      console.error('Error refreshing shortcut icon:', error);
+      showToast?.(translate('menu_refresh_icon_failed', { name: item.name }));
+    } finally {
+      setRefreshingIconId(null);
+    }
+  };
 
   useModalAccessibility(
     confirmDialogRef,
@@ -281,12 +333,13 @@ export default function ShelfOverlays({
             onContextMenu={(e) => { e.preventDefault(); setShortcutMenu(null); }}
           />
           <div
+            ref={shortcutMenuRef}
             role="menu"
             aria-label={translate('menu_shortcut_actions')}
             className="fixed bg-slate-950 border border-[var(--neon-glow-border)] rounded-lg shadow-2xl p-1 z-50 text-left font-mono w-56"
             style={{
-              left: Math.min(window.innerWidth - 200, shortcutMenu.x),
-              top: Math.min(window.innerHeight - 180, shortcutMenu.y)
+              left: menuBox ? menuBox.left : Math.min(window.innerWidth - 232, shortcutMenu.x),
+              top: menuBox ? menuBox.top : Math.min(window.innerHeight - 180, shortcutMenu.y),
             }}
           >
             <button
@@ -354,6 +407,25 @@ export default function ShelfOverlays({
               >
                 <Terminal className="w-3.5 h-3.5 text-slate-500" />
                 {translate('menu_open_terminal')}
+              </button>
+            )}
+
+            {isElectron && hasExtractableIcon(shortcutMenu.item) && (
+              <button
+                type="button"
+                role="menuitem"
+                disabled={refreshingIconId === shortcutMenu.item.id}
+                onClick={async () => {
+                  const item = shortcutMenu.item;
+                  await handleRefreshIcon(item);
+                  setShortcutMenu(null);
+                }}
+                className="w-full py-1.5 px-3 text-left text-xs rounded hover:bg-slate-900 hover:text-white text-slate-300 flex items-center gap-2 cursor-pointer border-0 bg-transparent disabled:opacity-60 disabled:cursor-default"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 text-slate-500 ${refreshingIconId === shortcutMenu.item.id ? 'animate-spin' : ''}`} />
+                {refreshingIconId === shortcutMenu.item.id
+                  ? translate('menu_refreshing_icon')
+                  : translate('menu_refresh_icon')}
               </button>
             )}
 
@@ -439,10 +511,12 @@ export default function ShelfOverlays({
 
               <div
                 role="menu"
-                className={`absolute top-0 hidden group-hover:block bg-slate-950 border border-[var(--neon-glow-border)] rounded-lg shadow-2xl p-1 w-44 z-50 ${
+                className={`absolute hidden group-hover:block bg-slate-950 border border-[var(--neon-glow-border)] rounded-lg shadow-2xl p-1 w-52 z-50 ${
                   moveMenuOpen ? '!block' : ''
                 } ${
-                  shortcutMenu.x > window.innerWidth - 380 ? 'right-full mr-0.5' : 'left-full ml-0.5'
+                  menuFlipped ? 'bottom-0' : 'top-0'
+                } ${
+                  submenuToLeft ? 'right-full mr-0.5' : 'left-full ml-0.5'
                 }`}
               >
                 {categories
@@ -466,8 +540,10 @@ export default function ShelfOverlays({
                       className="w-full py-1.5 px-3 text-left text-xs rounded hover:bg-slate-900 hover:text-white text-slate-300 flex items-center gap-2 cursor-pointer border-0 bg-transparent"
                       style={{ color: folder.color || undefined }}
                     >
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: folder.color || 'var(--neon-glow-color)' }} />
-                      {getFolderPath(categories, folder.id).map(item => item.id === 'all' ? translate('explorer_all') : item.name).join(' / ')}
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: folder.color || 'var(--neon-glow-color)' }} />
+                      <span className="truncate">
+                        {getFolderPath(categories, folder.id).map(item => item.id === 'all' ? translate('explorer_all') : item.name).join(' / ')}
+                      </span>
                     </button>
                   ))}
               </div>

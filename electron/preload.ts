@@ -40,6 +40,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // --- Drag & Drop helpers ---
   resolveFilePath: (filePath: string) => ipcRenderer.invoke('resolve-file-path', filePath),
+  refreshShortcutIcon: (targetPath: string, shortcutName: string) =>
+    ipcRenderer.invoke('shortcut:refresh-icon', targetPath, shortcutName),
   scanImportSources: (sources: unknown[]) => ipcRenderer.invoke('import:scan', sources),
   cancelImportScan: () => ipcRenderer.invoke('import:cancel'),
   onImportProgress: (callback: (progress: { completed: number; total: number; sourceId: string }) => void) => {
