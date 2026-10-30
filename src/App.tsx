@@ -50,6 +50,21 @@ import {
 
 let globalAudioCtx: AudioContext | null = null;
 const DEFAULT_LAUNCH_SOUND = '/sounds/launch-thud.wav';
+
+/**
+ * Punto de corte después de cada separador de ruta o URL.
+ *
+ * Una ruta como `C:\Users\...\Antigravity IDE\Antigravity IDE.exe` no tiene
+ * espacios suficientes: el navegador solo puede partirla por cualquier letra y
+ * el resultado parece un error. Con un `<wbr>` detrás de cada `\` o `/` la
+ * línea se corta donde se espera, y `overflow-wrap: anywhere` queda solo como
+ * último recurso.
+ */
+const withPathBreaks = (text: string) =>
+  text.split(/(?<=[\\/])/).map((chunk, index) => (
+    <React.Fragment key={index}>{chunk}<wbr /></React.Fragment>
+  ));
+
 // PIN que usaba CyberTray antes de hashearlo. Solo se usa para derivar el
 // hash de instalaciones antiguas que nunca tocaron el PIN.
 const LEGACY_DEFAULT_PIN = '1234';
@@ -3136,14 +3151,15 @@ export default function App() {
             </nav>
 
             {/* Búsqueda: comparte barra con las migas de pan, es decir con el
-                contenido al que filtra. El foco se dibuja con un subrayado que
-                se abre desde el centro y un halo suave, sin el anillo duro de
-                caja completa. */}
-            <div className="group relative flex items-center shrink-0 h-8 w-[clamp(180px,24vw,300px)] focus-within:w-[clamp(200px,27vw,340px)] rounded-lg bg-white/[0.02] border border-white/[0.06] transition-[width,background-color,border-color,box-shadow] duration-300 ease-out hover:border-white/[0.14] hover:bg-white/[0.04] focus-within:border-white/[0.14] focus-within:bg-white/[0.05] focus-within:shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_12px_28px_-20px_rgba(0,0,0,0.95),0_0_24px_-14px_var(--neon-glow-color)]">
+                contenido al que filtra. El foco no dibuja una caja: el borde se
+                desvanece, la superficie sube un punto y el acento lo lleva un
+                subrayado que se abre desde el centro. */}
+            <div className="group relative flex items-center shrink-0 h-8 w-[clamp(180px,24vw,300px)] focus-within:w-[clamp(200px,27vw,340px)] rounded-lg bg-white/[0.02] border border-white/[0.06] transition-[width,background-color,border-color,box-shadow] duration-300 ease-out hover:border-white/[0.12] hover:bg-white/[0.04] focus-within:border-white/[0.09] focus-within:bg-white/[0.045] focus-within:shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none transition-colors duration-200 group-focus-within:text-[var(--neon-glow-color)]" />
               <input
                 ref={searchInputRef}
                 type="text"
+                data-focus-ring="none"
                 placeholder={translate('search_placeholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -3177,7 +3193,7 @@ export default function App() {
               )}
               <span
                 aria-hidden
-                className="pointer-events-none absolute -bottom-px left-2 right-2 h-[2px] rounded-full bg-[linear-gradient(90deg,transparent,var(--neon-glow-color),transparent)] opacity-0 scale-x-0 shadow-[0_0_10px_var(--neon-glow-color)] transition-all duration-300 ease-out group-focus-within:opacity-100 group-focus-within:scale-x-100"
+                className="pointer-events-none absolute -bottom-px left-2 right-2 h-[2px] rounded-full bg-[linear-gradient(90deg,transparent,var(--neon-glow-color)_14%,var(--neon-glow-color)_86%,transparent)] opacity-0 scale-x-0 shadow-[0_2px_12px_-2px_var(--neon-glow-color)] transition-all duration-300 ease-out group-focus-within:opacity-100 group-focus-within:scale-x-100"
               />
             </div>
 
@@ -3504,10 +3520,10 @@ export default function App() {
               : `translate(calc(-50% + ${globalTooltip.shiftX}px), calc(-100% + ${globalTooltip.shiftY}px))`,
           }}
         >
-          <div className="font-bold text-white uppercase tracking-wider leading-snug">{globalTooltip.text}</div>
+          <div className="font-bold text-white uppercase tracking-wider leading-snug [overflow-wrap:anywhere]">{globalTooltip.text}</div>
           {globalTooltip.subText && (
-            <div className="text-slate-400 text-[9px] leading-relaxed whitespace-pre-line">
-              {globalTooltip.subText}
+            <div className="text-slate-400 text-[9px] leading-relaxed whitespace-pre-line [overflow-wrap:anywhere]">
+              {withPathBreaks(globalTooltip.subText)}
             </div>
           )}
         </div>

@@ -176,9 +176,12 @@
 }
 
 /* El foco nunca debe desaparecer: sin esto la app es inusable con teclado.
-   Se usa :focus-visible para que el halo no aparezca al hacer clic. */
+   Se usa :focus-visible para que el halo no aparezca al hacer clic.
+   Un control puede dibujar su propio indicador (el subrayado de la búsqueda) y
+   pedir que no se le añada el anillo con `data-focus-ring="none"`; sin esa
+   salida, esta regla (fuera de capas) gana a cualquier utilidad de Tailwind. */
 button:focus-visible,
-input:focus-visible,
+input:focus-visible:not([data-focus-ring="none"]),
 select:focus-visible,
 textarea:focus-visible,
 [tabindex]:focus-visible,
