@@ -62,6 +62,7 @@ declare global {
       getAppVersions: () => Promise<{
         app: string; electron: string; chrome: string; node: string;
         platform: string; arch: string; osRelease: string; osType: string;
+        portable?: boolean;
       }>;
       getUpdateStatus: () => Promise<any>;
       checkForUpdates: () => Promise<{ ok: boolean; version?: string; error?: string }>;

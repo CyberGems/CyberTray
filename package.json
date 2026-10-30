@@ -36,13 +36,29 @@
         "to": "launch-store-app.exe"
       }
     ],
-    "win": {
-      "icon": "public/icon.ico",
-      "target": [
-        "nsis"
-      ],
-      "artifactName": "${productName}-Setup-${version}.${ext}"
-    },
+  "win": {
+    "icon": "public/icon.ico",
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      },
+      {
+        "target": "portable",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "artifactName": "${productName}-Setup-${version}.${ext}"
+  },
+  "portable": {
+    "artifactName": "${productName}-Portable-${version}.${ext}",
+    "unpackDirName": "CyberTray-portable",
+    "requestExecutionLevel": "user"
+  },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,

@@ -67,6 +67,7 @@ Shortcut icons now render at full resolution and Steam entries resolve to the re
 | File | Description | Platform |
 | :--- | :--- | :--- |
 | **[`CyberTray-Setup-{{VERSION_NUM}}.exe`](https://github.com/CyberGems/CyberTray/releases/download/{{VERSION}}/CyberTray-Setup-{{VERSION_NUM}}.exe)** | 🚀 **Recommended Installer** (NSIS Setup with Start Menu & Desktop shortcuts) | Windows 10 / 11 (x64) |
+| **[`CyberTray-Portable-{{VERSION_NUM}}.exe`](https://github.com/CyberGems/CyberTray/releases/download/{{VERSION}}/CyberTray-Portable-{{VERSION_NUM}}.exe)** | 💼 **Portable Edition** (single executable, keeps its data in a `data` folder beside it, no installation) | Windows 10 / 11 (x64) |
 
 ---
 
@@ -78,6 +79,12 @@ Shortcut icons now render at full resolution and Steam entries resolve to the re
 
 ```text
 {{INSTALLER_HASH}}
+```
+
+**Portable edition**: [View VirusTotal report](https://www.virustotal.com/gui/file/{{PORTABLE_HASH}})
+
+```text
+{{PORTABLE_HASH}}
 ```
 
 ---

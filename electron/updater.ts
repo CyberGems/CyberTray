@@ -7,6 +7,9 @@ const { autoUpdater } = electronUpdater;
 
 const GITHUB_REPO = 'CyberGems/CyberTray';
 const NOTES_MAX_CHARS = 8000;
+// The portable build extracts itself into %TEMP%, so it cannot install updates
+// in place: download and install are redirected to the releases page instead.
+const isPortable = Boolean(process.env.PORTABLE_EXECUTABLE_DIR);
 
 type UpdateInfoLike = {
   version?: string;
@@ -130,7 +133,7 @@ export function setAutoUpdate(enabled: boolean): void {
 }
 
 export function initUpdater(opts: { autoUpdate: boolean }): void {
-  autoUpdateEnabled = opts.autoUpdate;
+  autoUpdateEnabled = opts.autoUpdate && !isPortable;
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
 
@@ -200,6 +203,11 @@ function registerUpdateIpc(): void {
   });
 
   ipcMain.handle('update:download', async () => {
+    if (isPortable) {
+      const url = cachedRelease?.url || githubReleaseUrl(cachedRelease?.version || app.getVersion());
+      await shell.openExternal(url);
+      return { ok: true };
+    }
     try {
       await autoUpdater.downloadUpdate();
       return { ok: true };
@@ -210,7 +218,12 @@ function registerUpdateIpc(): void {
     }
   });
 
-  ipcMain.handle('update:install', () => {
+  ipcMain.handle('update:install', async () => {
+    if (isPortable) {
+      const url = cachedRelease?.url || githubReleaseUrl(cachedRelease?.version || app.getVersion());
+      await shell.openExternal(url);
+      return;
+    }
     autoUpdater.quitAndInstall(true, true);
   });
 
@@ -223,6 +236,7 @@ function registerUpdateIpc(): void {
     arch: process.arch,
     osRelease: os.release(),
     osType: os.type(),
+    portable: isPortable,
   }));
 
   ipcMain.handle('open-external', async (_event, url: string) => {

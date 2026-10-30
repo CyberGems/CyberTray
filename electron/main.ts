@@ -49,12 +49,28 @@ process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 // Forzar nombre único para userData
 app.setName('CyberTray');
 
+// Modo portable: aislar los datos de usuario en una subcarpeta 'data' junto al
+// ejecutable portable, de modo que la instalación completa viaje junta.
+// Debe ejecutarse antes de cualquier getPath('userData') (constantes de módulo incluidas).
+const PORTABLE_EXECUTABLE_FILE = process.env.PORTABLE_EXECUTABLE_FILE || '';
+if (process.env.PORTABLE_EXECUTABLE_DIR) {
+  const portableUserDataPath = path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'data');
+  try {
+    fs.mkdirSync(portableUserDataPath, { recursive: true });
+  } catch (err) {
+    console.error('[PORTABLE] Failed to create portable data directory:', err);
+  }
+  app.setPath('userData', portableUserDataPath);
+}
+
 const START_MINIMIZED_ARG = '--start-minimized';
 
 function applyAutoLaunchSettings(enabled: boolean) {
   app.setLoginItemSettings({
     openAtLogin: enabled,
-    path: app.getPath('exe'),
+    // In portable mode getPath('exe') points at the copy extracted into %TEMP%;
+    // the real executable the user launched is PORTABLE_EXECUTABLE_FILE.
+    path: PORTABLE_EXECUTABLE_FILE || app.getPath('exe'),
     args: enabled ? [START_MINIMIZED_ARG] : [],
   });
 }

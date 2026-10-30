@@ -51,6 +51,7 @@ export type AppVersions = {
   arch: string;
   osRelease: string;
   osType: string;
+  portable?: boolean;
 };
 
 export type UpdateStatus =
@@ -167,6 +168,7 @@ export default function AboutModal({
       `Chrome: ${versions.chrome}`,
       `Node: ${versions.node}`,
       `OS: ${platformLabel(versions.platform)} ${versions.osRelease} (${versions.arch})`,
+      `Portable: ${versions.portable ? 'Yes' : 'No'}`,
       `Locale: ${getLocale()}`,
     ];
     try {
@@ -234,6 +236,11 @@ export default function AboutModal({
               </h1>
               <div className="text-[11px] font-digits font-bold text-slate-500 uppercase tracking-[0.12em] mb-3.5">
                 {t('about_version', { version: appVersion || '…' })}
+                {versions?.portable && (
+                  <span className="ml-2 inline-block align-middle text-[9px] font-cyber font-bold tracking-wider text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded normal-case">
+                    {t('about_portable_badge')}
+                  </span>
+                )}
               </div>
 
               <p className="text-[13px] text-slate-400 leading-relaxed mb-6">
@@ -318,19 +325,25 @@ export default function AboutModal({
                     {diagCopied ? t('about_diagnostics_copied') : t('about_copy_diagnostics')}
                   </button>
 
-                  <div className="flex items-center justify-between px-1 py-2 mt-1 gap-3">
-                    <div className="flex flex-col text-left">
-                      <span className="text-xs text-slate-200 font-medium leading-tight">{t('about_auto_updates')}</span>
-                      <span className="text-[11px] text-slate-400 leading-snug mt-0.5">{t('about_auto_updates_desc')}</span>
+                  {versions?.portable ? (
+                    <div className="px-3 py-2.5 mt-1 text-[11px] text-slate-400 leading-snug bg-white/[0.03] border border-white/5 rounded-lg text-left">
+                      {t('about_portable_updates')}
                     </div>
-                    <Toggle
-                      on={!!autoUpdate}
-                      onClick={() => { onAutoUpdateChange(!autoUpdate); playCyberBeep(); }}
-                      colorClass="bg-[var(--neon-glow-color)]"
-                      ringClass="focus-visible:ring-cyan-500/40"
-                      ariaLabel={t('about_auto_updates')}
-                    />
-                  </div>
+                  ) : (
+                    <div className="flex items-center justify-between px-1 py-2 mt-1 gap-3">
+                      <div className="flex flex-col text-left">
+                        <span className="text-xs text-slate-200 font-medium leading-tight">{t('about_auto_updates')}</span>
+                        <span className="text-[11px] text-slate-400 leading-snug mt-0.5">{t('about_auto_updates_desc')}</span>
+                      </div>
+                      <Toggle
+                        on={!!autoUpdate}
+                        onClick={() => { onAutoUpdateChange(!autoUpdate); playCyberBeep(); }}
+                        colorClass="bg-[var(--neon-glow-color)]"
+                        ringClass="focus-visible:ring-cyan-500/40"
+                        ariaLabel={t('about_auto_updates')}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 

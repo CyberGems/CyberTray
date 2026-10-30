@@ -66,12 +66,22 @@ jobs:
             throw "Installer .exe not found in release/"
           }
 
+          $portable = Get-ChildItem -Path "release" -Filter "CyberTray-Portable-*.exe" |
+            Where-Object { $_.Name -notlike "*.blockmap*" } |
+            Select-Object -First 1
+          if (-not $portable) {
+            throw "Portable .exe not found in release/"
+          }
+
           $tag = "${{ github.ref_name }}"
           $versionNum = $tag.TrimStart("v")
           $installerHash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLower()
+          $portableHash = (Get-FileHash $portable.FullName -Algorithm SHA256).Hash.ToLower()
 
           Write-Host "Installer: $($installer.Name)"
           Write-Host "Installer SHA256: $installerHash"
+          Write-Host "Portable: $($portable.Name)"
+          Write-Host "Portable SHA256: $portableHash"
 
           if ($env:VIRUSTOTAL_API_KEY) {
             function Upload-VirusTotal($filePath, $apiKey) {
@@ -94,6 +104,7 @@ jobs:
 
             try {
               Upload-VirusTotal $installer.FullName $env:VIRUSTOTAL_API_KEY
+              Upload-VirusTotal $portable.FullName $env:VIRUSTOTAL_API_KEY
             } catch {
               Write-Warning "VirusTotal upload warning: $_"
             }
@@ -105,7 +116,8 @@ jobs:
           $notes = $template.
             Replace("{{VERSION_NUM}}", $versionNum).
             Replace("{{VERSION}}", $tag).
-            Replace("{{INSTALLER_HASH}}", $installerHash)
+            Replace("{{INSTALLER_HASH}}", $installerHash).
+            Replace("{{PORTABLE_HASH}}", $portableHash)
           $utf8 = New-Object System.Text.UTF8Encoding $false
           [System.IO.File]::WriteAllText("FINAL_RELEASE_NOTES.md", $notes, $utf8)
 
