@@ -68,9 +68,15 @@ const withPathBreaks = (text: string) =>
 // PIN que usaba CyberTray antes de hashearlo. Solo se usa para derivar el
 // hash de instalaciones antiguas que nunca tocaron el PIN.
 const LEGACY_DEFAULT_PIN = '1234';
-// Tiempo mínimo que se muestra la pantalla de arranque, para que la carga
-// instantánea no se perciba como un parpadeo.
-const BOOT_MIN_DURATION_MS = 550;
+// Tiempo mínimo que se muestra la pantalla de arranque. La carga de config es
+// instantánea y sin este margen el loader se va antes de que se vea. Un ciclo
+// completo de los cuatro pulsos del icono dura ~2.2 s desde que se monta, así
+// que 2.3 s deja que el último (el "+") termine justo antes del fundido y evita
+// que el ciclo reinicie a media transición.
+const BOOT_MIN_DURATION_MS = 2300;
+// Con movimiento reducido no hay animación que mirar: esperar lo mismo solo
+// estorba.
+const BOOT_MIN_DURATION_REDUCED_MS = 900;
 // Ajustes que se guardan con retardo (controles deslizantes).
 const DEBOUNCED_CONFIG_KEYS = new Set(['iconSize', 'opacity', 'blurLevel', 'hotspotDelay']);
 
@@ -771,8 +777,11 @@ export default function App() {
       const failsafe = setTimeout(() => setBooting(false), 8000);
       return () => clearTimeout(failsafe);
     }
+    const reduceMotion =
+      typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const minDuration = reduceMotion ? BOOT_MIN_DURATION_REDUCED_MS : BOOT_MIN_DURATION_MS;
     const elapsed = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - bootStartedAtRef.current;
-    const remaining = Math.max(0, BOOT_MIN_DURATION_MS - elapsed);
+    const remaining = Math.max(0, minDuration - elapsed);
     const timer = setTimeout(() => setBooting(false), remaining);
     return () => clearTimeout(timer);
   }, [configLoaded]);
