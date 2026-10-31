@@ -22,6 +22,44 @@
 
 ---
 
+## 📑 Table of Contents
+
+- [What is CyberTray?](#what-is-cybertray)
+- [Why CyberTray?](#why-cybertray)
+- [Key Features](#key-features)
+  - [Shortcut Launcher](#shortcut-launcher)
+  - [Hotspots (Screen Corners)](#hotspots-screen-corners)
+  - [Neural Telemetry](#neural-telemetry-system-monitoring)
+  - [Process Matrix](#process-matrix)
+  - [Cyber-Vault](#cyber-vault-secure-files)
+  - [Context Menu](#context-menu)
+  - [Appearance Customization](#appearance-customization)
+  - [Sound System](#sound-system)
+  - [Data Management](#data-management)
+- [Getting Started](#getting-started)
+  - [Install (Recommended)](#install-recommended)
+  - [Portable Edition](#portable-edition)
+  - [Windows SmartScreen](#windows-smartscreen)
+- [Tech Stack & Architecture](#tech-stack--architecture)
+- [Keyboard Shortcuts](#keyboard-shortcuts)
+- [Donate](#donate)
+- [License](#license)
+- [FAQ](#faq)
+- [See also](#see-also)
+- [About suite icons](#about-suite-icons)
+
+<details>
+<summary><strong>🔗 Related links (outside this README)</strong></summary>
+
+- 🌐 [CyberTray on the web](https://cybergems.org/apps/cybertray/) — overview, download and SmartScreen guide
+- 📚 [Documentation & FAQ — Wiki](https://github.com/CyberGems/CyberTray/wiki) — troubleshooting and deep-dives
+- 💾 [Releases](https://github.com/CyberGems/CyberTray/releases) — installers, portable builds and changelog
+- 🟣 [CyberGems suite](https://github.com/CyberGems) — all open-source apps
+
+</details>
+
+---
+
 ## What is CyberTray?
 
 CyberTray is a high-performance **system tray shortcut launcher and dock** for Windows that keeps frequently used tools close without crowding the taskbar. Organize, search, and launch applications, files, folders, and URLs from a shelf that stays hidden until needed. Global shortcuts and screen-corner hotspots provide instant access, while real-time system monitoring, process controls, customizable layouts, and a PIN-protected file vault turn the tray into a compact desktop command center.
