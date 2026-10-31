@@ -52,7 +52,9 @@ Tu escritorio está saturado. El menú Inicio es lento. La barra de tareas está
 - **Gestión de atajos**: registra, edita y lanza aplicaciones, archivos y URLs
 - **Asistente de primer inicio**: elige idioma, importa accesos y define el atajo global en tres pasos. Solo aparece en instalaciones nuevas y se puede reabrir desde Ajustes.
 - **Importación y sincronización de Windows**: revisa Escritorio, Menú Inicio, carpetas personalizadas y apps de Microsoft Store antes de importar. Las sincronizaciones posteriores añaden accesos nuevos y actualizan destinos cambiados sin sobrescribir tus carpetas, nombres, iconos, atajos, favoritos ni estadísticas. Los elementos ausentes nunca se eliminan automáticamente y la última importación se puede deshacer.
-- **Iconos reales y resolución de Steam**: los accesos importados muestran el logo real de la aplicación hasta 256 px (incluidas las apps de la Store), y los accesos de Steam resuelven al ejecutable real del juego, así la tarjeta muestra una ruta con sentido y se puede abrir la carpeta del juego.
+- **Iconos reales y resolución de Steam**: los accesos importados muestran el logo real de la aplicación hasta 256 px (incluidas las apps de la Store), los accesos de Steam resuelven al ejecutable real del juego, así la tarjeta muestra una ruta con sentido y se puede abrir la carpeta del juego, y un acceso de escritorio que apunta a una app de Microsoft Store resuelve a su identificador, así sigue funcionando cuando el archivo de escritorio ya no está.
+- **Filtro por tipo**: cada acceso se clasifica por su destino (programas, apps de Microsoft Store, juegos de Steam, enlaces, scripts, archivos y carpetas) y el encabezado del contenido filtra la cuadrícula por tipo, con la cuenta real de cada tipo dentro de la carpeta y la búsqueda actuales.
+- **Refrescar icono**: refresca el icono de un acceso desde su menú contextual, que relee el manifiesto del paquete de una app de la Store o repite la extracción a 256 px; útil cuando una app se actualiza y cambia de logo.
 - **Controles rápidos en la barra**: cambia entre cuadrícula y lista, enciende el vigilante y abre la importación sin salir de la barra.
 - **Vigilante de elementos nuevos**: vigila el Escritorio, el Menú Inicio y las apps de Microsoft Store y ofrece añadir lo que aparece. El aviso nunca roba el foco, y lo que quede sin decidir espera en el centro de notificaciones hasta que lo añadas o lo descartes. Desactivado por defecto.
 - **Categorías y carpetas**: organiza los atajos con soporte de carpetas anidadas
@@ -123,6 +125,10 @@ Tu escritorio está saturado. El menú Inicio es lento. La barra de tareas está
 1. Descarga el instalador más reciente desde [Releases](https://github.com/CyberGems/CyberTray/releases/latest)
 2. Ejecuta el instalador `.exe` y sigue el asistente de instalación
 3. Inicia CyberTray y pulsa `Alt+Shift+T` para mostrar u ocultar el estante desde cualquier lugar. No necesitas ningún otro requisito: **no** necesitas Node.js ni npm
+
+### 💼 Edición portable
+
+¿Prefieres no instalar nada? Descarga `CyberTray-Portable-x.x.x.exe`, déjalo en cualquier carpeta y ejecútalo. Los ajustes, las copias de seguridad y la bóveda viven en una carpeta `data` junto al ejecutable, así la instalación entera viaja en un USB. El inicio automático funciona, pero las versiones nuevas se descargan a mano desde [Releases](https://github.com/CyberGems/CyberTray/releases/latest); Acerca de lo explica y enlaza allí.
 
 ### 🛡️ Windows SmartScreen
 

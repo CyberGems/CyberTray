@@ -53,7 +53,9 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 - **First-Run Assistant**: Pick language, import shortcuts and set the global hotkey in three steps. It only appears on new installations and can be reopened from Settings.
 - **Drag & Drop Import**: Drag files or executables directly into the shelf
 - **Windows Import & Sync**: Review Desktop, Start Menu, custom folders and Microsoft Store apps before importing. Later synchronizations add new shortcuts and update changed targets without overwriting your folders, names, icons, hotkeys, favorites or usage stats. Missing items are never deleted automatically, and the last import can be undone.
-- **Real Icons & Steam Resolution**: Imported shortcuts render the real application logo at up to 256 px (Store apps included), and Steam shortcuts resolve to the actual game executable so the tile shows a meaningful path and the game folder can be opened.
+- **Real Icons & Steam Resolution**: Imported shortcuts render the real application logo at up to 256 px (Store apps included), Steam shortcuts resolve to the actual game executable so the tile shows a meaningful path and the game folder can be opened, and a desktop shortcut pointing at a Microsoft Store app resolves to its app id, so it keeps working after the desktop file is gone.
+- **Filter by Type**: Every shortcut is classified by its destination (programs, Microsoft Store apps, Steam games, links, scripts, files and folders) and the content header filters the grid by kind, with the real count of each kind inside the current folder and search.
+- **Icon Refresh**: Refresh a shortcut's icon from its context menu, which re-reads a Store app's package manifest or repeats the 256 px extraction, handy after an app updates and changes its logo.
 - **Shelf Toolbar Quick Controls**: Switch grid/list view, toggle the watcher and open the import without leaving the bar.
 - **New-Item Watcher**: Watches the Desktop, Start Menu and Microsoft Store apps and offers to add whatever appears there. The notice never steals focus, and anything left undecided waits in the notification center until you add or dismiss it. Off by default.
 - **Categories & Folders**: Organize shortcuts with nested folder support
@@ -125,6 +127,10 @@ Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTra
 1. Download the latest installer from [Releases](https://github.com/CyberGems/CyberTray/releases/latest)
 2. Run the `.exe` installer and follow the setup wizard
 3. Launch CyberTray and press `Alt+Shift+T` to toggle the shelf from anywhere. No other requirements needed: you do **not** need Node.js or npm
+
+### 💼 Portable Edition
+
+No installation wanted? Download `CyberTray-Portable-x.x.x.exe`, drop it in any folder and run it. Settings, backups and the vault live in a `data` folder beside the executable, so the whole install travels on a USB stick. Auto-launch works, but new versions are downloaded by hand from [Releases](https://github.com/CyberGems/CyberTray/releases/latest); About says so and links there.
 
 ### 🛡️ Windows SmartScreen
 
