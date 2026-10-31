@@ -2,6 +2,66 @@
 
 All notable changes to CyberTray are documented here. Releases before 1.7.0 are described in the [GitHub releases](https://github.com/CyberGems/CyberTray/releases) page.
 
+## [1.9.0] - 2026-10-30
+
+### Added
+
+- Portable edition: a single executable that keeps its data in a `data` folder beside it, so the whole install can travel on a USB stick. Auto-launch registers the portable file, About shows a PORTABLE badge, and new versions are downloaded by hand from the releases page.
+- Type filter: every shortcut is classified by its destination (programs, Microsoft Store apps, Steam games, links, scripts, files and folders) and the toolbar reports how many of each kind exist inside the current folder and search. The kind is derived, never stored, so existing libraries classify without a migration.
+- Desktop shortcuts that point at a Microsoft Store app now resolve to the app user model id by reading the package identity written inside the file, and launch through the same activation helper as a Store import. They no longer depend on the desktop file, so deleting it cannot break them.
+- Refresh icon in the shortcut menu: it drops the memoized extraction and resolves again, re-reading the package manifest for Store apps and repeating the 256 px extraction for files.
+- The boot screen is rebuilt around a vector icon whose three squares and plus sign zoom in and out one at a time before the shelf appears.
+
+### Changed
+
+- The search field leaves the title bar and shares the breadcrumb row with the grid it filters, focusing with a sweeping underline and a soft halo instead of a hard box.
+- The destination line under each name uses the interface face instead of monospace, so more of the path fits, and a path that does not fit scrolls on hover instead of being cut with an ellipsis.
+- The launch counter reads "3 launches" and "1 launch" instead of "3 ex.", in the interface face and dimmer than the path.
+- Store apps show a short origin label under the name; the full identifier stays available in the edit dialog.
+- The context menu measures its own box and clamps both axes, and the folder submenu opens upwards when the menu had to be flipped.
+
+### Fixed
+
+- Opening the context menu near the bottom of the screen cut off its last entries, leaving delete and kill process out of reach.
+- The search field drew a hard cyan focus box that survived the redesign.
+- Store apps offered open location, containing folder and terminal actions that opened a random directory.
+- Packaged apps on some systems fell back to the 32 px icon with the shortcut arrow, because the Appx query used a parameter that is not present in every module.
+- Tooltips broke long paths inside a word, or overflowed the card when the path had no spaces.
+
+---
+
+## Versión en español
+
+Los lanzamientos anteriores a la 1.7.0 están descritos en la página de [releases de GitHub](https://github.com/CyberGems/CyberTray/releases).
+
+### [1.9.0] - 2026-10-30
+
+#### Añadido
+
+- Edición portable: un solo ejecutable que guarda sus datos en una carpeta `data` junto a él, así la instalación entera viaja en un USB. El inicio automático registra el archivo portable, Acerca de muestra una insignia PORTABLE y las versiones nuevas se descargan a mano desde la página de releases.
+- Filtro por tipo: cada acceso se clasifica por su destino (programas, apps de Microsoft Store, juegos de Steam, enlaces, scripts, archivos y carpetas) y la barra indica cuántos hay de cada tipo dentro de la carpeta y la búsqueda actuales. El tipo se deriva, nunca se guarda, así las bibliotecas existentes se clasifican sin migración.
+- Los accesos de escritorio que apuntan a una app de Microsoft Store resuelven ahora al identificador de la app leyendo la identidad del paquete escrita dentro del archivo, y se lanzan por el mismo asistente de activación que una importación de la Store. Ya no dependen del archivo de escritorio, así que borrarlo no los rompe.
+- Refrescar icono en el menú del acceso: descarta la extracción memorizada y vuelve a resolver, releyendo el manifiesto del paquete para apps de la Store y repitiendo la extracción a 256 px para archivos.
+- La pantalla de arranque se reconstruye sobre un icono vectorial cuyos tres cuadrados y el signo "+" hacen zoom de uno en uno antes de que aparezca el estante.
+
+#### Cambiado
+
+- El buscador sale de la barra de título y comparte la fila de la ruta con la cuadrícula que filtra, con un subrayado que barre y un halo suave en lugar de un recuadro duro.
+- La línea de destino bajo cada nombre usa la tipografía de la interfaz en lugar de monoespaciada, así cabe más ruta, y una ruta que no cabe se desplaza al pasar el cursor en vez de cortarse con puntos suspensivos.
+- El contador de lanzamientos dice "3 ejecuciones" y "1 ejecución" en lugar de "3 ex.", en la tipografía de la interfaz y más tenue que la ruta.
+- Las apps de la Store muestran una etiqueta corta de origen bajo el nombre; el identificador completo sigue disponible en el diálogo de edición.
+- El menú contextual mide su propia caja y se ajusta en ambos ejes, y el submenú de carpetas se abre hacia arriba cuando el menú tuvo que voltearse.
+
+#### Corregido
+
+- Abrir el menú contextual cerca del borde inferior de la pantalla cortaba sus últimas entradas, dejando eliminar y matar proceso fuera de alcance.
+- El buscador dibujaba un recuadro de foco cian duro que sobrevivía al rediseño.
+- Las apps de la Store ofrecían abrir ubicación, carpeta contenedora y terminal, acciones que abrían un directorio cualquiera.
+- Las apps empaquetadas en algunos sistemas caían al icono de 32 px con flecha de acceso, porque la consulta a Appx usaba un parámetro que no existe en todos los módulos.
+- Los tooltips partían las rutas largas por dentro de una palabra, o se salían de la tarjeta cuando la ruta no tenía espacios.
+
+---
+
 ## [1.8.0] - 2026-10-29
 
 ### Added
