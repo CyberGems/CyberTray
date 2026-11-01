@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Archive, Clock, Database, FolderOpen, HardDriveDownload, Loader2, RotateCcw, ShieldCheck, Trash2,
+  Archive, Clock, Database, FolderOpen, HardDriveDownload, Loader2, RotateCcw, Trash2,
 } from 'lucide-react';
 import { translate, getLocale } from '../locales';
 import { isElectron } from '../lib/appUtils';
@@ -189,23 +189,15 @@ export default function BackupPanel({
   }
 
   return (
-    <div className="space-y-6 max-w-2xl text-xs">
-      {/* Encabezado */}
-      <div className="flex items-start gap-3">
-        <div className="p-2 rounded-lg border bg-cyan-500/10 border-cyan-500/20 shrink-0">
-          <ShieldCheck className="w-4 h-4 text-cyan-400" />
-        </div>
-        <div className="min-w-0">
-          <h3 className="font-cyber font-bold text-white text-xs tracking-widest">{translate('backup_title')}</h3>
-          <p className="text-xs text-slate-500 mt-1 leading-relaxed">{translate('backup_desc')}</p>
-        </div>
-      </div>
+    <div className="space-y-8 text-xs">
+      {/* Encabezado: mismo patrón llano que CyberLauncher */}
+      <p className="text-xs text-slate-500 leading-relaxed">{translate('backup_desc')}</p>
 
       {/* Interruptor + ajustes */}
-      <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
+      <div className="bg-black/40 p-4 rounded-xl border border-white/5 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1">{translate('backup_enable')}</h4>
+            <h4 className="text-xs font-cyber font-bold text-slate-300 tracking-wide leading-tight mb-1">{translate('backup_enable')}</h4>
             <p className="text-xs text-slate-500 leading-relaxed">{translate('backup_enable_desc')}</p>
           </div>
           <Toggle
@@ -217,11 +209,11 @@ export default function BackupPanel({
           />
         </div>
 
-        <div className="flex items-center justify-between gap-4 pt-3 border-t border-slate-900">
+        <div className="flex items-center justify-between gap-4 pt-3 border-t border-white/5">
           <div className="flex items-start gap-3 min-w-0">
             <Clock className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
             <div className="min-w-0">
-              <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1">{translate('backup_frequency')}</h4>
+              <h4 className="text-xs font-cyber font-bold text-slate-300 tracking-wide leading-tight mb-1">{translate('backup_frequency')}</h4>
               <p className="text-xs text-slate-500 leading-relaxed">{translate('backup_frequency_desc')}</p>
             </div>
           </div>
@@ -230,7 +222,7 @@ export default function BackupPanel({
             disabled={!enabled}
             onChange={(event) => { void handleUpdateConfigSetting('autoBackupHours', Number(event.target.value)); }}
             aria-label={translate('backup_frequency')}
-            className="bg-slate-900 text-slate-200 text-xs rounded-lg px-3 py-2 border border-slate-800 focus:border-cyan-500/60 outline-none disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
+            className="bg-[#0f172a] text-slate-200 text-xs rounded-lg px-3 py-2 border border-white/10 focus:border-cyan-500/50 outline-none disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
           >
             {frequencyOptions.map((option) => (
               <option key={option} value={option}>{frequencyLabel(option)}</option>
@@ -238,11 +230,11 @@ export default function BackupPanel({
           </select>
         </div>
 
-        <div className="flex items-center justify-between gap-4 pt-3 border-t border-slate-900">
+        <div className="flex items-center justify-between gap-4 pt-3 border-t border-white/5">
           <div className="flex items-start gap-3 min-w-0">
             <Database className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
             <div className="min-w-0">
-              <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1">{translate('backup_keep')}</h4>
+              <h4 className="text-xs font-cyber font-bold text-slate-300 tracking-wide leading-tight mb-1">{translate('backup_keep')}</h4>
               <p className="text-xs text-slate-500 leading-relaxed">{translate('backup_keep_desc')}</p>
             </div>
           </div>
@@ -251,7 +243,7 @@ export default function BackupPanel({
             disabled={!enabled}
             onChange={(event) => { void handleUpdateConfigSetting('autoBackupKeep', Number(event.target.value)); }}
             aria-label={translate('backup_keep')}
-            className="bg-slate-900 text-slate-200 text-xs rounded-lg px-3 py-2 border border-slate-800 focus:border-cyan-500/60 outline-none disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
+            className="bg-[#0f172a] text-slate-200 text-xs rounded-lg px-3 py-2 border border-white/10 focus:border-cyan-500/50 outline-none disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
           >
             {keepOptions.map((option) => (
               <option key={option} value={option}>{translate('backup_keep_n', { count: String(option) })}</option>
@@ -261,26 +253,26 @@ export default function BackupPanel({
       </div>
 
       {/* Carpeta de destino */}
-      <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-3">
+      <div className="bg-black/40 p-4 rounded-xl border border-white/5 space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">
             <HardDriveDownload className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
             <div className="min-w-0">
-              <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1">{translate('backup_folder')}</h4>
+              <h4 className="text-xs font-cyber font-bold text-slate-300 tracking-wide leading-tight mb-1">{translate('backup_folder')}</h4>
               <p className="text-xs text-slate-500 leading-relaxed">{translate('backup_folder_desc')}</p>
             </div>
           </div>
           <span className={`text-[9px] font-cyber font-bold tracking-wider px-2 py-1 rounded border shrink-0 ${
             usingCustom
               ? 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30'
-              : 'text-slate-400 bg-slate-800/40 border-slate-700'
+              : 'text-slate-400 bg-white/5 border-white/10'
           }`}>
             {usingCustom ? translate('backup_folder_custom_tag') : translate('backup_folder_default_tag')}
           </span>
         </div>
 
         <div
-          className="font-mono text-[11px] text-slate-300 bg-black/40 border border-slate-900 rounded-lg px-3 py-2 break-all select-text"
+          className="font-mono text-[11px] text-slate-300 bg-black/60 border border-white/5 rounded-lg px-3 py-2 break-all select-text"
           title={effectiveFolder}
         >
           {effectiveFolder || '—'}
@@ -322,10 +314,10 @@ export default function BackupPanel({
       </div>
 
       {/* Última copia + botón */}
-      <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-3">
+      <div className="bg-black/40 p-4 rounded-xl border border-white/5 space-y-3">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1">{translate('backup_last')}</h4>
+            <h4 className="text-xs font-cyber font-bold text-slate-300 tracking-wide leading-tight mb-1">{translate('backup_last')}</h4>
             <p className="font-mono text-[11px] text-cyan-400">{formatDateTime(status?.settings.last ?? config.autoBackupLast ?? null)}</p>
           </div>
           <button
@@ -352,9 +344,9 @@ export default function BackupPanel({
       </div>
 
       {/* Lista */}
-      <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-2">
+      <div className="bg-black/40 p-4 rounded-xl border border-white/5 space-y-2">
         <div className="flex items-center justify-between gap-3">
-          <h4 className="text-sm font-medium text-slate-200 leading-tight">{translate('backup_list_title')}</h4>
+          <h4 className="text-xs font-cyber font-bold text-slate-300 tracking-wide leading-tight">{translate('backup_list_title')}</h4>
           <span className="text-[10px] font-mono text-slate-500">
             {translate('backup_list_count', { count: String(items.length), keep: String(keep) })}
           </span>
@@ -367,7 +359,7 @@ export default function BackupPanel({
             {items.map((item) => (
               <div
                 key={item.file}
-                className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-black/40 border border-slate-900 hover:border-slate-800 transition-colors"
+                className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-black/40 border border-white/5 hover:border-white/10 transition-colors"
               >
                 <div className="min-w-0 flex-1">
                   <div className="font-mono text-[11px] text-slate-300 truncate" title={item.file}>{item.file}</div>

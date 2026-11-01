@@ -38,7 +38,8 @@ async function render(config: Record<string, unknown>, lang: 'en' | 'es' = 'es')
 describe('BackupPanel', () => {
   it('muestra las secciones principales en español', async () => {
     const html = await render({});
-    expect(html).toContain('Respaldos automáticos de la configuración');
+    // El título vive en la cabecera del panel; la pestaña solo abre con la descripción.
+    expect(html).toContain('guarda una copia de tu configuración');
     expect(html).toContain('Carpeta de destino');
     expect(html).toContain('Copias disponibles');
     expect(html).toContain('RESPALDAR AHORA');
@@ -46,7 +47,7 @@ describe('BackupPanel', () => {
 
   it('traduce la interfaz al inglés', async () => {
     const html = await render({}, 'en');
-    expect(html).toContain('Automatic configuration backups');
+    expect(html).toContain('saves a copy of your configuration');
     expect(html).toContain('BACK UP NOW');
   });
 

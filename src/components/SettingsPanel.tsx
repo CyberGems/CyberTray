@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   AlertTriangle, Archive, ArrowUpDown, Droplets, Download, Eye, FileJson, FolderOpen, Globe,
   Grid, HardDrive, Image as ImageIcon, Keyboard, LayoutGrid, List as ListIcon,
-  Lock, Monitor, MousePointer2, Palette, Pin, Power, Radar, RotateCcw, Shield, Sliders, Sparkles, Store, Terminal,
-  Timer, Trash2, Upload, Volume2, type LucideIcon,
+  Lock, Monitor, MousePointer2, Palette, Pin, Power, Radar, RotateCcw, Settings, Shield, Sparkles, Store, Terminal,
+  Timer, Trash2, Upload, Volume2, X, type LucideIcon,
 } from 'lucide-react';
 import { translate } from '../locales';
 import { isElectron, getDefaultCategories } from '../lib/appUtils';
@@ -51,10 +51,10 @@ function SectionHead({
   desc?: string;
 }) {
   return (
-    <div className="flex items-start gap-2.5 mb-3">
-      <Icon className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
+    <div className="flex items-start gap-2 mb-3">
+      <Icon className="w-4 h-4 text-slate-500 mt-px shrink-0" />
       <div className="min-w-0">
-        <h4 className="font-cyber font-bold text-white text-xs tracking-widest">{title}</h4>
+        <h4 className="text-xs font-cyber font-bold text-slate-400 tracking-widest">{title}</h4>
         {desc && <p className="text-xs text-slate-500 mt-1">{desc}</p>}
       </div>
     </div>
@@ -80,12 +80,12 @@ function ToggleCard({
 }) {
   const t = ICON_TONES[tone];
   return (
-    <div className="bg-black/20 p-3.5 rounded-xl border border-white/5 hover:border-white/10 transition-colors space-y-3">
+    <div className="bg-black/40 p-4 rounded-xl border border-white/5 space-y-3">
       <div className="flex items-start gap-3">
         <BadgeIcon icon={icon} tone={tone} />
         <div className="min-w-0 flex-1">
-          <h5 className="text-sm font-medium text-slate-200 leading-tight mb-0.5">{title}</h5>
-          <p className="text-xs text-slate-500 leading-snug">{desc}</p>
+          <h5 className="text-xs font-cyber font-bold text-slate-300 tracking-wide leading-tight">{title}</h5>
+          <p className="text-xs text-slate-500 mt-1 leading-snug">{desc}</p>
         </div>
         <Toggle on={on} onClick={onClick} colorClass={t.toggle} ringClass={t.ring} ariaLabel={title} className="mt-0.5" />
       </div>
@@ -140,12 +140,12 @@ function ActionRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 bg-black/20 p-4 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+    <div className="flex items-center justify-between gap-4 bg-black/40 p-4 rounded-xl border border-white/5">
       <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
         <BadgeIcon icon={icon} tone={tone} />
         <div className="min-w-0">
-          <h4 className="text-sm font-medium text-slate-200 leading-tight mb-1">{title}</h4>
-          <p className="text-xs text-slate-500 leading-relaxed">{desc}</p>
+          <h4 className="text-xs font-cyber font-bold text-slate-300 tracking-wide leading-tight">{title}</h4>
+          <p className="text-xs text-slate-500 mt-1 leading-relaxed">{desc}</p>
         </div>
       </div>
       {children}
@@ -296,78 +296,63 @@ export default function SettingsPanel({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowSettings(false)}
-              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs"
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
             />
             <motion.div
               ref={settingsPanelRef}
               role="dialog"
               aria-modal="true"
               aria-label={translate('settings_title')}
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 24, stiffness: 180 }}
-              className="fixed inset-x-0 bottom-10 h-[80%] z-50 bg-[#070b13]/95 border-t border-[var(--neon-glow-border)] shadow-2xl flex p-0 select-none overflow-hidden font-sans"
+              initial={{ x: '100%', opacity: 0.9 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: '100%', opacity: 0.9 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed right-0 top-0 bottom-0 w-[700px] max-w-[100vw] z-50 bg-[#070b13]/95 backdrop-blur-2xl border-l border-[var(--neon-glow-border)] shadow-2xl flex flex-col select-none overflow-hidden font-sans"
             >
-              {/* Tab Navigation Menu */}
-              <div className="w-56 border-r border-slate-900 bg-slate-950/60 p-6 flex flex-col justify-between text-left" style={{ zoom: 1.25 }}>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 border-b border-slate-800 pb-3.5 mb-4.5">
-                    <Sliders className="w-4 h-4 text-purple-400" />
-                    <span className="font-cyber font-bold text-xs text-white tracking-widest">{translate('settings_title')}</span>
-                  </div>
-                  
-                  <button
-                    onClick={() => { setSettingsTab('general'); playFolderSound(); }}
-                    className={`w-full py-2 px-3 text-left text-xs font-cyber font-bold tracking-wider rounded-lg border transition-all cursor-pointer flex items-center gap-2 leading-snug ${
-                      settingsTab === 'general'
-                        ? 'border-[var(--neon-glow-color)] text-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10 shadow-[0_0_6px_var(--neon-glow-color-raw)]'
-                        : 'border-transparent text-slate-500 hover:text-slate-300'
-                    }`}
-                  >
-                    <Keyboard className="w-3.5 h-3.5 shrink-0" />
-                    {translate('tab_general')}
-                  </button>
-
-                  <button
-                    onClick={() => { setSettingsTab('appearance'); playFolderSound(); }}
-                    className={`w-full py-2 px-3 text-left text-xs font-cyber font-bold tracking-wider rounded-lg border transition-all cursor-pointer flex items-center gap-2 leading-snug ${
-                      settingsTab === 'appearance'
-                        ? 'border-purple-500/80 text-purple-400 bg-purple-950/10 shadow-[0_0_6px_rgba(168,85,247,0.25)]'
-                        : 'border-transparent text-slate-500 hover:text-slate-300'
-                    }`}
-                  >
-                    <Palette className="w-3.5 h-3.5 shrink-0" />
-                    {translate('tab_appearance')}
-                  </button>
-
-                  <button
-                    onClick={() => { setSettingsTab('shortcuts'); playFolderSound(); }}
-                    className={`w-full py-2 px-3 text-left text-xs font-cyber font-bold tracking-wider rounded-lg border transition-all cursor-pointer flex items-center gap-2 leading-snug ${
-                      settingsTab === 'shortcuts'
-                        ? 'border-amber-500/80 text-amber-500 bg-amber-950/10 shadow-[0_0_6px_rgba(245,158,11,0.25)]'
-                        : 'border-transparent text-slate-500 hover:text-slate-300'
-                    }`}
-                  >
-                    <HardDrive className="w-3.5 h-3.5 shrink-0" />
-                    {translate('tab_shortcuts')}
-                  </button>
-
-                  <button
-                    onClick={() => { setSettingsTab('backups'); playFolderSound(); }}
-                    className={`w-full py-2 px-3 text-left text-xs font-cyber font-bold tracking-wider rounded-lg border transition-all cursor-pointer flex items-center gap-2 leading-snug ${
-                      settingsTab === 'backups'
-                        ? 'border-emerald-500/80 text-emerald-400 bg-emerald-950/10 shadow-[0_0_6px_rgba(52,211,153,0.25)]'
-                        : 'border-transparent text-slate-500 hover:text-slate-300'
-                    }`}
-                  >
-                    <Archive className="w-3.5 h-3.5 shrink-0" />
-                    {translate('tab_backups')}
-                  </button>
+              {/* Cabecera: mismo patrón que CyberLauncher */}
+              <div className="px-6 py-4 border-b border-[var(--neon-glow-border)] flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <Settings className="w-5 h-5 text-[var(--neon-glow-color)]" />
+                  <h2 className="text-sm font-cyber font-bold text-white tracking-widest text-left">{translate('settings_title')}</h2>
                 </div>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  aria-label={translate('close_btn')}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors focus:outline-none cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-                <div className="space-y-2">
-                  {/* Auto-save indicator */}
+              <div className="flex flex-1 min-h-0">
+                {/* Raíl de pestañas */}
+                <div className="w-48 border-r border-white/5 bg-black/20 flex flex-col py-3 shrink-0 select-none">
+                  <div className="flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+
+                    {([
+                      ['general', translate('tab_general'), Keyboard],
+                      ['appearance', translate('tab_appearance'), Palette],
+                      ['shortcuts', translate('tab_shortcuts'), HardDrive],
+                      ['backups', translate('tab_backups'), Archive],
+                    ] as const).map(([id, label, IconComponent]) => (
+                      <button
+                        key={id}
+                        onClick={() => { setSettingsTab(id); playFolderSound(); }}
+                        aria-current={settingsTab === id ? 'page' : undefined}
+                        className={`flex items-center gap-2.5 px-4 py-3.5 text-[11px] font-cyber font-bold transition-all text-left border-l-2 shrink-0 group cursor-pointer ${
+                          settingsTab === id
+                            ? 'border-[var(--neon-glow-color)] text-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10'
+                            : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.01]'
+                        }`}
+                      >
+                        <IconComponent className={`w-4 h-4 shrink-0 transition-colors ${settingsTab === id ? 'text-[var(--neon-glow-color)]' : 'text-slate-500 group-hover:text-slate-300'}`} />
+                        <span>{label.toUpperCase()}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mt-auto pt-3 px-3 shrink-0 border-t border-white/5 space-y-2">
+                    {/* Auto-save indicator */}
                   <AnimatePresence>
                     {settingsSaved && (
                       <motion.div
@@ -385,22 +370,23 @@ export default function SettingsPanel({
 
                   <button
                     onClick={() => { setShowSettings(false); playCyberBeep(); }}
-                    className="w-full py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+                    className="w-full py-2.5 rounded-xl text-[11px] font-cyber font-bold tracking-widest text-slate-400 hover:text-slate-200 bg-black/30 hover:bg-white/[0.04] border border-white/10 hover:border-white/15 transition-all inline-flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    {translate('close_btn')}
+                    <span>{translate('close_btn').toUpperCase()}</span>
+                    <kbd className="text-[9px] font-mono font-bold leading-none px-1.5 py-1 rounded border border-white/10 bg-white/5 text-slate-400">Esc</kbd>
                   </button>
                 </div>
               </div>
 
-              {/* Tab Contents */}
-              <div className="flex-1 p-8 overflow-y-auto custom-scrollbar text-left font-sans" style={{ zoom: 1.25 }}>
+              {/* Contenido de la pestaña */}
+              <div className="p-6 custom-scrollbar flex-1 text-slate-300 text-left overflow-y-auto space-y-8">
                 
                 {/* 1. GENERAL SYSTEM SETTINGS */}
                 {settingsTab === 'general' && (
-                  <div className="space-y-6 max-w-2xl text-xs">
+                  <div className="space-y-8 text-xs">
                     
                     {/* Idioma */}
-                    <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
+                    <div className="bg-black/40 p-4 rounded-xl border border-white/5">
                       <SectionHead icon={Globe} title={translate('general_language')} desc={translate('general_language_desc')} />
                       <div className="flex gap-2">
                         <button 
@@ -419,7 +405,7 @@ export default function SettingsPanel({
                     </div>
 
                     {/* Monitor de Despliegue */}
-                    <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
+                    <div className="bg-black/40 p-4 rounded-xl border border-white/5">
                       <SectionHead icon={Monitor} title={translate('general_monitor')} desc={translate('general_monitor_desc')} />
                       
                       <div className="space-y-1.5">
@@ -448,7 +434,7 @@ export default function SettingsPanel({
                     </div>
 
                     {/* Atajo de Activación Global */}
-                    <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
+                    <div className="bg-black/40 p-4 rounded-xl border border-white/5">
                       <SectionHead icon={Keyboard} title={translate('general_shortcut')} desc={translate('general_shortcut_desc')} />
                       
                       <HotkeyInput
@@ -611,7 +597,7 @@ export default function SettingsPanel({
                         {translate('general_hotspots')}
                       </label>
 
-                      <div className="flex flex-col gap-4 bg-black/20 p-4 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                      <div className="flex flex-col gap-4 bg-black/40 p-4 rounded-xl border border-white/5">
                         <div className="flex flex-col md:flex-row gap-6 items-center">
                           <div className="relative w-48 h-32 bg-black/40 border-2 border-white/10 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
                             <Monitor className="absolute text-slate-700 w-16 h-16 opacity-50" />
@@ -716,7 +702,7 @@ export default function SettingsPanel({
                             <button
                               type="button"
                               onClick={playLaunchSound}
-                              className="shrink-0 whitespace-nowrap px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-[var(--neon-glow-border)] text-[var(--neon-glow-color)] rounded-lg text-[10px] font-bold transition-all cursor-pointer uppercase font-cyber flex items-center gap-1.5"
+                              className="shrink-0 whitespace-nowrap px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[var(--neon-glow-border)] text-[var(--neon-glow-color)] rounded-lg text-[10px] font-bold transition-all cursor-pointer uppercase font-cyber flex items-center gap-1.5"
                             >
                               <Volume2 className="w-3 h-3" />
                               {translate('settings_sound_launch_preview')}
@@ -732,7 +718,7 @@ export default function SettingsPanel({
                                   }
                                 }
                               }}
-                              className="shrink-0 whitespace-nowrap px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer uppercase font-cyber"
+                              className="shrink-0 whitespace-nowrap px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer uppercase font-cyber"
                             >
                               {translate('settings_sound_launch_browse')}
                             </button>
@@ -754,7 +740,7 @@ export default function SettingsPanel({
                     </ToggleCard>
 
                     {/* Cyber-Vault Security Options */}
-                    <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
+                    <div className="bg-black/40 p-4 rounded-xl border border-white/5 space-y-4">
                       <SectionHead icon={Shield} title={translate('vault_settings_title')} />
 
                       {/* Enable PIN lock */}
@@ -834,7 +820,7 @@ export default function SettingsPanel({
                                 setShowDisablePinPrompt(false);
                                 playCyberBeep();
                               }}
-                              className="py-1 px-3 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white text-[10px] font-cyber font-bold tracking-wider rounded transition-all cursor-pointer"
+                              className="py-1 px-3 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-white text-[10px] font-cyber font-bold tracking-wider rounded transition-all cursor-pointer"
                             >
                               {translate('vault_btn_cancel')}
                             </button>
@@ -884,7 +870,7 @@ export default function SettingsPanel({
                                 setShowEnablePinPrompt(false);
                                 playCyberBeep();
                               }}
-                              className="py-1 px-3 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white text-[10px] font-cyber font-bold tracking-wider rounded transition-all cursor-pointer"
+                              className="py-1 px-3 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-white text-[10px] font-cyber font-bold tracking-wider rounded transition-all cursor-pointer"
                             >
                               {translate('vault_btn_cancel')}
                             </button>
@@ -998,7 +984,7 @@ export default function SettingsPanel({
                                     setShowChangePinForm(false);
                                     playCyberBeep();
                                   }}
-                                  className="py-1 px-3 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white text-[10px] font-cyber font-bold tracking-wider rounded transition-all cursor-pointer"
+                                  className="py-1 px-3 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-white text-[10px] font-cyber font-bold tracking-wider rounded transition-all cursor-pointer"
                                 >
                                   {translate('vault_btn_cancel')}
                                 </button>
@@ -1083,9 +1069,9 @@ export default function SettingsPanel({
 
                 {/* 2. INTERFACE CORE (APPEARANCE) SETTINGS */}
                 {settingsTab === 'appearance' && (
-                  <div className="space-y-6 max-w-2xl text-xs">
+                  <div className="space-y-8 text-xs">
 
-                    <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
+                    <div className="bg-black/40 p-4 rounded-xl border border-white/5 space-y-4">
                       <SectionHead icon={LayoutGrid} title={translate('app_layout')} desc={translate('app_layout_desc')} />
 
                       <div>
@@ -1160,7 +1146,7 @@ export default function SettingsPanel({
                     </div>
                     
                     {/* Presets de Color */}
-                    <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
+                    <div className="bg-black/40 p-4 rounded-xl border border-white/5">
                       <SectionHead icon={Palette} title={translate('app_theme_presets')} desc={translate('app_theme_presets_desc')} />
                       
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -1184,7 +1170,7 @@ export default function SettingsPanel({
                     </div>
 
                     {/* Selector de Tipo de Fondo */}
-                    <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl">
+                    <div className="bg-black/40 p-4 rounded-xl border border-white/5">
                       <SectionHead icon={ImageIcon} title={translate('app_bg_type')} />
                       <div className="grid grid-cols-3 gap-2">
                         {[
@@ -1210,7 +1196,7 @@ export default function SettingsPanel({
 
                     {/* Controles Dinámicos Según Tipo de Fondo */}
                     {config.bgType === 'solid' && (
-                      <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-3">
+                      <div className="bg-black/40 p-4 rounded-xl border border-white/5 space-y-3">
                         <SectionHead icon={Droplets} title={translate('app_bg_solid_color')} desc={translate('app_bg_solid_color_desc')} />
                         <div className="flex items-center gap-3">
                           <input 
@@ -1228,7 +1214,7 @@ export default function SettingsPanel({
                           />
                           <button
                             onClick={() => handleUpdateConfigSetting('bgSolidColor', '#070b13')}
-                            className="py-1.5 px-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                            className="py-1.5 px-3 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer"
                           >
                             {translate('app_bg_reset')} (#070B13)
                           </button>
@@ -1237,7 +1223,7 @@ export default function SettingsPanel({
                     )}
 
                     {config.bgType === 'gradient' && (
-                      <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-3">
+                      <div className="bg-black/40 p-4 rounded-xl border border-white/5 space-y-3">
                         <SectionHead icon={Palette} title={translate('app_bg_gradients')} desc={translate('app_bg_gradients_desc')} />
                         <div className="grid grid-cols-2 gap-3">
                           {[
@@ -1263,7 +1249,7 @@ export default function SettingsPanel({
                     )}
 
                     {config.bgType === 'image' && (
-                      <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
+                      <div className="bg-black/40 p-4 rounded-xl border border-white/5 space-y-4">
                         <SectionHead icon={ImageIcon} title={translate('app_bg_preset_images')} desc={translate('app_bg_preset_images_desc')} />
                         
                         {/* Presets Grid */}
@@ -1301,7 +1287,7 @@ export default function SettingsPanel({
                             />
                             <button
                               onClick={handleBrowseBgImage}
-                              className="px-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5"
+                              className="px-3 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 rounded-lg font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5"
                             >
                               <Upload className="w-3.5 h-3.5" />
                               {translate('app_bg_browse')}
@@ -1319,7 +1305,7 @@ export default function SettingsPanel({
 
                     {/* Sliders de Transparencia y/o Desenfoque (visibles en modos de degradado/imagen) */}
                     {(config.bgType === 'image' || config.bgType === 'gradient') && (
-                      <div className="bg-slate-950/50 p-4 border border-slate-900 rounded-xl space-y-4">
+                      <div className="bg-black/40 p-4 rounded-xl border border-white/5 space-y-4">
                         
                         {config.bgType === 'image' && (
                           <div>
@@ -1363,16 +1349,9 @@ export default function SettingsPanel({
 
                 {/* 3. SYSTEM LAUNCH & SPEC SETTINGS */}
                 {settingsTab === 'shortcuts' && (
-                  <div className="space-y-6 max-w-2xl text-xs">
-                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                      <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0">
-                        <HardDrive className="w-5 h-5 text-cyan-400" />
-                      </div>
-                      <div className="min-w-0 text-left">
-                        <h3 className="text-sm font-cyber font-bold text-slate-200 tracking-wider">{translate('sys_backup')}</h3>
-                        <p className="text-[10px] text-slate-500 mt-0.5">{translate('sys_backup_desc')}</p>
-                      </div>
-                    </div>
+                  <div className="space-y-8 text-xs">
+                    {/* Cabecera llana: el título vive en la cabecera del drawer */}
+                    <p className="text-xs text-slate-500 leading-relaxed">{translate('sys_backup_desc')}</p>
 
                     <div className="space-y-3">
                       <label className="text-xs font-cyber font-bold text-slate-400 tracking-widest drop-shadow-sm flex items-center gap-2">
@@ -1540,6 +1519,7 @@ export default function SettingsPanel({
                   />
                 )}
 
+                </div>
               </div>
             </motion.div>
           </>
