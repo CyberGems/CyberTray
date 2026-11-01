@@ -31,6 +31,59 @@ function parseDragId(raw: string, prefix: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Etiqueta de la barra: mayúsculas pequeñas, misma voz que la barra lateral. */
+function StatLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="font-sidebar text-[9.5px] font-semibold uppercase leading-none tracking-[0.14em] text-slate-500">
+      {children}
+    </span>
+  );
+}
+
+/** Cifra: monoespaciada y tabular, para que no baile al actualizarse. */
+function StatValue({ children, tone = 'text-slate-200' }: { children: React.ReactNode; tone?: string }) {
+  return (
+    <span className={`font-mono text-[11.5px] leading-none tabular-nums ${tone}`}>
+      {children}
+    </span>
+  );
+}
+
+/** Unidad o sufijo: un punto más pequeño y apagado que la cifra. */
+function StatUnit({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="font-sidebar text-[9.5px] font-medium leading-none text-slate-500">
+      {children}
+    </span>
+  );
+}
+
+/** Color del medidor según lo lleno que esté: el acento solo cuando importa. */
+function meterTone(percent: number) {
+  if (percent >= 95) return 'bg-red-400';
+  if (percent >= 85) return 'bg-amber-400';
+  return 'bg-[var(--neon-glow-color)]';
+}
+
+function meterTextTone(percent: number) {
+  if (percent >= 95) return 'text-red-300';
+  if (percent >= 85) return 'text-amber-300';
+  return 'text-slate-200';
+}
+
+/** Medidor de 3 px compartido por RAM y disco: antes cada uno tenía su forma. */
+function StatMeter({ percent }: { percent: number }) {
+  const clamped = Math.max(0, Math.min(100, percent));
+  return (
+    <span className="inline-flex w-9 h-[3px] shrink-0 overflow-hidden rounded-full bg-white/[0.08]">
+      <span
+        className={`h-full rounded-full transition-[width] duration-700 ease-out ${meterTone(clamped)}`}
+        style={{ width: `${clamped}%` }}
+      />
+    </span>
+  );
+}
+
 export default function TelemetryBar({
   categoriesCount,
   shortcutsCount,
@@ -83,7 +136,7 @@ export default function TelemetryBar({
         >
           <Plus className="w-4 h-4" />
         </button>
-        <div className="w-px h-6 bg-white/10 shrink-0" />
+        <div className="w-px h-6 bg-white/[0.07] shrink-0" />
         <div
           ref={stripRef}
           onWheel={(e) => {
@@ -138,27 +191,25 @@ export default function TelemetryBar({
         </div>
       </div>
 
-      <div className="flex items-center gap-3.5 shrink-0 text-slate-400">
-        <div className="flex items-center gap-1.5">
-          <span className="font-cyber text-[11px] font-semibold tracking-wide text-slate-500">
-            {translate('stat_total_categories')}
-          </span>
-          <span className="font-mono text-[13px] font-medium tabular-nums text-purple-300">{categoriesCount}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="font-cyber text-[11px] font-semibold tracking-wide text-slate-500">
-            {translate('stat_total_shortcuts')}
-          </span>
-          <span className="font-mono text-[13px] font-medium tabular-nums text-[var(--logo-accent)]">{shortcutsCount}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="font-cyber text-[11px] font-semibold tracking-wide text-slate-500">
-            {translate('stat_total_launches')}
-          </span>
-          <span className="font-mono text-[13px] font-medium tabular-nums text-pink-300">{totalLaunches}</span>
+      {/* Tres bloques: contenido, sesión y sistema. Un solo tipo de etiqueta,
+          una sola tipografía para las cifras y un separador entre bloques. */}
+      <div className="flex items-center gap-4 shrink-0 text-slate-400">
+        <div className="flex items-center gap-3.5">
+          <div className="flex items-center gap-2">
+            <StatLabel>{translate('stat_total_categories')}</StatLabel>
+            <StatValue tone="text-slate-100">{categoriesCount}</StatValue>
+          </div>
+          <div className="flex items-center gap-2">
+            <StatLabel>{translate('stat_total_shortcuts')}</StatLabel>
+            <StatValue tone="text-slate-100">{shortcutsCount}</StatValue>
+          </div>
+          <div className="flex items-center gap-2">
+            <StatLabel>{translate('stat_total_launches')}</StatLabel>
+            <StatValue tone="text-slate-100">{totalLaunches}</StatValue>
+          </div>
         </div>
 
-        <div className="w-px h-4 bg-white/10" />
+        <span className="w-px h-3.5 bg-white/[0.07]" />
 
         <div
           className="flex items-center gap-1.5 cursor-help"
@@ -166,52 +217,67 @@ export default function TelemetryBar({
           onMouseLeave={hideTooltip}
         >
           <Clock className="w-3.5 h-3.5 text-slate-500" />
-          <span className="font-mono text-[13px] tracking-wide tabular-nums text-slate-300">
-            {Math.floor(systemInfo.uptime / 3600)}h {Math.floor((systemInfo.uptime % 3600) / 60)}m
+          <span className="flex items-baseline gap-0.5">
+            <StatValue>{Math.floor(systemInfo.uptime / 3600)}</StatValue>
+            <StatUnit>h</StatUnit>
+            <StatValue>{Math.floor((systemInfo.uptime % 3600) / 60)}</StatValue>
+            <StatUnit>m</StatUnit>
           </span>
         </div>
 
+        <span className="w-px h-3.5 bg-white/[0.07]" />
+
         <div
-          className="flex items-center gap-1.5 whitespace-nowrap cursor-help"
-          onMouseEnter={(e) => showTooltip(e, translate('stat_cpu'), `${translate('tooltip_cpu')}\n\n${systemInfo.cpu.model}`)}
+          className="flex items-center gap-2 whitespace-nowrap cursor-help"
+          onMouseEnter={(e) => showTooltip(e, translate('stat_cpu'), `${translate('stat_cpu_cores', { count: String(systemInfo.cpu.cores) })}\n\n${systemInfo.cpu.model}`)}
           onMouseLeave={hideTooltip}
         >
           <Cpu className="w-3.5 h-3.5 text-slate-500" />
-          <span className="font-cyber text-[11px] font-semibold tracking-wide text-slate-500">CPU</span>
-          <span className="font-mono text-[13px] font-medium tabular-nums text-slate-200">
-            {translate('stat_cpu_cores', { count: String(systemInfo.cpu.cores) })}
+          <StatLabel>CPU</StatLabel>
+          <span className="flex items-baseline gap-1">
+            <StatValue>{systemInfo.cpu.cores}</StatValue>
+            <StatUnit>{translate('stat_cpu_cores_unit')}</StatUnit>
           </span>
         </div>
 
         <div
-          className="flex items-center gap-1.5 cursor-help"
+          className="flex items-center gap-2 cursor-help"
           onMouseEnter={(e) => showTooltip(e, translate('stat_ram'), `${translate('tooltip_ram')}\n\nTotal: ${systemInfo.memory.total.toFixed(1)} GB`)}
           onMouseLeave={hideTooltip}
         >
           <Sliders className="w-3.5 h-3.5 text-slate-500" />
-          <span className="font-cyber text-[11px] font-semibold tracking-wide text-slate-500">RAM</span>
-          <div className="w-14 h-1.5 bg-slate-900 border border-slate-800 rounded overflow-hidden">
-            <div
-              className="h-full bg-[var(--neon-glow-color)] transition-all duration-1000"
-              style={{ width: `${systemInfo.memory.percent}%` }}
-            />
-          </div>
-          <span className="font-mono text-[13px] font-medium tabular-nums text-slate-200 w-9 text-right">
-            {Math.round(systemInfo.memory.percent)}%
+          <StatLabel>RAM</StatLabel>
+          <StatMeter percent={systemInfo.memory.percent} />
+          <span className="flex items-baseline gap-[1px]">
+            <StatValue tone={meterTextTone(systemInfo.memory.percent)}>
+              {Math.round(systemInfo.memory.percent)}
+            </StatValue>
+            <StatUnit>%</StatUnit>
           </span>
         </div>
 
         <div
-          className="flex items-center gap-1.5 cursor-help"
+          className="flex items-center gap-2 cursor-help"
           onMouseEnter={(e) => showTooltip(e, translate('stat_disks'), disks.length > 0
             ? `${translate('tooltip_disk')}\n\n${disks.map((d) => `${d.drive} (Total: ${Math.round(d.total)}GB, ${translate('stat_disk_free')}: ${Math.round(d.free)}GB)`).join('\n')}`
             : translate('stat_disks_unavailable'))}
           onMouseLeave={hideTooltip}
         >
           <HardDrive className="w-3.5 h-3.5 text-slate-500" />
-          <span className="font-mono text-[13px] font-medium tabular-nums text-slate-200">
-            {disks[0] ? `${disks[0].drive} ${disks[0].percent}%` : '--'}
-          </span>
+          {disks[0] ? (
+            <>
+              <span className="font-mono text-[11.5px] leading-none tabular-nums text-slate-400">{disks[0].drive}</span>
+              <StatMeter percent={disks[0].percent} />
+              <span className="flex items-baseline gap-[1px]">
+                <StatValue tone={meterTextTone(disks[0].percent)}>
+                  {Math.round(disks[0].percent)}
+                </StatValue>
+                <StatUnit>%</StatUnit>
+              </span>
+            </>
+          ) : (
+            <span className="font-mono text-[11.5px] leading-none text-slate-600">--</span>
+          )}
         </div>
       </div>
     </footer>

@@ -327,9 +327,10 @@ export const translations = {
 
     // Status Bar & Metrics
     stat_total_shortcuts: "SHORTCUTS",
-    stat_total_categories: "CATEGORIES",
+    stat_total_categories: "FOLDERS",
     stat_total_launches: "LAUNCHES",
     stat_cpu_cores: "{count} cores",
+    stat_cpu_cores_unit: "cores",
     stat_cpu: "CPU",
     stat_ram: "RAM",
     stat_disks: "STORAGE",
@@ -997,9 +998,10 @@ export const translations = {
 
     // Status Bar & Metrics
     stat_total_shortcuts: "ACCESOS",
-    stat_total_categories: "CATEGORÍAS",
+    stat_total_categories: "CARPETAS",
     stat_total_launches: "LANZAMIENTOS",
     stat_cpu_cores: "{count} núcleos",
+    stat_cpu_cores_unit: "núcleos",
     stat_cpu: "CPU",
     stat_ram: "RAM",
     stat_disks: "ALMACENAMIENTO",
