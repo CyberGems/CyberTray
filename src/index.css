@@ -121,6 +121,20 @@
   --neon-glow-border: rgba(16, 185, 129, 0.45);
 }
 
+/* Grano de superficie
+   Cuerpo de material sin dibujar un patrón: ruido fractal gris (canal alfa
+   incluido) en un mosaico de 180 px, repetido a baja opacidad. Se monta dentro
+   de la capa de fondo, así que el contenido queda por encima y las tarjetas lo
+   difuminan con su propio blur. Medido sobre #070b13: sube la luminancia media
+   +3,5 y añade una variación de 1,2 sobre 255, o sea textura perceptible de
+   cerca y ningún patrón reconocible a tamaño normal. */
+.cyber-grain {
+  opacity: 0.05;
+  background-repeat: repeat;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='grain'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='180' height='180' filter='url(%23grain)'/></svg>");
+  pointer-events: none;
+}
+
 /* Efecto Escáner
    Solo queda el barrido. La malla anterior (líneas cada 3 px y cada 6 px con
    tinte rojo/azul) se leía como un punteado fino sobre todo el panel, tarjetas

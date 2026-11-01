@@ -2653,6 +2653,12 @@ export default function App() {
             />
           </div>
         )}
+        {/* Grano de superficie: vive dentro de la capa de fondo, así queda por
+            debajo del contenido y las tarjetas lo difuminan con su propio blur.
+            No se aplica sobre fotos, donde ya hay textura propia. */}
+        {bgType !== 'image' && (
+          <div className="absolute inset-0 cyber-grain" aria-hidden="true" />
+        )}
       </div>
 
       {/* ── BARRA SUPERIOR ── */}
