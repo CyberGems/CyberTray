@@ -536,10 +536,10 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
             {iconBox(density.listIconPx)}
             <div className="min-w-0 flex-1 text-left">
               <h4
-                className="font-ui font-bold text-white truncate tracking-wide group-hover:text-[var(--neon-glow-color)]"
+                className="font-ui font-bold text-white tracking-wide group-hover:text-[var(--neon-glow-color)]"
                 style={{ fontSize: `${density.titlePx}px` }}
               >
-                {folder.name}
+                <MarqueeText text={folder.name} />
               </h4>
               <MarqueeText
                 className="font-sans tracking-tight w-full text-slate-500"
@@ -567,17 +567,16 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
         {iconBox(config.iconSize)}
         <div className={`min-w-0 ${isSmallGrid ? 'w-full text-center flex flex-col items-center' : 'flex-1 text-left'}`}>
           <h4
-            className="font-ui font-bold text-white truncate tracking-wide group-hover:text-[var(--neon-glow-color)]"
+            className="font-ui font-bold text-white tracking-wide group-hover:text-[var(--neon-glow-color)]"
             style={{ fontSize: `${density.titlePx}px`, width: '100%' }}
           >
-            {folder.name}
+            <MarqueeText text={folder.name} />
           </h4>
-          <p
-            className="font-sans tracking-tight text-slate-500 truncate"
-            style={{ fontSize: `${density.pathPx}px`, width: '100%' }}
-          >
-            {subtitle}
-          </p>
+          <MarqueeText
+            className="font-sans tracking-tight w-full text-slate-500"
+            style={{ fontSize: `${density.pathPx}px` }}
+            text={subtitle}
+          />
         </div>
       </div>
     );
