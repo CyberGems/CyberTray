@@ -3293,6 +3293,7 @@ export default function App() {
               draggingFolderId={draggingCategoryId}
               dropFolderId={dragOverCategoryId}
               onDropFolderChange={setDragOverCategoryId}
+              onCreateShortcut={handleOpenAddModal}
               selectedIds={selectedIds}
               showVaultHelp={showVaultHelp}
               setShowVaultHelp={setShowVaultHelp}
