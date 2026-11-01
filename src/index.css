@@ -121,18 +121,10 @@
   --neon-glow-border: rgba(16, 185, 129, 0.45);
 }
 
-/* Efecto Escáner */
-.cyber-scanlines::before {
-  content: " ";
-  display: block;
-  position: absolute;
-  top: 0; left: 0; bottom: 0; right: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-  z-index: 2;
-  background-size: 100% 3px, 6px 100%;
-  pointer-events: none;
-}
-
+/* Efecto Escáner
+   Solo queda el barrido. La malla anterior (líneas cada 3 px y cada 6 px con
+   tinte rojo/azul) se leía como un punteado fino sobre todo el panel, tarjetas
+   incluidas, y ensuciaba el fondo: se retiró para dejar una superficie limpia. */
 .cyber-scanlines::after {
   content: "";
   position: absolute;
@@ -140,7 +132,7 @@
   height: 4px;
   background: linear-gradient(to bottom, transparent, var(--neon-glow-color), transparent);
   animation: scanline 8s linear infinite;
-  opacity: 0.15;
+  opacity: 0.1;
   z-index: 3;
   pointer-events: none;
 }
