@@ -215,11 +215,12 @@ export function densityFromIconSize(iconSize: number) {
   const lerp = (a: number, b: number) => a + (b - a) * t;
   return {
     iconSize: size,
-    folderWidth: Math.round(lerp(168, 248)),
-    folderLabelPx: Number(lerp(10, 13.5).toFixed(1)),
-    folderIconPx: Number(lerp(13, 17).toFixed(1)),
-    folderHeaderPx: Number(lerp(9, 11.5).toFixed(1)),
-    folderRowPy: Number(lerp(4, 8).toFixed(1)),
+    // La barra lateral crece un 20%: los nombres anidados se truncaban demasiado.
+    folderWidth: Math.round(lerp(168, 248) * 1.2),
+    folderLabelPx: Number(lerp(11, 14.5).toFixed(1)),
+    folderIconPx: Number(lerp(14, 18).toFixed(1)),
+    folderHeaderPx: Number(lerp(9.8, 12.3).toFixed(1)),
+    folderRowPy: Number(lerp(5, 9).toFixed(1)),
     breadcrumbPx: Number(lerp(9.5, 12).toFixed(1)),
     childChipPx: Number(lerp(9.5, 12).toFixed(1)),
     titlePx: Number(lerp(10, 15).toFixed(1)),

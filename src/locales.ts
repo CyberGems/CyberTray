@@ -322,6 +322,8 @@ export const translations = {
     explorer_folder_contents: "Folder contents",
     explorer_expand: "Expand folder",
     explorer_collapse: "Collapse folder",
+    explorer_collapse_sidebar: "Collapse sidebar",
+    explorer_expand_sidebar: "Expand sidebar",
 
     // Status Bar & Metrics
     stat_total_shortcuts: "SHORTCUTS",
@@ -990,6 +992,8 @@ export const translations = {
     explorer_folder_contents: "Contenido de la carpeta",
     explorer_expand: "Expandir carpeta",
     explorer_collapse: "Contraer carpeta",
+    explorer_collapse_sidebar: "Contraer barra lateral",
+    explorer_expand_sidebar: "Expandir barra lateral",
 
     // Status Bar & Metrics
     stat_total_shortcuts: "ACCESOS",

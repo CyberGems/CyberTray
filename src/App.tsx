@@ -26,7 +26,6 @@ import {
   normalizeCategoriesList,
   normalizeShortcutsList,
   createFolderId,
-  getChildFolders,
   getDescendantFolderIds,
   getFolderPath,
   densityFromIconSize,
@@ -43,7 +42,7 @@ import { useBundledAssetUrl } from './lib/useBundledAsset';
 import {
   Search, Plus, Settings, X, Trash2, Info,
   Pin, Play, ArrowDown, Shrink, MoreHorizontal,
-  RefreshCw, Check, Activity, Lock, FolderOpen,
+  RefreshCw, Check, Activity, Lock,
   CheckSquare, Heart, BookOpen, HelpCircle, Tag, Globe, Sliders, History,
   LayoutGrid, List, Download, Eye, EyeOff
 } from 'lucide-react';
@@ -2588,9 +2587,6 @@ export default function App() {
   const presetBackgroundUrl = useBundledAssetUrl(presetBackgroundPath);
   const fallbackBackgroundUrl = useBundledAssetUrl('backgrounds/cyber_bg_1.png');
   const activeFolderPath = getFolderPath(categories, activeCategory);
-  const visibleChildFolders = activeCategory === 'all'
-    ? getChildFolders(categories, null)
-    : getChildFolders(categories, activeCategory);
   const density = densityFromIconSize(config.iconSize);
 
   // El árbol se mantiene montado aunque el panel esté oculto: desmontarlo
@@ -3134,6 +3130,12 @@ export default function App() {
           onDropFolderChange={setDragOverCategoryId}
           showTooltip={showTooltip}
           hideTooltip={hideTooltip}
+          collapsed={config.sidebarCollapsed === true}
+          onToggleCollapsed={() => {
+            hideTooltip();
+            playCyberBeep();
+            handleUpdateConfigSetting('sidebarCollapsed', config.sidebarCollapsed !== true);
+          }}
         />
 
         <main className="min-w-0 flex-1 min-h-0 flex flex-col">
@@ -3221,22 +3223,6 @@ export default function App() {
               hideTooltip={hideTooltip}
             />
           </div>
-
-          {visibleChildFolders.length > 0 && activeCategory !== 'favorites' && activeCategory !== 'vault' && (
-            <div className="shrink-0 flex items-center gap-2 px-5 py-2 border-b border-slate-900/60 overflow-x-auto">
-              {visibleChildFolders.map(folder => (
-                <button
-                  key={folder.id}
-                  type="button"
-                  onClick={() => handleTabClick(folder.id)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-slate-800 bg-slate-950/40 hover:border-[var(--neon-glow-border)] hover:bg-slate-900/80 text-slate-400 hover:text-white transition-all cursor-pointer"
-                >
-                  <FolderOpen style={{ width: density.folderIconPx, height: density.folderIconPx, color: folder.color }} />
-                  <span className="font-ui tracking-wide truncate max-w-36" style={{ fontSize: `${density.childChipPx}px` }}>{folder.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
 
           {recentShortcuts.length > 0 && activeCategory === 'all' && !searchQuery.trim() && (
             <div className="shrink-0 flex items-center gap-2 px-5 py-2 border-b border-slate-900/60 overflow-x-auto">

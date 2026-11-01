@@ -54,6 +54,8 @@ export interface CyberTrayConfig {
   hotspotDelay: number;
   alwaysOnTop: boolean;
   iconSize: number;
+  /** Barra lateral reducida a una franja de iconos. */
+  sidebarCollapsed?: boolean;
   showTaskbarIcon: boolean;
   autoLaunch: boolean;
   hideOnDeadZoneClick: boolean;
@@ -117,6 +119,7 @@ const KNOWN_CONFIG_KEYS = new Set<keyof CyberTrayConfig>([
   'hotspotDelay',
   'alwaysOnTop',
   'iconSize',
+  'sidebarCollapsed',
   'showTaskbarIcon',
   'autoLaunch',
   'hideOnDeadZoneClick',
@@ -186,6 +189,7 @@ export function createDefaultConfig(): CyberTrayConfig {
     // ocultarse al perder el foco. Se activa a mano desde la barra superior.
     alwaysOnTop: false,
     iconSize: 60,
+    sidebarCollapsed: false,
     showTaskbarIcon: false,
     autoLaunch: false,
     hideOnDeadZoneClick: false,
