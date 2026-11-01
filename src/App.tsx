@@ -3532,11 +3532,17 @@ export default function App() {
       {globalTooltip.visible && (
         <div
           ref={tooltipNodeRef}
-          className="fixed bg-slate-950 text-slate-300 text-[10px] font-mono rounded-lg p-2 shadow-2xl z-[999999] pointer-events-none flex flex-col gap-0.5 border max-w-[240px] text-center"
+          className="fixed bg-slate-950 text-slate-300 text-[10px] font-mono rounded-lg p-2 shadow-2xl z-[999999] pointer-events-none flex flex-col gap-0.5 border w-max text-center"
           style={{
             borderColor: globalTooltip.borderColor,
             left: `${globalTooltip.x}px`,
             top: `${globalTooltip.y}px`,
+            // Sin `right` ni `width` el navegador usa shrink-to-fit, y el
+            // "espacio disponible" se mide desde `left` hasta el borde derecho:
+            // en un control pegado a ese borde quedaban ~30 px y, con
+            // `overflow-wrap:anywhere`, el texto se partía a un carácter por
+            // línea. `w-max` fija el ancho intrínseco y este tope lo acota.
+            maxWidth: 'min(240px, calc(100vw - 16px))',
             transform: globalTooltip.placement === 'bottom'
               ? `translate(calc(-50% + ${globalTooltip.shiftX}px), ${globalTooltip.shiftY}px)`
               : `translate(calc(-50% + ${globalTooltip.shiftX}px), calc(-100% + ${globalTooltip.shiftY}px))`,
