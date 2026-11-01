@@ -1,12 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { motion } from 'motion/react';
-import { Check, ChevronRight, Clock, Edit, Folder, ListFilter, Lock, Search } from 'lucide-react';
+import { Check, ChevronRight, Clock, Edit, Folder, ListFilter, Lock, Plus, Search, Star } from 'lucide-react';
 import { translate } from '../locales';
 import { shortcutIconSrc } from '../lib/iconSrc';
 import MarqueeText from './MarqueeText';
 import ShortcutGlyph from './ShortcutGlyph';
-import DropGlyph from './DropGlyph';
 import {
   densityFromIconSize,
   getChildFolders,
@@ -23,7 +21,6 @@ type ShowTooltipFn = (e: React.MouseEvent, text: string, subText?: string, borde
 type ShortcutRow =
   | { kind: 'header'; key: string; letter: string }
   | { kind: 'folders'; key: string; folders: CyberFolder[] }
-  | { kind: 'hint'; key: string }
   | { kind: 'items'; key: string; items: { item: any; index: number }[] };
 
 const ROW_GAP = 16;
@@ -77,7 +74,7 @@ interface ShortcutGridProps {
   draggingFolderId?: string | null;
   dropFolderId?: string | null;
   onDropFolderChange?: (folderId: string | null) => void;
-  /** Abre el diálogo de alta desde el panel de carpeta vacía. */
+  /** Abre el diálogo de alta desde la vista vacía. */
   onCreateShortcut?: () => void;
 }
 
@@ -231,12 +228,6 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
       });
     }
 
-    // Carpeta con subcarpetas pero sin accesos sueltos: una línea que explica
-    // el hueco, en vez de dejar la vista muda o plantar el panel entero.
-    if (folderTiles.length > 0 && filteredShortcutsList.length === 0 && !searchQuery.trim()) {
-      result.push({ kind: 'hint', key: 'empty-hint' });
-    }
-
     let pendingItems: { item: any; index: number }[] = [];
 
     const flushItems = () => {
@@ -264,7 +255,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
     });
     flushItems();
     return result;
-  }, [filteredShortcutsList, folderTiles, viewMode, iconSortOrder, columnCount, searchQuery]);
+  }, [filteredShortcutsList, folderTiles, viewMode, iconSortOrder, columnCount]);
 
   const rowIndexByItemId = useMemo(() => {
     const indexes = new Map<number, number>();
@@ -282,7 +273,6 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
     estimateSize: (index) => {
       const row = rows[index];
       if (row.kind === 'header') return 64;
-      if (row.kind === 'hint') return 48;
       if (row.kind === 'folders') return viewMode === 'list' ? 76 : config.iconSize + 28;
       return viewMode === 'list' ? 76 : config.iconSize + 76;
     },
@@ -878,13 +868,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
     );
   };
 
-  /**
-   * Panel de vista vacía.
-   *
-   * Antes era un cajón de borde discontinuo que ocupaba todo el área: pasar de
-   * ahí a las tarjetas era un salto brusco. Ahora es una pieza contenida, con
-   * las esquinas marcadas y el mismo glifo de "suelta aquí" que abre CyberViewer.
-   */
+  /** Mensajes y acciones sobre el fondo, sin un panel adicional. */
   const renderEmptyState = () => {
     const frame = (content: {
       icon: React.ReactNode;
@@ -892,30 +876,20 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
       body: string;
       action?: React.ReactNode;
     }) => (
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.18, ease: 'easeOut' }}
-        className="w-full h-full flex items-center justify-center px-6 py-10"
-      >
-        <div className="relative flex w-full max-w-[420px] flex-col items-center rounded-xl border border-[var(--neon-glow-border)] bg-slate-950/75 px-8 pt-8 pb-7 backdrop-blur-xl shadow-[0_18px_44px_rgba(0,0,0,0.55),0_0_30px_-10px_var(--neon-glow-color-raw)]">
-          <span aria-hidden="true" className="pointer-events-none absolute top-[5px] left-[5px] w-3 h-3 border-t-[1.5px] border-l-[1.5px] border-[var(--neon-glow-color)] opacity-55" />
-          <span aria-hidden="true" className="pointer-events-none absolute top-[5px] right-[5px] w-3 h-3 border-t-[1.5px] border-r-[1.5px] border-[var(--neon-glow-color)] opacity-55" />
-          <span aria-hidden="true" className="pointer-events-none absolute bottom-[5px] left-[5px] w-3 h-3 border-b-[1.5px] border-l-[1.5px] border-[var(--neon-glow-color)] opacity-55" />
-          <span aria-hidden="true" className="pointer-events-none absolute bottom-[5px] right-[5px] w-3 h-3 border-b-[1.5px] border-r-[1.5px] border-[var(--neon-glow-color)] opacity-55" />
-
-          <div className="mb-3 text-[var(--neon-glow-color)] opacity-85 drop-shadow-[0_0_12px_var(--neon-glow-color-raw)]">
+      <div className="flex h-full w-full flex-col items-center justify-center px-4 py-8 text-center">
+        <div className="flex w-full max-w-sm flex-col items-center">
+          <div aria-hidden="true" className="mb-4 text-slate-500">
             {content.icon}
           </div>
-          <h3 className="font-ui text-[15px] font-bold tracking-wide text-white text-center">
+          <h3 className="font-ui text-[15px] font-medium text-slate-200">
             {content.title}
           </h3>
-          <p className="mt-1.5 max-w-[340px] font-sans text-[12px] leading-relaxed text-slate-400 text-center">
+          <p className="mt-2 max-w-[340px] font-sans text-[12px] leading-relaxed text-slate-400 break-words">
             {content.body}
           </p>
           {content.action}
         </div>
-      </motion.div>
+      </div>
     );
 
     if (searchQuery.trim() !== '') {
@@ -962,39 +936,37 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
       });
     }
 
-    // "Todos" no es una carpeta y Favoritos es una marca: cada vista vacía
-    // necesita su propia frase o el panel dice cosas que no son.
-    const emptyCopy = activeCategory === 'favorites'
-      ? { title: translate('empty_favorites_title'), body: translate('empty_favorites_hint') }
-      : isRealFolder
-        ? { title: translate('empty_folder_title'), body: translate('empty_folder_hint') }
-        : { title: translate('empty_all_title'), body: translate('empty_folder_hint') };
+    if (activeCategory === 'favorites') {
+      return frame({
+        icon: <Star className="h-11 w-11" strokeWidth={1.25} />,
+        title: translate('empty_favorites_title'),
+        body: translate('empty_favorites_hint'),
+      });
+    }
 
-    return frame({
-      icon: <DropGlyph className="w-12 h-12" />,
-      title: emptyCopy.title,
-      body: emptyCopy.body,
-      action: onCreateShortcut ? (
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center px-4 py-8 text-center">
         <button
           type="button"
           onClick={onCreateShortcut}
-          className="mt-3 rounded-lg border border-[var(--neon-glow-border)] bg-[var(--neon-glow-color-raw)] px-4 py-1.5 font-cyber text-[10px] font-bold uppercase tracking-widest text-[var(--neon-glow-color)] transition-colors cursor-pointer hover:bg-[var(--neon-glow-color)] hover:text-slate-950"
+          disabled={!onCreateShortcut}
+          className="group flex max-w-full cursor-pointer flex-col items-center gap-3 rounded-2xl px-8 py-5 text-slate-300 transition-colors hover:text-white disabled:cursor-default"
         >
-          {translate('add_btn')}
+          <Plus
+            aria-hidden="true"
+            className="h-16 w-16 text-[var(--neon-glow-color)] transition-[transform,filter] duration-200 group-hover:scale-110 group-hover:drop-shadow-[0_0_12px_var(--neon-glow-color-raw)] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+            strokeWidth={1.25}
+          />
+          <span className="font-ui text-[16px] font-medium tracking-wide">
+            {translate('app_add_submit')}
+          </span>
         </button>
-      ) : undefined,
-    });
+        <p className="mt-1 max-w-xs font-sans text-[12px] leading-relaxed text-slate-400">
+          {translate('empty_folder_hint')}
+        </p>
+      </div>
+    );
   };
-
-  /** Carpeta con subcarpetas y ningún acceso suelto: una línea, no un cajón. */
-  const renderEmptyHint = () => (
-    <div className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.015] px-4 py-2.5">
-      <DropGlyph className="h-5 w-5 shrink-0 text-[var(--neon-glow-color)] opacity-60" />
-      <p className="font-sans text-[12px] leading-relaxed text-slate-400/90">
-        {translate('empty_subfolder_hint')}
-      </p>
-    </div>
-  );
 
   return (
     <main
@@ -1057,7 +1029,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                   paddingBottom: virtualRow.index === rows.length - 1 ? 0 : ROW_GAP,
                 }}
               >
-                {row.kind === 'header' ? renderAlphaHeader(row.letter) : row.kind === 'hint' ? renderEmptyHint() : row.kind === 'folders' ? (
+                {row.kind === 'header' ? renderAlphaHeader(row.letter) : row.kind === 'folders' ? (
                   <div className="grid gap-4" style={{ gridTemplateColumns }}>
                     {/* El índice de teclado es el global: con varias filas de
                         carpetas el recorrido no puede reiniciarse en cada una. */}
