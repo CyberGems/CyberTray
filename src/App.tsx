@@ -2589,6 +2589,17 @@ export default function App() {
   const activeFolderPath = getFolderPath(categories, activeCategory);
   const density = densityFromIconSize(config.iconSize);
 
+  // Accesos por carpeta: las tarjetas de subcarpeta muestran su contenido real,
+  // no el de la vista filtrada que se está pintando.
+  const folderShortcutCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    (shortcuts || []).forEach((item: any) => {
+      if (!item?.category) return;
+      counts.set(item.category, (counts.get(item.category) || 0) + 1);
+    });
+    return counts;
+  }, [shortcuts]);
+
   // El árbol se mantiene montado aunque el panel esté oculto: desmontarlo
   // obligaba a React a reconstruir toda la UI (iconos incluidos) en cada
   // apertura, y el panel se veía vacío durante los primeros fotogramas.
@@ -3273,6 +3284,15 @@ export default function App() {
               config={config}
               categories={categories}
               activeCategory={activeCategory}
+              folderShortcutCounts={folderShortcutCounts}
+              onOpenFolder={handleTabClick}
+              onFolderContextMenu={handleCategoryContextMenu}
+              onFolderDragStart={handleCategoryDragStart}
+              onFolderDragEnd={handleCategoryDragEnd}
+              onFolderDrop={handleCategoryDrop}
+              draggingFolderId={draggingCategoryId}
+              dropFolderId={dragOverCategoryId}
+              onDropFolderChange={setDragOverCategoryId}
               selectedIds={selectedIds}
               showVaultHelp={showVaultHelp}
               setShowVaultHelp={setShowVaultHelp}

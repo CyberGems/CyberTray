@@ -1,11 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Check, Clock, Edit, ListFilter, Lock, Search, Upload } from 'lucide-react';
+import { Check, ChevronRight, Clock, Edit, Folder, ListFilter, Lock, Search, Upload } from 'lucide-react';
 import { translate } from '../locales';
 import { shortcutIconSrc } from '../lib/iconSrc';
 import MarqueeText from './MarqueeText';
 import ShortcutGlyph from './ShortcutGlyph';
-import { densityFromIconSize } from '../lib/appUtils';
+import {
+  densityFromIconSize,
+  getChildFolders,
+  getFolderPath,
+  ROOT_FOLDER_ID,
+  UNCATEGORIZED_ID,
+  type CyberFolder,
+} from '../lib/appUtils';
 import { SHORTCUT_KIND_LABEL_KEYS, isStoreAppId, type ShortcutKindFilter } from '../lib/shortcutKind';
 import VaultPanel from './VaultPanel';
 
@@ -13,6 +20,7 @@ type ShowTooltipFn = (e: React.MouseEvent, text: string, subText?: string, borde
 
 type ShortcutRow =
   | { kind: 'header'; key: string; letter: string }
+  | { kind: 'folders'; key: string; folders: CyberFolder[] }
   | { kind: 'items'; key: string; items: { item: any; index: number }[] };
 
 const ROW_GAP = 16;
@@ -56,6 +64,16 @@ interface ShortcutGridProps {
   /** Tipo activo en el filtro, para explicar una lista vacía. */
   kindFilter?: ShortcutKindFilter;
   onClearKindFilter?: () => void;
+  /** Accesos por carpeta, para el subtítulo de las tarjetas de subcarpeta. */
+  folderShortcutCounts?: Map<string, number>;
+  onOpenFolder?: (folderId: string) => void;
+  onFolderContextMenu?: (e: React.MouseEvent, folder: CyberFolder) => void;
+  onFolderDragStart?: (e: React.DragEvent, folder: CyberFolder) => void;
+  onFolderDragEnd?: () => void;
+  onFolderDrop?: (e: React.DragEvent, folder: CyberFolder) => void;
+  draggingFolderId?: string | null;
+  dropFolderId?: string | null;
+  onDropFolderChange?: (folderId: string | null) => void;
 }
 
 export default function ShortcutGrid(props: ShortcutGridProps) {
@@ -91,6 +109,15 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
     onOpenVault,
     kindFilter = 'all',
     onClearKindFilter,
+    folderShortcutCounts,
+    onOpenFolder,
+    onFolderContextMenu,
+    onFolderDragStart,
+    onFolderDragEnd,
+    onFolderDrop,
+    draggingFolderId = null,
+    dropFolderId = null,
+    onDropFolderChange,
   } = props;
 
   const density = densityFromIconSize(config.iconSize);
@@ -114,6 +141,49 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
   const minColumnWidth = viewMode === 'list' ? 280 : config.iconSize * 2.8;
   const columnCount = Math.max(1, Math.floor((gridWidth + ROW_GAP) / (minColumnWidth + ROW_GAP)));
   const gridTemplateColumns = `repeat(${columnCount}, minmax(${minColumnWidth}px, 1fr))`;
+
+  // ── Subcarpetas como primeras tarjetas ──
+  // Dentro de una carpeta real, sus hijas se dibujan antes que los accesos,
+  // como en el Explorador. "Todos", Favoritos y la bóveda son vistas, no
+  // carpetas: ahí no se dibuja ninguna (sus raíces ya viven en la barra).
+  const isRealFolder = activeCategory !== ROOT_FOLDER_ID
+    && activeCategory !== 'favorites'
+    && activeCategory !== 'vault'
+    && activeCategory !== UNCATEGORIZED_ID;
+
+  const folderTiles = useMemo<CyberFolder[]>(() => {
+    // Con un filtro de tipo activo la lista es una selección de accesos: las
+    // carpetas estorbarían en vez de orientar.
+    if (!isRealFolder || kindFilter !== 'all') return [];
+    const children = getChildFolders(categories as CyberFolder[], activeCategory);
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return children;
+    return children.filter(folder => folder.name.toLowerCase().includes(query));
+  }, [categories, activeCategory, isRealFolder, kindFilter, searchQuery]);
+
+  // Foco propio para la franja de carpetas: un único punto de tabulación que
+  // se recorre con las flechas y que cede el paso a la rejilla al terminarse.
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+  const folderRefs = useRef<Map<string, HTMLElement>>(new Map());
+
+  const focusFolder = (folder: CyberFolder | undefined) => {
+    if (!folder) return;
+    setActiveFolderId(folder.id);
+    folderRefs.current.get(folder.id)?.focus();
+  };
+
+  const registerFolder = (folderId: string, node: HTMLElement | null) => {
+    if (node) folderRefs.current.set(folderId, node);
+    else folderRefs.current.delete(folderId);
+  };
+
+  // Al cambiar de carpeta la franja entera se sustituye: soltar el foco evita
+  // quedarse sin ningún punto de tabulación dentro de la nueva lista.
+  useEffect(() => {
+    if (activeFolderId && !folderTiles.some(folder => folder.id === activeFolderId)) {
+      setActiveFolderId(null);
+    }
+  }, [folderTiles, activeFolderId]);
 
   /**
    * Lo que se enseña bajo el nombre. Un AUMID (`Familia_editor!App`) no es una
@@ -145,6 +215,16 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
 
   const rows = useMemo<ShortcutRow[]>(() => {
     const result: ShortcutRow[] = [];
+
+    // Las subcarpetas abren la lista, en filas del mismo ancho que la rejilla.
+    for (let i = 0; i < folderTiles.length; i += columnCount) {
+      result.push({
+        kind: 'folders',
+        key: `folders-${i}`,
+        folders: folderTiles.slice(i, i + columnCount),
+      });
+    }
+
     let pendingItems: { item: any; index: number }[] = [];
 
     const flushItems = () => {
@@ -172,7 +252,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
     });
     flushItems();
     return result;
-  }, [filteredShortcutsList, viewMode, iconSortOrder, columnCount]);
+  }, [filteredShortcutsList, folderTiles, viewMode, iconSortOrder, columnCount]);
 
   const rowIndexByItemId = useMemo(() => {
     const indexes = new Map<number, number>();
@@ -187,7 +267,12 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => gridScrollRef.current,
-    estimateSize: (index) => rows[index].kind === 'header' ? 64 : (viewMode === 'list' ? 76 : config.iconSize + 76),
+    estimateSize: (index) => {
+      const row = rows[index];
+      if (row.kind === 'header') return 64;
+      if (row.kind === 'folders') return viewMode === 'list' ? 76 : config.iconSize + 28;
+      return viewMode === 'list' ? 76 : config.iconSize + 76;
+    },
     getItemKey: (index) => rows[index].key,
     overscan: 8,
     enabled: !selectionMode,
@@ -310,6 +395,190 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
       <div className="h-px bg-gradient-to-r from-slate-700/40 via-slate-800/10 to-transparent flex-1" />
     </div>
   );
+
+  /** "12 accesos · 3 subcarpetas": lo que el Explorador resuelve en columnas. */
+  const folderSubtitle = (folder: CyberFolder): string => {
+    const shortcutCount = folderShortcutCounts?.get(folder.id) || 0;
+    const childCount = categories.filter((candidate: any) => candidate.parentId === folder.id).length;
+    if (shortcutCount === 0 && childCount === 0) return translate('explorer_folder_empty');
+
+    const parts: string[] = [];
+    if (shortcutCount > 0) {
+      parts.push(translate(
+        shortcutCount === 1 ? 'explorer_folder_items_one' : 'explorer_folder_items_many',
+        { count: String(shortcutCount) },
+      ));
+    }
+    if (childCount > 0) {
+      parts.push(translate(
+        childCount === 1 ? 'explorer_folder_children_one' : 'explorer_folder_children_many',
+        { count: String(childCount) },
+      ));
+    }
+    return parts.join(' · ');
+  };
+
+  const renderFolderTile = (folder: CyberFolder, index: number) => {
+    const isSmallGrid = config.iconSize < 48;
+    const subtitle = folderSubtitle(folder);
+    const isDropTarget = dropFolderId === folder.id;
+    const isDragging = draggingFolderId === folder.id;
+    const tabbable = activeFolderId !== null ? activeFolderId === folder.id : index === 0;
+
+    const open = () => {
+      if (selectionMode) return;
+      hideTooltip();
+      onOpenFolder?.(folder.id);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        open();
+        return;
+      }
+
+      const step = e.key === 'ArrowRight' ? 1
+        : e.key === 'ArrowLeft' ? -1
+          : e.key === 'ArrowDown' ? columnCount
+            : e.key === 'ArrowUp' ? -columnCount
+              : e.key === 'Home' ? -folderTiles.length
+                : e.key === 'End' ? folderTiles.length
+                  : 0;
+      if (step === 0) return;
+
+      const target = e.key === 'Home' ? 0 : e.key === 'End' ? folderTiles.length - 1 : index + step;
+      // Al agotarse la franja, las flechas siguen su curso natural hacia los
+      // accesos: la rejilla recibe la tecla y enfoca el primero o el último.
+      if (target < 0 || target >= folderTiles.length || target === index) return;
+      e.preventDefault();
+      e.stopPropagation();
+      focusFolder(folderTiles[target]);
+    };
+
+    const dragProps = {
+      draggable: !selectionMode,
+      onDragStart: (e: React.DragEvent) => onFolderDragStart?.(e, folder),
+      onDragEnd: () => onFolderDragEnd?.(),
+      onDragOver: (e: React.DragEvent) => {
+        if (selectionMode) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'move';
+        onDropFolderChange?.(folder.id);
+      },
+      onDragLeave: () => onDropFolderChange?.(null),
+      onDrop: (e: React.DragEvent) => {
+        if (selectionMode) return;
+        onFolderDrop?.(e, folder);
+        onDropFolderChange?.(null);
+      },
+    };
+
+    const sharedProps = {
+      role: 'button' as const,
+      tabIndex: selectionMode ? -1 : tabbable ? 0 : -1,
+      'aria-label': `${translate('explorer_open_folder')}: ${folder.name}`,
+      onFocus: () => setActiveFolderId(folder.id),
+      onClick: open,
+      onKeyDown: handleKeyDown,
+      onContextMenu: (e: React.MouseEvent) => {
+        if (selectionMode) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        onFolderContextMenu?.(e, folder);
+      },
+      onMouseEnter: (e: React.MouseEvent) => {
+        const path = getFolderPath(categories as CyberFolder[], folder.id).map(step => step.name).join(' / ');
+        showTooltip(e, folder.name, path);
+      },
+      onMouseLeave: hideTooltip,
+      ...dragProps,
+    };
+
+    const stateClasses = `${isDropTarget ? 'border-[var(--neon-glow-color)] ring-1 ring-[var(--neon-glow-color)]' : 'border-white/5'} ${
+      isDragging ? 'opacity-40' : ''
+    } ${selectionMode ? 'cursor-default opacity-70' : 'cursor-pointer hover:bg-white/[0.07] hover:border-white/25 hover:shadow-[0_4px_14px_rgba(0,0,0,0.4)] hover:scale-[1.01] hover:-translate-y-0.5 active:scale-[0.98]'}`;
+
+    const iconBox = (size: number) => (
+      <div
+        className="flex-shrink-0 rounded-lg flex items-center justify-center overflow-hidden border transition-colors duration-150"
+        style={{
+          width: `${size}px`,
+          height: `${size}px`,
+          backgroundColor: `${folder.color}14`,
+          borderColor: isDropTarget ? undefined : `${folder.color}38`,
+        }}
+      >
+        <Folder
+          className="transition-transform duration-150 group-hover:scale-105"
+          style={{ width: '56%', height: '56%', color: folder.color }}
+          strokeWidth={1.7}
+        />
+      </div>
+    );
+
+    if (viewMode === 'list') {
+      return (
+        <div
+          key={folder.id}
+          {...sharedProps}
+          ref={(node) => registerFolder(folder.id, node)}
+          className={`rounded-xl p-2.5 flex items-center justify-between gap-3 relative group bg-black/20 backdrop-blur-xl border shadow-lg shadow-black/30 transition-[transform,border-color,background-color,box-shadow] duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--neon-glow-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${stateClasses}`}
+        >
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            {iconBox(density.listIconPx)}
+            <div className="min-w-0 flex-1 text-left">
+              <h4
+                className="font-ui font-bold text-white truncate tracking-wide group-hover:text-[var(--neon-glow-color)]"
+                style={{ fontSize: `${density.titlePx}px` }}
+              >
+                {folder.name}
+              </h4>
+              <MarqueeText
+                className="font-sans tracking-tight w-full text-slate-500"
+                style={{ fontSize: `${density.pathPx}px` }}
+                text={subtitle}
+              />
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-[var(--neon-glow-color)] transition-colors shrink-0" />
+        </div>
+      );
+    }
+
+    return (
+      <div
+        key={folder.id}
+        {...sharedProps}
+        ref={(node) => registerFolder(folder.id, node)}
+        className={`rounded-2xl relative group bg-black/20 backdrop-blur-xl border shadow-xl shadow-black/30 transition-[transform,border-color,background-color,box-shadow] duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--neon-glow-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${stateClasses} ${
+          isSmallGrid
+            ? 'p-2 flex flex-col items-center justify-center gap-1.5 text-center'
+            : 'p-3 flex items-center gap-3.5 text-left'
+        }`}
+      >
+        {iconBox(config.iconSize)}
+        <div className={`min-w-0 ${isSmallGrid ? 'w-full text-center flex flex-col items-center' : 'flex-1 text-left'}`}>
+          <h4
+            className="font-ui font-bold text-white truncate tracking-wide group-hover:text-[var(--neon-glow-color)]"
+            style={{ fontSize: `${density.titlePx}px`, width: '100%' }}
+          >
+            {folder.name}
+          </h4>
+          <p
+            className="font-sans tracking-tight text-slate-500 truncate"
+            style={{ fontSize: `${density.pathPx}px`, width: '100%' }}
+          >
+            {subtitle}
+          </p>
+        </div>
+      </div>
+    );
+  };
 
   const renderShortcut = (item: any, index: number) => {
     if (viewMode === 'list') {
@@ -612,7 +881,7 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
         />
       )}
 
-      {filteredShortcutsList.length === 0 ? (
+      {filteredShortcutsList.length === 0 && folderTiles.length === 0 ? (
         <div className="w-full h-full flex flex-col items-center justify-center border border-dashed border-[var(--neon-glow-border)] rounded-xl bg-slate-950/65 backdrop-blur-md py-12 px-6 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
           {searchQuery.trim() !== '' ? (
             <>
@@ -678,16 +947,21 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
             height: rowVirtualizer.getTotalSize(),
           }}
         >
-          {selectionMode ? filteredShortcutsList.flatMap((item, index) => {
-            const elements: React.ReactNode[] = [];
-            if (viewMode === 'list' && iconSortOrder === 'alpha') {
-              const letter = alphaLabel(item);
-              const previous = index > 0 ? filteredShortcutsList[index - 1] : null;
-              if (!previous || letter !== alphaLabel(previous)) elements.push(renderAlphaHeader(letter));
-            }
-            elements.push(renderShortcut(item, index));
-            return elements;
-          }) : rowVirtualizer.getVirtualItems().map((virtualRow) => {
+          {selectionMode ? (
+            <>
+              {folderTiles.map((folder, index) => renderFolderTile(folder, index))}
+              {filteredShortcutsList.flatMap((item, index) => {
+                const elements: React.ReactNode[] = [];
+                if (viewMode === 'list' && iconSortOrder === 'alpha') {
+                  const letter = alphaLabel(item);
+                  const previous = index > 0 ? filteredShortcutsList[index - 1] : null;
+                  if (!previous || letter !== alphaLabel(previous)) elements.push(renderAlphaHeader(letter));
+                }
+                elements.push(renderShortcut(item, index));
+                return elements;
+              })}
+            </>
+          ) : rowVirtualizer.getVirtualItems().map((virtualRow) => {
             const row = rows[virtualRow.index];
             return (
               <div
@@ -700,7 +974,13 @@ export default function ShortcutGrid(props: ShortcutGridProps) {
                   paddingBottom: virtualRow.index === rows.length - 1 ? 0 : ROW_GAP,
                 }}
               >
-                {row.kind === 'header' ? renderAlphaHeader(row.letter) : (
+                {row.kind === 'header' ? renderAlphaHeader(row.letter) : row.kind === 'folders' ? (
+                  <div className="grid gap-4" style={{ gridTemplateColumns }}>
+                    {/* El índice de teclado es el global: con varias filas de
+                        carpetas el recorrido no puede reiniciarse en cada una. */}
+                    {row.folders.map((folder) => renderFolderTile(folder, folderTiles.indexOf(folder)))}
+                  </div>
+                ) : (
                   <div className="grid gap-4" style={{ gridTemplateColumns }}>
                     {row.items.map(({ item, index }) => renderShortcut(item, index))}
                   </div>
