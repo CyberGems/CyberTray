@@ -31,6 +31,31 @@
 
 ---
 
+## 📑 Table of Contents
+
+- [👋 Introducción](#-introducción)
+- [🎯 ¿Por qué CyberTray?](#-por-qué-cybertray)
+- [✨ Funciones principales](#-funciones-principales)
+- [🚀 Primeros pasos](#-primeros-pasos)
+- [🛠️ Stack tecnológico y arquitectura](#️-stack-tecnológico-y-arquitectura)
+- [⌨️ Atajos de teclado](#️-atajos-de-teclado)
+- [❤️ Donar](#️-donar)
+- [📄 Licencia](#-licencia)
+- [❓ Preguntas frecuentes](#-preguntas-frecuentes)
+- [🔗 Ver también](#-ver-también)
+
+<details>
+<summary><strong>🔗 Related links (outside this README)</strong></summary>
+
+- 🌐 [CyberTray en la web](https://cybergems.org/apps/cybertray/) — resumen, descarga y guía de SmartScreen
+- 📚 [Documentación y FAQ — Wiki](https://github.com/CyberGems/CyberTray/wiki) — solución de problemas y guías detalladas
+- 💾 [Releases](https://github.com/CyberGems/CyberTray/releases) — instaladores, versiones portátiles y changelog
+- 🟣 [Suite CyberGems](https://github.com/CyberGems) — todas las apps de código abierto
+
+</details>
+
+---
+
 ## 👋 Introducción
 
 CyberTray es un **lanzador de bandeja de sistema y dock** de alto rendimiento para Windows que mantiene las herramientas de uso frecuente a mano sin saturar la barra de tareas. Organiza, busca y lanza aplicaciones, archivos, carpetas y URLs desde un estante que permanece oculto hasta que lo necesitas. Los atajos globales y los hotspots de esquina de pantalla dan acceso instantáneo, mientras que la monitorización de sistema en tiempo real, los controles de procesos, los diseños personalizables y una bóveda de archivos con PIN convierten la bandeja en un compacto centro de comandos de escritorio.
