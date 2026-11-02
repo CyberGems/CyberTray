@@ -4,27 +4,36 @@
 
 <p align="center">
   <a href="https://cybergems.org/apps/cybertray/">
-    <img src="https://cybergems.org/banners/cybertray.png" alt="CyberTray, an instant-access tray launcher and desktop command center" />
+    <img src="https://cybergems.org/banners/cybertray.png" alt="Organize your shortcuts and reach them instantly" />
   </a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/CyberGems/CyberTray/releases/latest"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FCyberGems%2FCyberTray%2Fmain%2Fpackage.json&query=%24.version&prefix=%20Download%20CyberTray%20v&suffix=%20&style=for-the-badge&label=&labelColor=0891B2&color=0891B2" alt="Download Latest Release" /><img src="https://img.shields.io/badge/Windows_10%2F11_(64--bit)-2563EB?style=for-the-badge" alt="Windows 10/11 (64-bit)" /></a>
-  &nbsp;<a href="https://github.com/CyberGems/CyberTray/releases"><img src="https://img.shields.io/badge/All_releases-30363D?style=for-the-badge&logo=github&logoColor=white" alt="All Releases" /><img src="https://img.shields.io/badge/Changelog-475569?style=for-the-badge" alt="Changelog" /></a>
+  <a href="https://github.com/CyberGems/CyberTray/releases/latest"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FCyberGems%2FCyberTray%2Fmain%2Fpackage.json&query=%24.version&prefix=%20Download%20v&suffix=%20&style=for-the-badge&label=&labelColor=0891B2&color=0891B2" alt="Download Latest Release" /><img src="https://img.shields.io/badge/Windows_10%2F11_(64--bit)-2563EB?style=for-the-badge" alt="Windows 10/11 (64-bit)" /></a>
+  &nbsp;<a href="https://github.com/CyberGems/CyberTray/releases"><img src="https://img.shields.io/badge/All_releases-30363D?style=for-the-badge&logo=github&logoColor=white" alt="All Releases" /></a>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/License-GPL--3.0-1F2428.svg?style=flat-square&color=334155" alt="License" />&nbsp;
   <img src="https://img.shields.io/badge/Platform-Windows_10%2F11-1F2428.svg?style=flat-square&color=334155" alt="Platform" />&nbsp;
   <img src="https://img.shields.io/badge/Electron-42-1F2428.svg?style=flat-square&logo=electron&logoColor=white&color=334155" alt="Electron" />&nbsp;
-  <a href="https://github.com/CyberGems/CyberTray/wiki"><img src="https://img.shields.io/badge/Wiki-Documentation-1F2428?style=flat-square&logo=gitbook&logoColor=white&color=334155" alt="Wiki" /></a>
+  <a href="https://github.com/CyberGems/CyberTray/wiki"><img src="https://img.shields.io/badge/Wiki-Documentation-1F2428?style=flat-square&logo=gitbook&logoColor=white&color=334155" alt="Wiki" /></a>&nbsp;
+  <a href="https://github.com/CyberGems/CyberTray/blob/main/CHANGELOG.md"><img src="https://img.shields.io/badge/Changelog-475569?style=flat-square" alt="Changelog" /></a>
 </p>
+
+---
+
+<div align="center">
+
+### An instant-access tray launcher and desktop command center
+
+</div>
 
 ---
 
 ## 📑 Table of Contents
 
-- [What is CyberTray?](#what-is-cybertray)
+- [👋 Introduction](#-introduction)
 - [🎯 Why CyberTray?](#-why-cybertray)
 - [✨ Key Features](#-key-features)
 - [🚀 Getting Started](#-getting-started)
@@ -46,7 +55,7 @@
 </details>
 
 ---
-## What is CyberTray?
+## 👋 Introduction
 
 CyberTray is a high-performance **system tray shortcut launcher and dock** for Windows that keeps frequently used tools close without crowding the taskbar. Organize, search, and launch applications, files, folders, and URLs from a shelf that stays hidden until needed. Global shortcuts and screen-corner hotspots provide instant access, while real-time system monitoring, process controls, customizable layouts, and a PIN-protected file vault turn the tray into a compact desktop command center.
 
