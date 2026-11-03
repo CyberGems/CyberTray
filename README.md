@@ -25,7 +25,7 @@
 
 <div align="center">
 
-### An instant-access tray launcher and desktop command center
+### Your shortcuts, system stats and secure files, one click from the tray
 
 </div>
 
@@ -57,7 +57,7 @@
 ---
 ## 👋 Introduction
 
-CyberTray is a high-performance **system tray shortcut launcher and dock** for Windows that keeps frequently used tools close without crowding the taskbar. Organize, search, and launch applications, files, folders, and URLs from a shelf that stays hidden until needed. Global shortcuts and screen-corner hotspots provide instant access, while real-time system monitoring, process controls, customizable layouts, and a PIN-protected file vault turn the tray into a compact desktop command center.
+Your taskbar runs out of room, the Start menu takes three clicks and the files you actually use end up buried in folders. CyberTray keeps a launchpad one click away in the system tray: a shelf of apps, files, folders and URLs with search, categories and drag-and-drop, summoned by a global hotkey or a screen corner and hidden again the moment you are done. Beside it, real-time RAM, CPU, disk and VRAM telemetry, a process viewer that can end what is misbehaving, and a PIN-protected vault you can sweep the desktop into. Portable mode and automatic backups keep the whole setup with you. Built with **Electron 42**, **React 19** and **TypeScript**.
 
 *Free and open source: no ads, no tracking, and no data collection. Just enjoy it.*
 
@@ -65,7 +65,7 @@ CyberTray is a high-performance **system tray shortcut launcher and dock** for W
 
 ## 🎯 Why CyberTray?
 
-Your desktop is cluttered. The Start Menu is slow. The taskbar is full. CyberTray gives you a **dedicated launchpad** that stays out of the way until you need it, deploying instantly to launch anything in milliseconds.
+Most launchers make you leave what you are doing: open a window, find a menu, click through folders. CyberTray gives you a **dedicated launchpad** that stays out of the way until you need it, deploying instantly to launch anything in milliseconds.
 
 | Need | Solution |
 |---|---|

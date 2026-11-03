@@ -25,7 +25,7 @@
 
 <div align="center">
 
-### Lanzador de bandeja de acceso instantáneo y centro de comandos de escritorio
+### Tus accesos, las estadísticas del equipo y tus archivos protegidos, a un clic de la bandeja
 
 </div>
 
@@ -58,7 +58,7 @@
 
 ## 👋 Introducción
 
-CyberTray es un **lanzador de bandeja de sistema y dock** de alto rendimiento para Windows que mantiene las herramientas de uso frecuente a mano sin saturar la barra de tareas. Organiza, busca y lanza aplicaciones, archivos, carpetas y URLs desde un estante que permanece oculto hasta que lo necesitas. Los atajos globales y los hotspots de esquina de pantalla dan acceso instantáneo, mientras que la monitorización de sistema en tiempo real, los controles de procesos, los diseños personalizables y una bóveda de archivos con PIN convierten la bandeja en un compacto centro de comandos de escritorio.
+La barra de tareas se queda sin sitio, el menú Inicio tarda tres clics y los archivos que de verdad usas acaban enterrados en carpetas. CyberTray mantiene un lanzador a un clic en la bandeja del sistema: un estante de apps, archivos, carpetas y URLs con búsqueda, categorías y arrastrar y soltar, que se invoca con un atajo global o una esquina de la pantalla y se esconde en cuanto terminas. Al lado, telemetría en vivo de RAM, CPU, disco y VRAM, un visor de procesos que puede terminar lo que se desboca y una bóveda con PIN a la que puedes barrer el escritorio. El modo portátil y las copias automáticas mantienen todo el conjunto contigo. Construido con **Electron 42**, **React 19** y **TypeScript**.
 
 *Gratuito y de código abierto: sin anuncios, sin rastreo y sin recogida de datos. Solo disfrútalo.*
 
@@ -66,7 +66,7 @@ CyberTray es un **lanzador de bandeja de sistema y dock** de alto rendimiento pa
 
 ## 🎯 ¿Por qué CyberTray?
 
-Tu escritorio está saturado. El menú Inicio es lento. La barra de tareas está llena. CyberTray te da una **plataforma de lanzamiento dedicada** que se mantiene fuera del camino hasta que la necesitas, desplegándose al instante para lanzar lo que sea en milisegundos.
+Casi todos los lanzadores te obligan a dejar lo que estás haciendo: abrir una ventana, buscar un menú, recorrer carpetas. CyberTray te da una **plataforma de lanzamiento dedicada** que se mantiene fuera del camino hasta que la necesitas, desplegándose al instante para lanzar lo que sea en milisegundos.
 
 | Necesidad | Solución |
 |---|---|
