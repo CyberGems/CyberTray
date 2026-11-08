@@ -34,6 +34,7 @@
 ## 📑 Table of Contents
 
 - [👋 Introduction](#-introduction)
+- [📸 Screenshots](#-screenshots)
 - [🎯 Why CyberTray?](#-why-cybertray)
 - [✨ Key Features](#-key-features)
 - [🚀 Getting Started](#-getting-started)
@@ -60,6 +61,14 @@
 Your taskbar runs out of room, the Start menu takes three clicks and the files you actually use end up buried in folders. CyberTray keeps a launchpad one click away in the system tray: a shelf of apps, files, folders and URLs with search, categories and drag-and-drop, summoned by a global hotkey or a screen corner and hidden again the moment you are done. Beside it, real-time RAM, CPU, disk and VRAM telemetry, a process viewer that can end what is misbehaving, and a PIN-protected vault you can sweep the desktop into. Portable mode and automatic backups keep the whole setup with you. Built with **Electron 42**, **React 19** and **TypeScript**.
 
 *Free and open source: no ads, no tracking, and no data collection. Just enjoy it.*
+
+---
+
+<!-- Screenshots: pending the bilingual EN/ES gallery in the capture plan at https://github.com/CyberGems/CyberGems.github.io/blob/main/docs/screenshots.md — replace the blockquote, keep this heading and the TOC entry. -->
+
+## 📸 Screenshots
+
+> Coming soon...
 
 ---
 

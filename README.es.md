@@ -34,6 +34,7 @@
 ## 📑 Table of Contents
 
 - [👋 Introducción](#-introducción)
+- [📸 Capturas](#-capturas)
 - [🎯 ¿Por qué CyberTray?](#-por-qué-cybertray)
 - [✨ Funciones principales](#-funciones-principales)
 - [🚀 Primeros pasos](#-primeros-pasos)
@@ -61,6 +62,14 @@
 La barra de tareas se queda sin sitio, el menú Inicio tarda tres clics y los archivos que de verdad usas acaban enterrados en carpetas. CyberTray mantiene un lanzador a un clic en la bandeja del sistema: un estante de apps, archivos, carpetas y URLs con búsqueda, categorías y arrastrar y soltar, que se invoca con un atajo global o una esquina de la pantalla y se esconde en cuanto terminas. Al lado, telemetría en vivo de RAM, CPU, disco y VRAM, un visor de procesos que puede terminar lo que se desboca y una bóveda con PIN a la que puedes barrer el escritorio. El modo portátil y las copias automáticas mantienen todo el conjunto contigo. Construido con **Electron 42**, **React 19** y **TypeScript**.
 
 *Gratuito y de código abierto: sin anuncios, sin rastreo y sin recogida de datos. Solo disfrútalo.*
+
+---
+
+<!-- Capturas: pendiente de la galería bilingüe ES/EN del plan en https://github.com/CyberGems/CyberGems.github.io/blob/main/docs/screenshots.md — sustituir la cita, conservar este título y su entrada en el índice. -->
+
+## 📸 Capturas
+
+> Próximamente...
 
 ---
 
