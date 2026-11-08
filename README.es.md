@@ -34,7 +34,7 @@
 ## 📑 Table of Contents
 
 - [👋 Introducción](#-introducción)
-- [📸 Capturas](#-capturas)
+- [🖼️ Capturas](#️-capturas)
 - [🎯 ¿Por qué CyberTray?](#-por-qué-cybertray)
 - [✨ Funciones principales](#-funciones-principales)
 - [🚀 Primeros pasos](#-primeros-pasos)
@@ -67,7 +67,7 @@ La barra de tareas se queda sin sitio, el menú Inicio tarda tres clics y los ar
 
 <!-- Capturas: pendiente de la galería bilingüe ES/EN del plan en https://github.com/CyberGems/CyberGems.github.io/blob/main/docs/screenshots.md — sustituir la cita, conservar este título y su entrada en el índice. -->
 
-## 📸 Capturas
+## 🖼️ Capturas
 
 > Próximamente...
 
