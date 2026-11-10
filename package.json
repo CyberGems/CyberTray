@@ -20,6 +20,7 @@
     "installer-graphics": "node scripts/generate-installer-graphics.mjs"
   },
   "build": {
+    "artifactBuildStarted": "./scripts/fix-nsis-process-close.mjs",
     "appId": "com.cybertray.app",
     "productName": "CyberTray",
     "copyright": "Copyright © 2026 CyberGems",
