@@ -37,7 +37,8 @@
 - [🖼️ Screenshots](#️-screenshots)
 - [🎯 Why CyberTray?](#-why-cybertray)
 - [✨ Key Features](#-key-features)
-- [🚀 Getting Started](#-getting-started)
+- [🚀 Installation](#-installation)
+- [🧭 Using the App](#-using-the-app)
 - [🛠️ Tech Stack & Architecture](#️-tech-stack--architecture)
 - [⌨️ Keyboard Shortcuts](#️-keyboard-shortcuts)
 - [❤️ Donate](#️-donate)
@@ -162,7 +163,7 @@ Most launchers make you leave what you are doing: open a window, find a menu, cl
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Installation
 
 ### Install (Recommended)
 
@@ -198,6 +199,20 @@ Windows shows this warning for any installer without a paid code-signing certifi
 You can verify the file independently: compare the SHA with the GitHub release, scan it on VirusTotal, or build from source. More details: [SmartScreen guide on the website](https://cybergems.org/download#smartscreen).
 
 </details>
+
+---
+
+## 🧭 Using the App
+
+CyberTray lives in the system tray; the shelf opens from the tray icon or with `Alt+Shift+T`.
+
+1. Open the shelf and drag your `.exe` or `.lnk` files into it once.
+2. From then on, type to filter and single-click to launch.
+3. Mark daily apps as favourites so they stay at the top of the shelf.
+
+The first-run assistant imports existing shortcuts and sets the global hotkey (`Alt+Shift+T` by default, customizable). In the portable edition, settings, backups and the vault live in a `data` folder beside the executable.
+
+See [How Do You Use CyberTray?](https://github.com/CyberGems/CyberTray/wiki/How-Do-You-Use) for everyday examples and the full guides.
 
 ---
 

@@ -37,7 +37,8 @@
 - [🖼️ Capturas](#️-capturas)
 - [🎯 ¿Por qué CyberTray?](#-por-qué-cybertray)
 - [✨ Funciones principales](#-funciones-principales)
-- [🚀 Primeros pasos](#-primeros-pasos)
+- [🚀 Instalación](#-instalación)
+- [🧭 Cómo usar la app](#-cómo-usar-la-app)
 - [🛠️ Stack tecnológico y arquitectura](#️-stack-tecnológico-y-arquitectura)
 - [⌨️ Atajos de teclado](#️-atajos-de-teclado)
 - [❤️ Donar](#️-donar)
@@ -161,7 +162,7 @@ Casi todos los lanzadores te obligan a dejar lo que estás haciendo: abrir una v
 - **Accesible por diseño**: foco visible, diálogos reales, avisos para lectores de pantalla y control total por teclado
 ---
 
-## 🚀 Primeros pasos
+## 🚀 Instalación
 
 ### Instalación (recomendada)
 
@@ -197,6 +198,20 @@ Windows muestra este aviso para cualquier instalador sin un certificado de firma
 Puedes verificar el archivo de forma independiente: compara el SHA con el release de GitHub, escanéalo en VirusTotal o compila desde el código fuente. Más detalles: [guía de SmartScreen en el sitio web](https://cybergems.org/download#smartscreen).
 
 </details>
+---
+
+## 🧭 Cómo usar la app
+
+CyberTray vive en la bandeja del sistema; el estante se abre desde el icono de la bandeja o con `Alt+Shift+T`.
+
+1. Abre el estante y arrastra tus archivos `.exe` o `.lnk` una sola vez.
+2. Desde entonces, escribe para filtrar y haz un solo clic para abrir.
+3. Marca las apps de diario como favoritas para que se queden arriba del estante.
+
+El asistente de primer inicio importa los accesos directos existentes y configura el atajo global (`Alt+Shift+T` por defecto, personalizable). En la edición portable, los ajustes, las copias y la Ciber-Bóveda viven en una carpeta `data` junto al ejecutable.
+
+Consulta [¿Cómo se usa CyberTray?](https://github.com/CyberGems/CyberTray/wiki/How-Do-You-Use) para ver ejemplos cotidianos y las guías completas de la wiki (en inglés).
+
 ---
 
 ## 🛠️ Stack tecnológico y arquitectura
@@ -281,6 +296,8 @@ El instalador quedará en el directorio `release/`.
 ```bash
 npm run lint   # comprobación de tipos (TypeScript, modo estricto)
 npm test       # pruebas unitarias (Vitest)
+```
+
 ---
 
 ## ⌨️ Atajos de teclado
