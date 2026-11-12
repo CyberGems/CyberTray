@@ -37,7 +37,7 @@
 - [🖼️ Capturas](#️-capturas)
 - [🎯 ¿Por qué CyberTray?](#-por-qué-cybertray)
 - [✨ Funciones principales](#-funciones-principales)
-- [🚀 Instalación](#-instalación)
+- [⬇️ Instalación](#️-instalación)
 - [🧭 Cómo usar la app](#-cómo-usar-la-app)
 - [🛠️ Stack tecnológico y arquitectura](#️-stack-tecnológico-y-arquitectura)
 - [⌨️ Atajos de teclado](#️-atajos-de-teclado)
@@ -160,9 +160,10 @@ Casi todos los lanzadores te obligan a dejar lo que estás haciendo: abrir una v
 - **Actualizaciones en la app**: comprueba, descarga e instala desde Acerca de mediante GitHub Releases (`electron-updater`). La comprobación automática al arrancar te avisa; la instalación siempre se confirma.
 - **Interfaz bilingüe**: interfaz completa en inglés y español
 - **Accesible por diseño**: foco visible, diálogos reales, avisos para lectores de pantalla y control total por teclado
+
 ---
 
-## 🚀 Instalación
+## ⬇️ Instalación
 
 ### Instalación (recomendada)
 
@@ -198,6 +199,7 @@ Windows muestra este aviso para cualquier instalador sin un certificado de firma
 Puedes verificar el archivo de forma independiente: compara el SHA con el release de GitHub, escanéalo en VirusTotal o compila desde el código fuente. Más detalles: [guía de SmartScreen en el sitio web](https://cybergems.org/download#smartscreen).
 
 </details>
+
 ---
 
 ## 🧭 Cómo usar la app
@@ -359,6 +361,7 @@ Si te gustaría apoyar las futuras actualizaciones, te lo agradecería de verdad
 </details>
 
 </div>
+
 ---
 
 ## 📄 Licencia

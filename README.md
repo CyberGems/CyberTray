@@ -37,7 +37,7 @@
 - [🖼️ Screenshots](#️-screenshots)
 - [🎯 Why CyberTray?](#-why-cybertray)
 - [✨ Key Features](#-key-features)
-- [🚀 Installation](#-installation)
+- [⬇️ Installation](#️-installation)
 - [🧭 Using the App](#-using-the-app)
 - [🛠️ Tech Stack & Architecture](#️-tech-stack--architecture)
 - [⌨️ Keyboard Shortcuts](#️-keyboard-shortcuts)
@@ -57,6 +57,7 @@
 </details>
 
 ---
+
 ## 👋 Introduction
 
 Your taskbar runs out of room, the Start menu takes three clicks and the files you actually use end up buried in folders. CyberTray keeps a launchpad one click away in the system tray: a shelf of apps, files, folders and URLs with search, categories and drag-and-drop, summoned by a global hotkey or a screen corner and hidden again the moment you are done. Beside it, real-time RAM, CPU, disk and VRAM telemetry, a process viewer that can end what is misbehaving, and a PIN-protected vault you can sweep the desktop into. Portable mode and automatic backups keep the whole setup with you. Built with **Electron 42**, **React 19** and **TypeScript**.
@@ -163,7 +164,7 @@ Most launchers make you leave what you are doing: open a window, find a menu, cl
 
 ---
 
-## 🚀 Installation
+## ⬇️ Installation
 
 ### Install (Recommended)
 
