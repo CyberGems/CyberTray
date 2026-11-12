@@ -324,6 +324,17 @@ html, body {
   transform: scale(1.08);
 }
 
+.item-donate .item-ico {
+  color: #f87171;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+/* Same specificity bump as the danger icon: keep the donate heart red on
+   hover instead of switching to the accent color. */
+.item.item-donate:hover .item-ico {
+  color: #ef4444;
+  transform: scale(1.08);
+}
+
 .item-empty {
   opacity: 0.55;
   cursor: default;
