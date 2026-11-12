@@ -317,7 +317,9 @@ html, body {
   border-color: rgba(239, 68, 68, 0.28);
   color: #ffffff;
 }
-.item-danger:hover .item-ico {
+/* Double class beats the generic .item:hover .item-ico accent rule that
+   follows later in this file, keeping the exit icon red on hover. */
+.item.item-danger:hover .item-ico {
   color: #ef4444;
   transform: scale(1.08);
 }
