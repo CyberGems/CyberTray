@@ -461,3 +461,46 @@ html, body {
 .item:hover .item-desc {
   color: var(--text-muted);
 }
+
+/* App-style tooltip bubbles (data-tooltip), same look as the suite bubbles.
+   The card clips overflow, so bubbles stay inside its bounds: centered over
+   the item, and below the header which sits at the top edge. */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  max-width: 250px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: rgba(2, 6, 17, 0.96);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease 0s;
+  z-index: 30;
+}
+
+[data-tooltip]:hover::after,
+[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transition-delay: 0.25s;
+}
+
+.head[data-tooltip]::after {
+  bottom: auto;
+  top: calc(100% + 6px);
+}
