@@ -5,7 +5,7 @@
   "author": "CyberGems",
   "license": "GPL-3.0-only",
   "homepage": "https://cybergems.org",
-  "description": "CyberTray: a Windows system tray launcher by CyberGems.",
+  "description": "Your favorite apps, files and links one gesture away, without a crowded taskbar.",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
