@@ -1,2 +1,4 @@
 # Shared dependency exclusion
 node_modules/
+
+# check de rama obligatoria
