@@ -18,9 +18,17 @@ export function githubReleaseUrl(version: string): string {
   return `${REPO_URL}/releases/tag/${tag}`;
 }
 
+/** The Before you install block is release-page furniture: the updater is
+ * automatic, so the About panel and toasts skip SmartScreen guidance. */
+export function stripInstallBlock(text: string): string {
+  return text
+    .replace(/^#{1,6}\s*⚠️\s*(?:Before you install|Antes de instalar)[\s\S]*?\n---/gim, '')
+    .replace(/^#{1,6}\s*⚠️\s*(?:Before you install|Antes de instalar)[\s\S]*$/gim, '');
+}
+
 /** Plain-text teaser of GitHub release notes for toasts. */
 export function peekReleaseNotes(body: string, maxChars = 220): string {
-  const lines = body
+  const lines = stripInstallBlock(body)
     .replace(/^\uFEFF/, '')
     .replace(/\r\n/g, '\n')
     .split('\n')
@@ -35,6 +43,7 @@ export function peekReleaseNotes(body: string, maxChars = 220): string {
       if (!line || /^---+/.test(line)) return false;
       if (/^Release Notes/i.test(line)) return false;
       if (/^Full Changelog/i.test(line)) return false;
+      if (/Before you install|Antes de instalar/i.test(line)) return false;
       return true;
     });
   const text = lines.slice(0, 4).join('\n');
@@ -544,7 +553,7 @@ function renderInline(text: string): ReactNode {
 }
 
 function ReleaseNotes({ body }: { body: string }) {
-  const lines = body.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').split('\n');
+  const lines = stripInstallBlock(body).replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').split('\n');
   const nodes: ReactNode[] = [];
   let listItems: string[] = [];
 
