@@ -2,11 +2,11 @@
   <img src="https://raw.githubusercontent.com/CyberGems/CyberTray/main/public/icon.png" width="120" alt="CyberTray">
 </p>
 
-## 🚀 CyberTray {{VERSION}}: Release Notes
+## 🗂️ CyberTray {{VERSION}}: Release Notes
 
 ### 🚀 What's new in this release
 
-<!-- IMPORTANT FOR AGENTS & MAINTAINERS: Always rewrite this entire section and highlights with the ACTUAL release notes for this specific new version before tagging. NEVER leave or copy previous version notes! Use 25-45 words for the summary, lead with user-facing changes, and do not repeat the app name or version. -->
+<!-- IMPORTANT FOR AGENTS & MAINTAINERS: Always rewrite this entire section and highlights with the ACTUAL release notes for this specific new version before tagging. NEVER leave or copy previous version notes! Use 25-45 words for the summary, lead with user-facing changes, and do not repeat the app name or version. Keep the Spanish mirror inside the details block in sync: translate the summary and rewrite the highlights. -->
 <!-- changelog-summary:start -->
 A portable edition joins the installer, a type filter sorts shortcuts by destination, and Store apps resolve to their app id from the desktop file. Icons refresh on demand and the boot screen animates the icon piece by piece.
 <!-- changelog-summary:end -->
