@@ -46,11 +46,17 @@ A portable edition joins the installer, a type filter sorts shortcuts by destina
   - The launch counter reads "3 launches" and "1 launch" in place of the old abbreviation.
 
 <details>
-<summary><b>🌐 Ver notas de la versión en Español</b></summary>
+<summary><b>🇪🇸 Ver notas de la versión en Español</b></summary>
 
 ### 🚀 Novedades de esta versión
 
+Una edición portable se suma al instalador, un filtro por tipo ordena los accesos por destino y las apps de la Store resuelven a su identificador desde el archivo de escritorio. Los iconos se refrescan a demanda y la pantalla de arranque anima el icono pieza a pieza.
+
 > **¿Nuevo en CyberTray?** Un lanzador desde la bandeja del sistema para Windows, con una estantería con búsqueda de apps, archivos y enlaces, telemetría del sistema en vivo, visor de procesos y bóveda protegida con PIN.
+
+---
+
+### ✨ Novedades destacadas
 
 - **Edición portable**: un segundo archivo es un solo ejecutable que guarda sus datos en una carpeta `data` junto a él, así la instalación viaja en un USB sin nada que configurar. El inicio automático registra el archivo portable, Acerca de muestra la insignia PORTABLE y explica la actualización manual, y el actualizador te lleva a la página de releases en lugar de intentar reemplazar el archivo en ejecución.
 - **Filtro por tipo en la cuadrícula**: cada acceso se clasifica por su destino (programas, apps de Microsoft Store, juegos de Steam, enlaces, scripts y archivos o carpetas), y el filtro cuenta cuántos hay de cada tipo dentro de la carpeta y la búsqueda abiertas, no en toda la biblioteca. El tipo se deriva al vuelo, así una biblioteca existente se clasifica sin migración.
