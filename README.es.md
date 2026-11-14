@@ -202,7 +202,6 @@ Puedes verificar el archivo de forma independiente: compara el SHA con el releas
 
 ---
 
-## 🧭 Cómo usar la app
 
 CyberTray vive en la bandeja del sistema; el estante se abre desde el icono de la bandeja o con `Alt+Shift+T`.
 
