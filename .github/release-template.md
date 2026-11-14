@@ -1,4 +1,4 @@
-﻿<p align="center">
+<p align="center">
   <img src="https://raw.githubusercontent.com/CyberGems/CyberTray/main/public/icon.png" width="120" alt="CyberTray">
 </p>
 
@@ -81,7 +81,7 @@ Una edición portable se suma al instalador, un filtro por tipo ordena los acces
 
 ### 📦 Downloads & Packages
 
-> ⬇️ **Direct download:** click the file name to download it now. Same file as in **Assets** at the bottom of this page.
+> ⬇️ **Direct download:** click a file name to download it now. Same files as in **Assets** at the bottom of this page.
 
 | File | Description | Platform |
 | :--- | :--- | :--- |
