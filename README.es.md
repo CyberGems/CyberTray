@@ -212,7 +212,7 @@ CyberTray vive en la bandeja del sistema; el estante se abre desde el icono de l
 
 El asistente de primer inicio importa los accesos directos existentes y configura el atajo global (`Alt+Shift+T` por defecto, personalizable). En la edición portable, los ajustes, las copias y la Ciber-Bóveda viven en una carpeta `data` junto al ejecutable.
 
-Consulta [¿Cómo se usa CyberTray?](https://github.com/CyberGems/CyberTray/wiki/How-Do-You-Use) para ver ejemplos cotidianos y las guías completas de la wiki (en inglés).
+Consulta [¿Cómo se usa CyberTray?](https://github.com/CyberGems/CyberTray/wiki/How-Do-You-Use-es) para ver ejemplos cotidianos y las guías completas de la wiki.
 
 ---
 
