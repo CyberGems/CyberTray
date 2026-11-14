@@ -53,7 +53,17 @@ A portable edition joins the installer, a type filter sorts shortcuts by destina
 - **Una pantalla de arranque que se deja mirar**: el icono se dibuja en vectorial a resolución completa y sus tres cuadrados y el signo "+" hacen zoom de uno en uno antes de que aparezca el estante. La secuencia está ajustada para que los cuatro pulsos se vean de verdad, y se omite cuando el sistema pide movimiento reducido.
 - **Arreglos pequeños que suman**: el menú contextual mide su propia altura, así abrirlo cerca del borde inferior ya no corta eliminar ni matar proceso; el buscador conserva el subrayado que barre en lugar del recuadro cian duro; la línea de destino usa la tipografía de la interfaz y cabe más ruta; las rutas largas de los tooltips cortan tras los separadores en vez de partir palabras; y el contador dice "3 ejecuciones" y "1 ejecución" en lugar de "3 ex.".
 
+### ⚠️ Antes de instalar
+
+- **Windows:** esta versión aún no está firmada digitalmente. SmartScreen puede avisar antes de ejecutarla: **Más información › Ejecutar de todas formas**. Cuando Smart App Control está activado, Windows rechaza programas sin firmar; consulta la [política de firma de código](https://github.com/CyberGems/.github/blob/main/CODE_SIGNING.md). Verifica la descarga con los checksums SHA256 que aparecen más abajo.
+
 </details>
+
+---
+
+### ⚠️ Before you install
+
+- **Windows:** this release is not code-signed yet. SmartScreen may ask before it runs: **More info › Run anyway**. Where Smart App Control is on, Windows refuses unsigned programs; see the [code signing policy](https://github.com/CyberGems/.github/blob/main/CODE_SIGNING.md). Verify the download with the SHA256 checksums below.
 
 ---
 
