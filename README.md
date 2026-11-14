@@ -412,3 +412,4 @@ More free, open-source, privacy-first apps from [**CyberGems**](https://github.c
 | 🛡️&nbsp;[**CyberWall**](https://github.com/CyberGems/CyberWall#readme) | User-friendly Windows firewall with real-time per-app rules powered by the WFP kernel engine. |
 
 ➡️ **[Browse all apps at cybergems.org](https://cybergems.org)**
+

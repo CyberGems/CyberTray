@@ -413,3 +413,4 @@ Más aplicaciones gratuitas, de código abierto y con la privacidad primero de [
 | 🛡️&nbsp;[**CyberWall**](https://github.com/CyberGems/CyberWall#readme) | Cortafuegos de Windows fácil de usar con reglas por aplicación en tiempo real gracias al motor kernel WFP. |
 
 ➡️ **[Todas las aplicaciones en cybergems.org](https://cybergems.org)**
+
