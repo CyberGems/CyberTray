@@ -11,6 +11,10 @@
 A portable edition joins the installer, a type filter sorts shortcuts by destination, and Store apps resolve to their app id from the desktop file. Icons refresh on demand and the boot screen animates the icon piece by piece.
 <!-- changelog-summary:end -->
 
+> **New to CyberTray?** A system tray launchpad for Windows with a searchable shelf of apps, files and links, live system telemetry, a process viewer, and a PIN-protected vault.
+
+---
+
 ### ✨ Key Features & Highlights
 
 - 💼 **Portable edition**:
@@ -45,6 +49,8 @@ A portable edition joins the installer, a type filter sorts shortcuts by destina
 <summary><b>🌐 Ver notas de la versión en Español</b></summary>
 
 ### 🚀 Novedades de esta versión
+
+> **¿Nuevo en CyberTray?** Un lanzador desde la bandeja del sistema para Windows, con una estantería con búsqueda de apps, archivos y enlaces, telemetría del sistema en vivo, visor de procesos y bóveda protegida con PIN.
 
 - **Edición portable**: un segundo archivo es un solo ejecutable que guarda sus datos en una carpeta `data` junto a él, así la instalación viaja en un USB sin nada que configurar. El inicio automático registra el archivo portable, Acerca de muestra la insignia PORTABLE y explica la actualización manual, y el actualizador te lleva a la página de releases en lugar de intentar reemplazar el archivo en ejecución.
 - **Filtro por tipo en la cuadrícula**: cada acceso se clasifica por su destino (programas, apps de Microsoft Store, juegos de Steam, enlaces, scripts y archivos o carpetas), y el filtro cuenta cuántos hay de cada tipo dentro de la carpeta y la búsqueda abiertas, no en toda la biblioteca. El tipo se deriva al vuelo, así una biblioteca existente se clasifica sin migración.
