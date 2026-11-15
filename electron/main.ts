@@ -6,6 +6,8 @@ import { promisify } from 'node:util';
 import fs from 'node:fs';
 import os from 'node:os';
 import crypto from 'node:crypto';
+import { HotspotGesture, type HotspotPosition } from './hotspot-gesture';
+import { createWindowsHotspotCursor } from './windows-hotspot-cursor';
 import { initUpdater } from './updater';
 import { createDefaultConfig, sanitizeConfig, type CyberTrayConfig } from '../src/lib/configDefaults';
 import { scanImportSources } from './importScanner';
@@ -95,7 +97,6 @@ if (!gotTheLock) {
 } else {
   app.on('second-instance', () => {
     if (shelfWindow) {
-      if (shelfWindow.isMinimized()) shelfWindow.restore();
       showShelf();
     }
   });
@@ -1671,24 +1672,16 @@ const backupService = createBackupService({
   onRestored: () => applyRestoredConfig(),
 });
 
-// ── HOTSPOTS & UAC GUARD STATE ──
+// ── HOTSPOTS & INPUT DESKTOP ──
 let hotspotTimer: NodeJS.Timeout | null = null;
-let lastHotspotCorner = '';
-let hotspotEntryTime = 0;
-let hotspotCooldown = false;
-let lastHotspotActionTime = 0;
-let hasCursorExitedSinceLastAction = true;
-let hotspotsPausedByUAC = false;
-let isCheckingUAC = false;
-let lastHotspotPollTime = 0;
-const HOTSPOT_LAG_THRESHOLD_MS = 400;
-const HOTSPOT_CORNER_THRESHOLD = 4; // px: margen de entrada (amigable con HiDPI)
-const HOTSPOT_EXIT_THRESHOLD = 30; // px: distancia mínima para considerar que el cursor abandonó la esquina
-const HOTSPOT_TOGGLE_SAFETY_MS = 200;
+const hotspotGesture = new HotspotGesture();
+let hotspotRevision = 0;
+let windowsHotspotCursor: ReturnType<typeof createWindowsHotspotCursor> | null = null;
+let screenLocked = false;
+let systemSuspended = false;
+const HOTSPOT_CORNER_THRESHOLD = 4;
+const HOTSPOT_EXIT_THRESHOLD = 30;
 let cachedDisplays: Electron.Display[] = [];
-let uacGuardTimer: NodeJS.Timeout | null = null;
-let uacResumeTimer: NodeJS.Timeout | null = null;
-let uacWatchdogTimer: NodeJS.Timeout | null = null;
 let shelfAnimationTimer: NodeJS.Timeout | null = null;
 let shelfOpen = false;
 let blurGuardUntil = 0;
@@ -1703,68 +1696,6 @@ function updateCachedDisplays() {
   }
 }
 
-function checkUACActive(callback: (active: boolean) => void) {
-  if (process.platform !== 'win32') {
-    callback(false);
-    return;
-  }
-  execFile('tasklist.exe', ['/FI', 'IMAGENAME eq consent.exe', '/NH'], { windowsHide: true }, (err, stdout) => {
-    const isActive = !err && !!stdout && stdout.includes('consent.exe');
-    callback(isActive);
-  });
-}
-
-function watchUACUntilExit() {
-  if (process.platform !== 'win32') return;
-  if (uacWatchdogTimer) return;
-
-  uacWatchdogTimer = setInterval(() => {
-    checkUACActive((isActive) => {
-      if (!isActive) {
-        if (uacWatchdogTimer) {
-          clearInterval(uacWatchdogTimer);
-          uacWatchdogTimer = null;
-        }
-        resumeHotspotsAfterUAC(600);
-      }
-    });
-  }, 1000);
-}
-
-function pauseHotspots() {
-  if (uacResumeTimer) clearTimeout(uacResumeTimer);
-  hotspotsPausedByUAC = true;
-  lastHotspotCorner = '';
-  hotspotEntryTime = 0;
-  hotspotCooldown = true;
-}
-
-function resumeHotspotsAfterUAC(delayMs = 600) {
-  if (uacResumeTimer) clearTimeout(uacResumeTimer);
-  if (uacWatchdogTimer) {
-    clearInterval(uacWatchdogTimer);
-    uacWatchdogTimer = null;
-  }
-  uacResumeTimer = setTimeout(() => {
-    hotspotsPausedByUAC = false;
-    isCheckingUAC = false;
-    lastHotspotCorner = '';
-    hotspotEntryTime = 0;
-    hotspotCooldown = false;
-    hasCursorExitedSinceLastAction = true;
-  }, delayMs);
-}
-
-function resumeHotspotsImmediate() {
-  if (uacResumeTimer) clearTimeout(uacResumeTimer);
-  if (uacWatchdogTimer) {
-    clearInterval(uacWatchdogTimer);
-    uacWatchdogTimer = null;
-  }
-  hotspotsPausedByUAC = false;
-  isCheckingUAC = false;
-}
-
 // --- Monitores e Identificación ---
 /** Special monitorId: open the shelf on the display under the cursor (hotkey / hotspot / tray). */
 const MONITOR_FOLLOW_CURSOR = 'follow-cursor';
@@ -1777,9 +1708,9 @@ function isFollowCursorMonitorMode(): boolean {
   return config.monitorId === MONITOR_FOLLOW_CURSOR;
 }
 
-function getTargetDisplay(): Electron.Display {
+function getTargetDisplay(cursor?: Electron.Point): Electron.Display {
   if (isFollowCursorMonitorMode()) {
-    return getCursorDisplay();
+    return cursor ? screen.getDisplayNearestPoint(cursor) : getCursorDisplay();
   }
   const displays = screen.getAllDisplays();
   // 1. Intentar match exacto por ID
@@ -1939,6 +1870,12 @@ function createWindows() {
     if (!shouldStartHiddenThisSession()) showShelf();
   });
 
+  const rejectUnexpectedReveal = () => {
+    if (!shelfOpen && shelfWindow && !shelfWindow.isDestroyed()) hideShelf();
+  };
+  shelfWindow.on('show', rejectUnexpectedReveal);
+  shelfWindow.on('restore', rejectUnexpectedReveal);
+
   shelfWindow.on('blur', () => {
     if (!shelfWindow || shelfWindow.isDestroyed()) return;
     
@@ -2006,14 +1943,12 @@ function isShelfCurrentlyOpen(): boolean {
   return !!(shelfOpen && shelfWindow && !shelfWindow.isDestroyed() && shelfWindow.isVisible());
 }
 
-function showShelf() {
+function showShelf(cursor?: Electron.Point) {
   if (!shelfWindow || shelfWindow.isDestroyed()) return;
   stopShelfAnimation();
-  resumeHotspotsImmediate();
-  syncHotspotLockAfterWindowChange();
   shelfOpen = true;
 
-  const display = getTargetDisplay();
+  const display = getTargetDisplay(cursor);
   shelfWindow.setAlwaysOnTop(config.alwaysOnTop);
   shelfWindow.setSkipTaskbar(!config.showTaskbarIcon);
 
@@ -2050,6 +1985,7 @@ function showShelf() {
     shelfWindow.webContents.send('play-launch-sound');
   }
   shelfWindow.webContents.send('shelf-state-change', true);
+  startHotspotPolling();
 }
 
 function hideShelf() {
@@ -2057,8 +1993,8 @@ function hideShelf() {
   stopShelfAnimation();
   shelfOpen = false;
   setShelfClickThrough(false);
-  syncHotspotLockAfterWindowChange();
   shelfWindow.hide();
+  startHotspotPolling();
   try {
     applyOverlayBounds();
   } catch { /* ignore */ }
@@ -2535,214 +2471,121 @@ async function refreshShortcutIcon(
 }
 
 // ── ACTIVE CORNERS (Esquinas activas / Hotspots) ──
+function resetHotspotGesture() {
+  hotspotRevision++;
+  hotspotGesture.requireExit();
+}
+
 function stopHotspotPolling() {
-  if (hotspotTimer) {
-    clearInterval(hotspotTimer);
-    hotspotTimer = null;
-  }
+  if (hotspotTimer) clearTimeout(hotspotTimer);
+  hotspotTimer = null;
+  windowsHotspotCursor?.stop();
+  windowsHotspotCursor = null;
 }
 
 function getHotspotCorners(): string[] {
   return Array.isArray(config.hotspotCorners) ? config.hotspotCorners : [];
 }
 
-function getHotspotDelay(): number {
-  return typeof config.hotspotDelay === 'number' ? config.hotspotDelay : 300;
-}
-
-function getCursorHotspotState(): { currentCorner: string; isWithinExitZone: boolean } {
-  const hotspotCorners = getHotspotCorners();
-  if (hotspotCorners.length === 0) {
-    return { currentCorner: '', isWithinExitZone: false };
-  }
-
-  const { x, y } = screen.getCursorScreenPoint();
+function getCursorHotspotState({ x, y }: Electron.Point, corners: string[]): HotspotPosition | null {
   const displays = cachedDisplays.length > 0 ? cachedDisplays : screen.getAllDisplays();
-  let activeDisplay = displays.find(
-    (d) =>
-      x >= d.bounds.x &&
-      x < d.bounds.x + d.bounds.width &&
-      y >= d.bounds.y &&
-      y < d.bounds.y + d.bounds.height
+  const display = displays.find(({ bounds }) =>
+    x >= bounds.x && x < bounds.x + bounds.width &&
+    y >= bounds.y && y < bounds.y + bounds.height
   );
-  if (!activeDisplay) {
-    activeDisplay = screen.getDisplayNearestPoint({ x, y });
-  }
-  if (!activeDisplay) {
-    return { currentCorner: '', isWithinExitZone: false };
-  }
+  if (!display) return null;
 
-  const { x: dx, y: dy, width: dw, height: dh } = activeDisplay.bounds;
-  const isTop = y >= dy && y <= dy + HOTSPOT_CORNER_THRESHOLD;
-  const isBottom = y >= dy + dh - 1 - HOTSPOT_CORNER_THRESHOLD && y <= dy + dh - 1;
-  const isLeft = x >= dx && x <= dx + HOTSPOT_CORNER_THRESHOLD;
-  const isRight = x >= dx + dw - 1 - HOTSPOT_CORNER_THRESHOLD && x <= dx + dw - 1;
-
-  let detected = '';
-  if (isTop && isLeft) detected = 'top-left';
-  else if (isTop && isRight) detected = 'top-right';
-  else if (isBottom && isLeft) detected = 'bottom-left';
-  else if (isBottom && isRight) detected = 'bottom-right';
-
-  if (detected && hotspotCorners.includes(detected)) {
-    return { currentCorner: detected, isWithinExitZone: true };
-  }
-
-  for (const corner of hotspotCorners) {
-    let inZone = false;
-    if (corner === 'top-left') {
-      inZone = x >= dx && x <= dx + HOTSPOT_EXIT_THRESHOLD && y >= dy && y <= dy + HOTSPOT_EXIT_THRESHOLD;
-    } else if (corner === 'top-right') {
-      inZone = x >= dx + dw - 1 - HOTSPOT_EXIT_THRESHOLD && x <= dx + dw - 1 && y >= dy && y <= dy + HOTSPOT_EXIT_THRESHOLD;
-    } else if (corner === 'bottom-left') {
-      inZone = x >= dx && x <= dx + HOTSPOT_EXIT_THRESHOLD && y >= dy + dh - 1 - HOTSPOT_EXIT_THRESHOLD && y <= dy + dh - 1;
-    } else if (corner === 'bottom-right') {
-      inZone = x >= dx + dw - 1 - HOTSPOT_EXIT_THRESHOLD && x <= dx + dw - 1 && y >= dy + dh - 1 - HOTSPOT_EXIT_THRESHOLD && y <= dy + dh - 1;
-    }
-    if (inZone) {
-      return { currentCorner: '', isWithinExitZone: true };
-    }
-  }
-
-  return { currentCorner: '', isWithinExitZone: false };
-}
-
-/** Arm the re-entry lock only if the cursor is still in a hotspot. */
-function syncHotspotLockAfterWindowChange() {
-  lastHotspotCorner = '';
-  hotspotEntryTime = 0;
-  lastHotspotActionTime = Date.now();
-  try {
-    const { isWithinExitZone } = getCursorHotspotState();
-    if (isWithinExitZone) {
-      hasCursorExitedSinceLastAction = false;
-      hotspotCooldown = true;
-    } else {
-      hasCursorExitedSinceLastAction = true;
-      hotspotCooldown = false;
-    }
-  } catch {
-    hasCursorExitedSinceLastAction = true;
-    hotspotCooldown = false;
-  }
+  const { x: left, y: top, width, height } = display.bounds;
+  const right = left + width - 1 - x;
+  const bottom = top + height - 1 - y;
+  const distances: Record<string, number> = {
+    'top-left': Math.max(x - left, y - top),
+    'top-right': Math.max(right, y - top),
+    'bottom-left': Math.max(x - left, bottom),
+    'bottom-right': Math.max(right, bottom),
+  };
+  const corner = corners.find((name) => distances[name] <= HOTSPOT_CORNER_THRESHOLD);
+  return {
+    key: corner ? `${display.id}:${corner}` : '',
+    isWithinExitZone: corners.some((name) => distances[name] <= HOTSPOT_EXIT_THRESHOLD),
+  };
 }
 
 function startHotspotPolling() {
-  stopHotspotPolling();
-  lastHotspotPollTime = Date.now();
-  lastHotspotCorner = '';
-  hotspotEntryTime = 0;
-  hotspotCooldown = false;
-  hasCursorExitedSinceLastAction = true;
-
-  if (getHotspotCorners().length === 0) {
+  resetHotspotGesture();
+  const isWindows = process.platform === 'win32';
+  // Keep the existing secure-desktop auto-hide when the shelf is open without hotspots.
+  if (getHotspotCorners().length === 0 && !(isWindows && isShelfCurrentlyOpen())) {
+    stopHotspotPolling();
     return;
   }
+  if (hotspotTimer) return;
 
-  hotspotTimer = setInterval(() => {
-    if (hotspotsPausedByUAC || isCheckingUAC) return;
-
-    const now = Date.now();
-    const elapsed = now - lastHotspotPollTime;
-    lastHotspotPollTime = now;
-
-    if (elapsed > HOTSPOT_LAG_THRESHOLD_MS) {
-      lastHotspotCorner = '';
-      hotspotEntryTime = 0;
-      hotspotCooldown = false;
-      return;
-    }
-
-    const hotspotCorners = getHotspotCorners();
-    if (hotspotCorners.length === 0) return;
-
-    const { currentCorner, isWithinExitZone } = getCursorHotspotState();
-
-    if (!isWithinExitZone) {
-      hasCursorExitedSinceLastAction = true;
-      lastHotspotCorner = '';
-      hotspotEntryTime = 0;
-      setShelfClickThrough(false);
-    }
-    if (now - lastHotspotActionTime >= HOTSPOT_TOGGLE_SAFETY_MS) {
-      hotspotCooldown = false;
-    }
-
-    if (!currentCorner) return;
-
-    if (currentCorner !== lastHotspotCorner) {
-      lastHotspotCorner = currentCorner;
-      hotspotEntryTime = now;
-    }
-
-    // After a hotspot toggle, the cursor must leave the corner before the next action.
-    if (hotspotCooldown || !hasCursorExitedSinceLastAction) return;
-
-    const hotspotDelay = getHotspotDelay();
-    const timeInCorner = now - hotspotEntryTime;
-    if (hotspotDelay > 0 && timeInCorner < hotspotDelay) return;
-    if (!shelfWindow || shelfWindow.isDestroyed()) return;
-
-    hotspotCooldown = true;
-    hasCursorExitedSinceLastAction = false;
-    lastHotspotActionTime = now;
-
-    const executeHotspotAction = () => {
-      if (!shelfWindow || shelfWindow.isDestroyed()) return;
-      if (!(shelfOpen || shelfWindow.isVisible())) {
-        nextShowClickThrough = true;
-      }
-      toggleShelf();
-    };
-
-    const { x, y } = screen.getCursorScreenPoint();
-    const isVulnerableToUAC = (currentCorner === 'top-left' || (x === 0 && y === 0));
-    if (isVulnerableToUAC) {
-      isCheckingUAC = true;
-      checkUACActive((isUAC) => {
-        isCheckingUAC = false;
-        if (isUAC) {
-          pauseHotspots();
-          watchUACUntilExit();
-          if (shelfWindow && !shelfWindow.isDestroyed() && shelfWindow.isVisible()) {
-            hideShelf();
-          }
-        } else {
-          executeHotspotAction();
-        }
-      });
-    } else {
-      executeHotspotAction();
-    }
-  }, 100);
-}
-
-// ── UAC SECURE DESKTOP GUARD (consent.exe) ──
-function shouldPollUAC(): boolean {
-  const isShelfOpen = shelfWindow && !shelfWindow.isDestroyed() && shelfWindow.isVisible();
-  return !!isShelfOpen;
-}
-
-function startUACGuard() {
-  if (uacGuardTimer) clearInterval(uacGuardTimer);
-  let uacWasActive = false;
-
-  uacGuardTimer = setInterval(() => {
-    if (!shouldPollUAC()) {
-      uacWasActive = false;
-      return;
-    }
-    checkUACActive((isActive) => {
-      if (isActive && !uacWasActive) {
-        pauseHotspots();
-        hideShelf();
-        watchUACUntilExit();
-      } else if (!isActive && uacWasActive) {
-        resumeHotspotsAfterUAC(1500);
-      }
-      uacWasActive = !!isActive;
+  if (isWindows) {
+    const exePath = app.isPackaged
+      ? path.join(process.resourcesPath, 'hotspot-cursor.exe')
+      : path.join(__dirname, '../electron/hotspot-cursor.exe');
+    windowsHotspotCursor = createWindowsHotspotCursor(exePath, (reason) => {
+      console.error('[HOTSPOT] Cursor helper failed:', reason);
     });
-  }, 1000);
+  }
+
+  let desktopInactive = false;
+  function schedule(delay: number) {
+    const timer = setTimeout(async () => {
+      // Keep the full sampling rate near a corner while avoiding frequent wakeups at rest.
+      let nextDelay = 250;
+      const started = performance.now();
+      try {
+        const window = shelfWindow;
+        if (screenLocked || systemSuspended || !window || window.isDestroyed()) return;
+
+        const revision = hotspotRevision;
+        const native = windowsHotspotCursor;
+        const sample = native ? await native.read() : screen.getCursorScreenPoint();
+        if (timer !== hotspotTimer || revision !== hotspotRevision || window !== shelfWindow || window.isDestroyed()) return;
+
+        const now = performance.now();
+        if (now - started > 250 || sample === null) {
+          hotspotGesture.requireExit();
+          return;
+        }
+        const wasInactive = desktopInactive;
+        desktopInactive = sample === 'inactive-desktop';
+        if (desktopInactive !== wasInactive) {
+          console.debug('[HOTSPOT]', desktopInactive ? 'Input desktop inactive' : 'Input desktop active');
+        }
+        if (sample === 'inactive-desktop') {
+          hotspotGesture.requireExit();
+          if (window.isVisible()) hideShelf();
+          return;
+        }
+
+        const dip = native ? screen.screenToDipPoint(sample) : sample;
+        const point = { x: Math.floor(dip.x), y: Math.floor(dip.y) };
+        const position = getCursorHotspotState(point, getHotspotCorners());
+        if (position?.isWithinExitZone) nextDelay = 100;
+        else if (position) setShelfClickThrough(false);
+        const dwell = typeof config.hotspotDelay === 'number' ? config.hotspotDelay : 300;
+        if (!hotspotGesture.observe(position, now, dwell) || !position) return;
+
+        hotspotGesture.consume(now);
+        if (shelfOpen || window.isVisible()) {
+          hideShelf();
+        } else {
+          nextShowClickThrough = true;
+          showShelf(point);
+        }
+      } finally {
+        if (timer === hotspotTimer) {
+          const elapsed = performance.now() - started;
+          schedule(Math.max(0, nextDelay - elapsed));
+        }
+      }
+    }, delay);
+    hotspotTimer = timer;
+  }
+  schedule(100);
 }
 
 let vramCache: { data: { total: number; name: string } | null; ts: number } | null = null;
@@ -4123,7 +3966,6 @@ app.whenReady().then(async () => {
   setTimeout(() => registerShortcutHotkeys(config.shortcutsList || []), 2500);
   updateCachedDisplays();
   startHotspotPolling();
-  startUACGuard();
   startDesktopWatcherIfEnabled();
   // Respaldo automático: comprueba al arrancar (diferido) y luego cada minuto.
   backupService.start();
@@ -4159,19 +4001,23 @@ app.whenReady().then(async () => {
   screen.on('display-metrics-changed', scheduleRealign);
 
   powerMonitor.on('lock-screen', () => {
-    pauseHotspots();
+    screenLocked = true;
+    resetHotspotGesture();
     if (shelfWindow && !shelfWindow.isDestroyed() && shelfWindow.isVisible()) {
       hideShelf();
     }
   });
   powerMonitor.on('unlock-screen', () => {
-    resumeHotspotsAfterUAC(1000);
+    screenLocked = false;
+    resetHotspotGesture();
   });
   powerMonitor.on('suspend', () => {
-    pauseHotspots();
+    systemSuspended = true;
+    resetHotspotGesture();
   });
   powerMonitor.on('resume', () => {
-    resumeHotspotsAfterUAC(1500);
+    systemSuspended = false;
+    resetHotspotGesture();
   });
 
   // Reintentos diferidos al inicio: un monitor secundario puede conectarse unos segundos

@@ -36,6 +36,10 @@
       {
         "from": "electron/launch-store-app.exe",
         "to": "launch-store-app.exe"
+      },
+      {
+        "from": "electron/hotspot-cursor.exe",
+        "to": "hotspot-cursor.exe"
       }
     ],
   "win": {

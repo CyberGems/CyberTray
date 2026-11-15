@@ -263,7 +263,7 @@ CyberTray/
 |---|---|---|
 | **Shelf** | Panel principal de accesos | Redimensionable, siempre visible, despliegue instantáneo |
 
-La comunicación entre frontend y backend usa Electron IPC mediante `contextBridge`. La sondeo de hotspots se ejecuta en intervalos de 100 ms. La guardia UAC vigila `consent.exe` para ocultarse automáticamente durante sesiones de escritorio seguro.
+La comunicación entre frontend y backend usa Electron IPC mediante `contextBridge`. En Windows, un asistente nativo verifica el escritorio de entrada y la posición del cursor para los hotspots. Al pasar al escritorio seguro, CyberTray descarta el gesto en curso y espera que el cursor salga y vuelva a entrar en una esquina activa. Si el panel está abierto, se oculta durante el cambio.
 
 ### Compilar desde el código fuente (desarrolladores)
 

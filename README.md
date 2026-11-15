@@ -264,7 +264,7 @@ CyberTray/
 |---|---|---|
 | **Shelf** | Main shortcut panel | Resizable, always-on-top, instant deployment |
 
-Communication between frontend and backend uses Electron IPC via `contextBridge`. Hotspot polling runs at 100ms intervals. UAC guard monitors for `consent.exe` to auto-hide during secure desktop sessions.
+Communication between frontend and backend uses Electron IPC via `contextBridge`. On Windows, a native helper verifies the input desktop and cursor position for hotspots. When the secure desktop takes over, CyberTray discards the current gesture and waits for the cursor to leave and re-enter an active corner. An open shelf hides during the switch.
 
 ### Building from Source (Developers)
 
