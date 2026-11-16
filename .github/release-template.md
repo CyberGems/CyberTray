@@ -8,7 +8,7 @@
 
 <!-- IMPORTANT FOR AGENTS & MAINTAINERS: Always rewrite this entire section and highlights with the ACTUAL release notes for this specific new version before tagging. NEVER leave or copy previous version notes! Use 25-45 words for the summary, lead with user-facing changes, and do not repeat the app name or version. Keep the Spanish mirror inside the details block in sync: translate the summary and rewrite the highlights. -->
 <!-- changelog-summary:start -->
-A portable edition joins the installer, a type filter sorts shortcuts by destination, and Store apps resolve to their app id from the desktop file. Icons refresh on demand and the boot screen animates the icon piece by piece.
+The folder sidebar and status bar get a cleaner rebuild, empty views offer a minimal add action, and the tray menu wears app-style bubbles with red donate and exit accents. Hotspots no longer fire after UAC prompts, uninstall metadata gains the website, and releases ship winget manifests.
 <!-- changelog-summary:end -->
 
 > **New to CyberTray?** A system tray launchpad for Windows with a searchable shelf of apps, files and links, live system telemetry, a process viewer, and a PIN-protected vault.
@@ -17,40 +17,29 @@ A portable edition joins the installer, a type filter sorts shortcuts by destina
 
 ### ✨ Key Features & Highlights
 
-- 💼 **Portable edition**:
-  - A second download ships as one executable that keeps its data in a `data` folder beside it, so the install travels on a USB stick with nothing to set up.
-  - Auto-launch registers the portable file, About shows a PORTABLE badge and explains the manual update path, and the updater sends you to the releases page instead of trying to swap the running file.
+- 🗂️ **A calmer panel**:
+  - The folder sidebar drops its duplicate row, lists child folders before a folder's shortcuts, and scrolls overflowing names and counts on hover.
+  - The status bar follows one typographic scale, and empty views become a contained panel with a minimal add-shortcut action instead of banners.
 
-- 🗂️ **Filter the grid by type**:
-  - Every shortcut is classified by its destination: programs, Microsoft Store apps, Steam games, links, scripts, and files or folders.
-  - The filter shows how many of each kind exist inside the folder and the search you have open, not the whole library.
-  - The kind is derived on the fly, so an existing library classifies itself without a migration.
+- 🎨 **Refined surfaces**:
+  - A fine-grain panel background replaces the dot mesh, the global tooltip sizes itself to its content, and the settings drawer matches CyberLauncher's layout.
 
-- 🏪 **Store apps now behave like Store apps**:
-  - A desktop shortcut pointing at a Microsoft Store app resolves to its app user model id by reading the package identity stored inside the file, and launches through the same activation helper as a Store import.
-  - Deleting the desktop shortcut no longer breaks the entry, and a desktop import of those apps lands on the identifier the first time.
-  - The line under the name shows a short origin label instead of the raw identifier, which stays available in the edit dialog.
+- 🧰 **A neater tray menu**:
+  - App-style tooltip bubbles, a red donate heart, a diamond website icon, and an exit icon that keeps its red hover.
 
-- 🖼️ **Refresh an icon on demand**:
-  - The shortcut menu gains Refresh icon: it drops the memoized extraction and resolves again, re-reading the package manifest for Store apps or repeating the 256 px extraction for files.
-  - The new file carries a content digest in its name, so the grid requests the image again instead of showing the cached copy.
+- 🛡️ **Hotspots under control**:
+  - A native helper verifies the input desktop, so corner gestures no longer fire after a UAC prompt: the shelf hides during the switch and the gesture waits for a fresh corner entry.
 
-- 🌟 **A boot screen worth watching**:
-  - The icon is drawn as vector art at full resolution, and its three squares and plus sign zoom in and out one at a time before the shelf appears.
-  - The sequence is tuned so all four pulses are actually seen, and it is skipped when the system asks for reduced motion.
-
-- 🔧 **Smaller fixes that add up**:
-  - The context menu measures its own height, so opening it near the bottom no longer cuts off delete and kill process.
-  - The search field keeps a sweeping underline instead of the hard cyan focus box, and the destination line uses the interface face, so more of the path fits.
-  - Long paths in tooltips wrap after separators instead of breaking mid-word or overflowing the card.
-  - The launch counter reads "3 launches" and "1 launch" in place of the old abbreviation.
+- 🧹 **Uninstall and updates**:
+  - The Windows Apps entry shows the CyberTray website and description, and forced-close retries behave correctly for all-users installs.
+  - The in-app update notes skip the "Before you install" guidance, and every release now ships winget manifests for the Windows Package Manager.
 
 <details>
 <summary><b>🇪🇸 Ver notas de la versión en Español</b></summary>
 
 ### 🚀 Novedades de esta versión
 
-Una edición portable se suma al instalador, un filtro por tipo ordena los accesos por destino y las apps de la Store resuelven a su identificador desde el archivo de escritorio. Los iconos se refrescan a demanda y la pantalla de arranque anima el icono pieza a pieza.
+La barra lateral de carpetas y la barra de estado lucen una reconstrucción más limpia, las vistas vacías ofrecen una acción mínima de añadir y el menú de la bandeja viste burbujas tipo app con acentos rojos de donación y salida. Los hotspots ya no se activan tras avisos de UAC, la entrada de desinstalación suma la web y los releases publican manifiestos winget.
 
 > **¿Nuevo en CyberTray?** Un lanzador desde la bandeja del sistema para Windows, con una estantería con búsqueda de apps, archivos y enlaces, telemetría del sistema en vivo, visor de procesos y bóveda protegida con PIN.
 
@@ -58,12 +47,22 @@ Una edición portable se suma al instalador, un filtro por tipo ordena los acces
 
 ### ✨ Novedades destacadas
 
-- **Edición portable**: un segundo archivo es un solo ejecutable que guarda sus datos en una carpeta `data` junto a él, así la instalación viaja en un USB sin nada que configurar. El inicio automático registra el archivo portable, Acerca de muestra la insignia PORTABLE y explica la actualización manual, y el actualizador te lleva a la página de releases en lugar de intentar reemplazar el archivo en ejecución.
-- **Filtro por tipo en la cuadrícula**: cada acceso se clasifica por su destino (programas, apps de Microsoft Store, juegos de Steam, enlaces, scripts y archivos o carpetas), y el filtro cuenta cuántos hay de cada tipo dentro de la carpeta y la búsqueda abiertas, no en toda la biblioteca. El tipo se deriva al vuelo, así una biblioteca existente se clasifica sin migración.
-- **Las apps de la Store se comportan como tales**: un acceso de escritorio que apunta a una app de Microsoft Store resuelve a su identificador leyendo la identidad del paquete guardada dentro del archivo, y se lanza por el mismo asistente de activación que una importación de la Store. Borrar el acceso de escritorio ya no rompe la entrada, y bajo el nombre se ve una etiqueta corta de origen en lugar del identificador crudo, que sigue disponible en el diálogo de edición.
-- **Refrescar un icono cuando haga falta**: el menú del acceso añade Refrescar icono, que descarta la extracción memorizada y vuelve a resolver, releyendo el manifiesto del paquete para apps de la Store o repitiendo la extracción a 256 px para archivos. El archivo nuevo lleva un digest de contenido en el nombre, así la cuadrícula pide la imagen otra vez en lugar de mostrar la copia cacheada.
-- **Una pantalla de arranque que se deja mirar**: el icono se dibuja en vectorial a resolución completa y sus tres cuadrados y el signo "+" hacen zoom de uno en uno antes de que aparezca el estante. La secuencia está ajustada para que los cuatro pulsos se vean de verdad, y se omite cuando el sistema pide movimiento reducido.
-- **Arreglos pequeños que suman**: el menú contextual mide su propia altura, así abrirlo cerca del borde inferior ya no corta eliminar ni matar proceso; el buscador conserva el subrayado que barre en lugar del recuadro cian duro; la línea de destino usa la tipografía de la interfaz y cabe más ruta; las rutas largas de los tooltips cortan tras los separadores en vez de partir palabras; y el contador dice "3 ejecuciones" y "1 ejecución" en lugar de "3 ex.".
+- 🗂️ **Un panel más sereno**:
+  - La barra lateral de carpetas elimina su fila duplicada, lista las subcarpetas antes de los accesos de una carpeta y desplaza los nombres y conteos que no caben al pasar el ratón.
+  - La barra de estado sigue una única escala tipográfica, y las vistas vacías pasan a un panel contenido con una acción mínima de añadir acceso en lugar de banners.
+
+- 🎨 **Superficies refinadas**:
+  - Un fondo de grano fino sustituye a la malla de puntos, el tooltip global se ajusta a su contenido y el cajón de ajustes empareja con el diseño de CyberLauncher.
+
+- 🧰 **Un menú de bandeja más pulcro**:
+  - Tooltips tipo burbuja de la app, corazón de donación en rojo, icono de web en rombo y salida que mantiene su rojo al pasar el ratón.
+
+- 🛡️ **Hotspots bajo control**:
+  - Un asistente nativo comprueba el escritorio de entrada, así los gestos de esquina ya no se activan tras un aviso de UAC: el estante se oculta durante el cambio y el gesto espera una entrada nueva a la esquina.
+
+- 🧹 **Desinstalación y actualizaciones**:
+  - La entrada de Aplicaciones de Windows muestra el sitio web y la descripción de CyberTray, y los reintentos de cierre forzado funcionan bien en instalaciones para todos los usuarios.
+  - Las notas de actualización dentro de la app omiten la guía «Antes de instalar», y cada release publica manifiestos winget para el Windows Package Manager.
 
 ### ⚠️ Antes de instalar
 

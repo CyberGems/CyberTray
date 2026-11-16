@@ -2,6 +2,32 @@
 
 All notable changes to CyberTray are documented here.
 
+## [1.9.1] - 2026-11-16
+
+### 🇺🇸 English
+
+- Rework the folder sidebar: drop the duplicate folder row, list child folders before a folder's shortcuts, and scroll overflowing names and counts on hover.
+- Rebuild the status bar on a single typographic scale and give empty views a contained panel with a minimal add-shortcut action instead of banners.
+- Refine the panel background with a fine grain, size the global tooltip to its content, and match the settings drawer to CyberLauncher's layout.
+- Refresh the tray menu styling with app-style tooltip bubbles, a red donate heart, a diamond website icon, and an exit icon that stays red on hover.
+- Prevent corner hotspots from firing after a UAC prompt: a native helper verifies the secure desktop, the shelf hides during the switch, and the gesture waits for a fresh corner entry.
+- Show the CyberTray website and description in the Windows uninstall entry.
+- Hide the Before you install guidance from the in-app update notes, because updates install automatically.
+- Fix the forced-close retry when uninstalling the all-users installation.
+- Ship winget manifests with every release and automate Windows Package Manager submissions.
+
+### 🇪🇸 Español
+
+- Renueva la barra lateral de carpetas: elimina la fila de carpeta duplicada, lista las subcarpetas antes de los accesos de una carpeta y desplaza los nombres y conteos que no caben al pasar el ratón.
+- Reconstruye la barra de estado en una única escala tipográfica y da a las vistas vacías un panel contenido con una acción mínima de añadir acceso en lugar de banners.
+- Refina el fondo del panel con un grano fino, ajusta el tooltip global a su contenido y empareja el cajón de ajustes con el diseño de CyberLauncher.
+- Renueva el estilo del menú de la bandeja con tooltips tipo burbuja de la app, corazón de donación en rojo, icono de web en rombo y salida que se mantiene roja al pasar el ratón.
+- Evita que los hotspots de esquina se activen tras un aviso de UAC: un asistente nativo comprueba el escritorio seguro, el estante se oculta durante el cambio y el gesto exige una entrada nueva a la esquina.
+- Muestra el sitio web de CyberTray y su descripción en la entrada de desinstalación de Windows.
+- Oculta la guía Antes de instalar de las notas de actualización dentro de la app, porque las actualizaciones se instalan automáticamente.
+- Corrige el reintento de cierre forzado al desinstalar la instalación para todos los usuarios.
+- Publica manifiestos winget con cada release y automatiza los envíos al Windows Package Manager.
+
 ## [1.9.0] - 2026-10-31
 
 ### 🇺🇸 English
