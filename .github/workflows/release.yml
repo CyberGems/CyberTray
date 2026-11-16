@@ -121,11 +121,9 @@ jobs:
           $utf8 = New-Object System.Text.UTF8Encoding $false
           [System.IO.File]::WriteAllText("FINAL_RELEASE_NOTES.md", $notes, $utf8)
 
-      - name: Generate and upload winget manifests
+      - name: Generate winget manifests
         if: startsWith(github.ref, 'refs/tags/')
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $tag = "${{ github.ref_name }}"
           # winget versions carry no 'v' prefix (1.9.0, not v1.9.0); URLs keep the tag's.
@@ -148,8 +146,7 @@ jobs:
           }
           winget validate winget-pkg
           if ($LASTEXITCODE -ne 0) { throw "winget manifest validation failed." }
-          gh release upload $tag winget-pkg/CyberGems.CyberTray.yaml winget-pkg/CyberGems.CyberTray.locale.en-US.yaml winget-pkg/CyberGems.CyberTray.installer.yaml --clobber
-          Write-Host "Generated, validated and uploaded winget manifests for $tag."
+          Write-Host "Generated and validated winget manifests for $tag."
 
       - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v2
