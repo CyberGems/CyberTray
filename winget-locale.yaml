@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+PackageIdentifier: CyberGems.CyberTray
+PackageVersion: {{VERSION}}
+PackageLocale: en-US
+Publisher: CyberGems
+PackageName: CyberTray
+PackageUrl: https://cybergems.org/apps/cybertray/
+License: GPL-3.0-or-later
+LicenseUrl: https://github.com/CyberGems/CyberTray/blob/main/LICENSE
+Copyright: Copyright (C) 2026 CyberGems
+ShortDescription: Tray launchpad with live system telemetry and a desktop vault
+Description: CyberTray keeps a launchpad one click away in the system tray, a shelf of apps, files, folders and URLs with search, categories and drag-and-drop, summoned by a hotkey, a screen corner or the tray icon and hidden again when you are done. Beside it, live RAM, CPU, disk and VRAM telemetry, a process viewer that can end what is misbehaving, and a PIN-protected vault you can sweep the desktop into. Portable mode and scheduled backups to a folder you pick keep the whole setup with you. Built with Electron.
+Tags:
+- system-tray
+- launcher
+- productivity
+- telemetry
+- utilities
+Moniker: cybertray
+ReleaseNotesUrl: https://github.com/CyberGems/CyberTray/releases/tag/{{TAG}}
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0
