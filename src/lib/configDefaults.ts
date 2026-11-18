@@ -170,7 +170,111 @@ export function sanitizeConfig<T extends Record<string, unknown>>(config: T): T 
       result[key] = value;
     }
   }
-  return result as T;
+  return normalizeConfigValues(result) as T;
+}
+
+// La config cruza el sandbox (saveConfig) y alimenta todo el estilo y las
+// rutas que el main procesa: los escalares se acotan a su rango y las rutas
+// a su longitud, de modo que un renderer comprometido no pueda persistir
+// valores disparatados que luego se lean como si fueran de la casa.
+
+const MAX_CONFIG_PATH_LENGTH = 4096;
+
+function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
+  const num = typeof value === 'number' && Number.isFinite(value) ? Math.floor(value) : Number.NaN;
+  return Number.isNaN(num) ? fallback : Math.min(max, Math.max(min, num));
+}
+
+function keepBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+function keepString(value: unknown, max: number, fallback: string): string {
+  return typeof value === 'string' && value.length <= max ? value : fallback;
+}
+
+function keepPath(value: unknown, fallback: string): string {
+  return typeof value === 'string' && value.length <= MAX_CONFIG_PATH_LENGTH ? value : fallback;
+}
+
+function normalizeConfigValues(config: Record<string, unknown>): Record<string, unknown> {
+  // Solo se normalizan las claves presentes: sanitizeConfig conserva la
+  // forma del objeto y nunca añade claves. Un valor que no pasa su control
+  // vuelve a su valor por defecto, nunca se inventa uno nuevo.
+  const out: Record<string, unknown> = { ...config };
+
+  const setIfPresent = (key: string, normalize: (value: unknown) => unknown): void => {
+    if (key in out) out[key] = normalize(out[key]);
+  };
+
+  setIfPresent('shortcut', (v) => keepString(v, 100, DEFAULT_GLOBAL_SHORTCUT));
+  setIfPresent('hotspotCorners', (v) => Array.isArray(v)
+    ? (v as unknown[]).filter((corner): corner is string => typeof corner === 'string').slice(0, 4)
+    : []);
+  setIfPresent('hotspotDelay', (v) => clampNumber(v, 0, 5000, 300));
+  setIfPresent('iconSize', (v) => clampNumber(v, 24, 120, 60));
+  setIfPresent('blurLevel', (v) => clampNumber(v, 0, 100, 20));
+  setIfPresent('opacity', (v) => clampNumber(v, 10, 100, 85));
+  setIfPresent('theme', (v) => keepString(v, 32, 'cyan'));
+  setIfPresent('bgType', (v) => (v === 'solid' || v === 'gradient' || v === 'image' ? v : 'solid'));
+  setIfPresent('bgSolidColor', (v) => keepString(v, 32, '#070b13'));
+  setIfPresent('bgGradient', (v) => keepString(v, 4096, 'preset-1'));
+  setIfPresent('bgImage', (v) => keepString(v, 2_000_000, 'preset-1'));
+  setIfPresent('bgCustomPath', (v) => keepPath(v, ''));
+  setIfPresent('language', (v) => (v === 'en' || v === 'es' ? v : 'en'));
+  setIfPresent('soundEnabled', (v) => keepBoolean(v, true));
+  setIfPresent('soundPath', (v) => keepPath(v, ''));
+  setIfPresent('sidebarCollapsed', (v) => keepBoolean(v, false));
+  setIfPresent('showTaskbarIcon', (v) => keepBoolean(v, false));
+  setIfPresent('autoLaunch', (v) => keepBoolean(v, false));
+  setIfPresent('hideOnDeadZoneClick', (v) => keepBoolean(v, false));
+  setIfPresent('alwaysOnTop', (v) => keepBoolean(v, false));
+  setIfPresent('hideOnBlur', (v) => keepBoolean(v, true));
+  setIfPresent('autoUpdate', (v) => keepBoolean(v, true));
+  setIfPresent('monitorBounds', (v) => {
+    if (
+      v && typeof v === 'object'
+      && ['x', 'y', 'width', 'height'].every((key) => typeof (v as Record<string, unknown>)[key] === 'number')
+    ) return v;
+    return undefined;
+  });
+  setIfPresent('vaultPath', (v) => keepPath(v, ''));
+  setIfPresent('vaultPinEnabled', (v) => keepBoolean(v, false));
+  setIfPresent('vaultPinHash', (v) => keepString(v, 512, ''));
+  setIfPresent('vaultPinSalt', (v) => keepString(v, 512, ''));
+  setIfPresent('vaultLockTimeout', (v) => clampNumber(v, 0, 10080, 0));
+  setIfPresent('folderSchemaVersion', (v) => clampNumber(v, 0, 1000, FOLDER_SCHEMA_VERSION));
+  setIfPresent('totalLaunches', (v) => clampNumber(v, 0, Number.MAX_SAFE_INTEGER, 0));
+  setIfPresent('autoCheckUpdates', (v) => keepBoolean(v, true));
+  setIfPresent('autoSyncOnStartup', (v) => keepBoolean(v, false));
+  setIfPresent('onboardingDone', (v) => keepBoolean(v, false));
+  setIfPresent('taskbarIds', (v) => Array.isArray(v)
+    ? (v as unknown[]).filter((id): id is number => typeof id === 'number' && Number.isFinite(id)).slice(0, 64)
+    : []);
+  setIfPresent('shortcutsList', (v) => Array.isArray(v)
+    ? (v as unknown[]).filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+    : []);
+  setIfPresent('categoriesList', (v) => Array.isArray(v)
+    ? (v as unknown[]).filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+    : []);
+  setIfPresent('importSources', (v) => Array.isArray(v)
+    ? (v as unknown[]).filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
+    : []);
+  setIfPresent('autoBackupEnabled', (v) => keepBoolean(v, true));
+  setIfPresent('autoBackupHours', (v) => clampNumber(v, 1, 168, DEFAULT_AUTO_BACKUP_HOURS));
+  setIfPresent('autoBackupKeep', (v) => clampNumber(v, 1, 60, DEFAULT_AUTO_BACKUP_KEEP));
+  setIfPresent('autoBackupLast', (v) => (typeof v === 'string' ? v.slice(0, 64) : null));
+  setIfPresent('autoBackupPath', (v) => keepPath(v, ''));
+  setIfPresent('watcherEnabled', (v) => keepBoolean(v, false));
+  setIfPresent('watcherWatchDesktop', (v) => keepBoolean(v, true));
+  setIfPresent('watcherWatchStartMenu', (v) => keepBoolean(v, true));
+  setIfPresent('watcherWatchStore', (v) => keepBoolean(v, true));
+  setIfPresent('watcherPromptSeconds', (v) => clampNumber(v, 3, 120, DEFAULT_WATCHER_PROMPT_SECONDS));
+
+  for (const [key, value] of Object.entries(out)) {
+    if (value === undefined) delete out[key];
+  }
+  return out;
 }
 
 /**

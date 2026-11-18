@@ -955,7 +955,10 @@ async function launchAppInternal(
       if (hasArgs) command += ` -ArgumentList '${esc(args)}'`;
       if (cwd && cwd.trim()) command += ` -WorkingDirectory '${esc(cwd)}'`;
       if (isAdmin) command += ` -Verb RunAs`;
-      exec(`powershell -NoProfile -Command "${command}"`, { windowsHide: true });
+      // EncodedCommand evita construir la línea de comandos con comillas:
+      // un destino con `"` rompía el entrecomillado y podía colar argumentos.
+      const encoded = Buffer.from(command, 'utf16le').toString('base64');
+      exec(`powershell -NoProfile -EncodedCommand ${encoded}`, { windowsHide: true });
     } else {
       // shell.openPath resuelve con un mensaje de error (o cadena vacía si fue bien).
       const failure = await shell.openPath(target);
@@ -1066,6 +1069,33 @@ function trayMenuGeometry(iconBounds: any, windowW: number, windowH: number) {
   return { x: Math.round(windowX), y: Math.round(windowY), width: Math.round(windowW), height: Math.round(windowH) };
 }
 
+/**
+ * Las ventanas de la app nunca navegan y nunca abren ventanas: un enlace web
+ * sale por el navegador del usuario y cualquier otra cosa se descarta. Sin
+ * esto, un renderer comprometido podría montar una página remota con el
+ * preload puesto.
+ */
+function lockNavigation(win: BrowserWindow): void {
+  const openWebLink = (url: string): void => {
+    try {
+      const target = new URL(url);
+      if (target.protocol === 'https:' || target.protocol === 'http:') {
+        void shell.openExternal(target.toString());
+      }
+    } catch {
+      /* ignora lo que no sea una URL entregable al navegador */
+    }
+  };
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    openWebLink(url);
+    return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (event, url) => {
+    event.preventDefault();
+    openWebLink(url);
+  });
+}
+
 function ensureTrayMenuWin(): BrowserWindow {
   if (trayMenuWin && !trayMenuWin.isDestroyed()) return trayMenuWin;
 
@@ -1094,7 +1124,18 @@ function ensureTrayMenuWin(): BrowserWindow {
   });
 
   trayMenuWin.setAlwaysOnTop(true, 'pop-up-menu');
-  void trayMenuWin.loadFile(getTrayMenuHtmlPath());
+  lockNavigation(trayMenuWin);
+  trayMenuWin.loadFile(getTrayMenuHtmlPath()).catch((error) => {
+    console.error('[TRAY] the tray menu failed to load:', error);
+  });
+
+  // Un renderer que muere no deja menú muerto: la ventana se suelta y la
+  // siguiente apertura la construye de nuevo.
+  trayMenuWin.webContents.on('render-process-gone', (_event, details) => {
+    if (details.reason === 'clean-exit') return;
+    console.error('[TRAY] tray menu renderer gone:', details.reason);
+    if (trayMenuWin && !trayMenuWin.isDestroyed()) trayMenuWin.destroy();
+  });
 
   trayMenuWin.on('blur', () => {
     if (trayMenuHideTimer) return;
@@ -1326,7 +1367,18 @@ function ensureWatcherPromptWindow(): BrowserWindow {
   });
 
   watcherPromptWin.setAlwaysOnTop(true, 'screen-saver');
-  void watcherPromptWin.loadFile(getWatcherPromptHtmlPath());
+  lockNavigation(watcherPromptWin);
+  watcherPromptWin.loadFile(getWatcherPromptHtmlPath()).catch((error) => {
+    console.error('[WATCHER] the prompt failed to load:', error);
+  });
+
+  // Mismo trato que el menú: renderer muerto, ventana soltada y reconstruida
+  // la próxima vez que el vigilante avise.
+  watcherPromptWin.webContents.on('render-process-gone', (_event, details) => {
+    if (details.reason === 'clean-exit') return;
+    console.error('[WATCHER] prompt renderer gone:', details.reason);
+    if (watcherPromptWin && !watcherPromptWin.isDestroyed()) watcherPromptWin.destroy();
+  });
 
   watcherPromptWin.on('closed', () => {
     watcherPromptWin = null;
@@ -1899,12 +1951,23 @@ function createWindows() {
     }, delay);
   });
 
+  // La bandeja vive oculta y se muestra a demanda: sin fallback de reveal
+  // (rejectUnexpectedReveal manda), pero el renderer que muere se recarga y
+  // la navegación queda bloqueada como en el resto de ventanas.
+  lockNavigation(shelfWindow);
+  shelfWindow.webContents.on('render-process-gone', (_event, details) => {
+    if (details.reason === 'clean-exit') return;
+    console.error('[SHELF] shelf renderer gone:', details.reason);
+    shelfWindow?.webContents.reload();
+  });
+
   // Cargar URL de la aplicación React
-  if (VITE_DEV_SERVER_URL) {
-    shelfWindow.loadURL(VITE_DEV_SERVER_URL);
-  } else {
-    shelfWindow.loadFile(path.join(__dirname, '../dist/index.html'));
-  }
+  const load = VITE_DEV_SERVER_URL
+    ? shelfWindow.loadURL(VITE_DEV_SERVER_URL)
+    : shelfWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+  load.catch((error) => {
+    console.error('[SHELF] the shelf failed to load:', error);
+  });
 
   shelfWindow.on('close', (e) => {
     if (!isQuitting) {
@@ -2852,10 +2915,47 @@ async function runStartupImportSync() {
   notifyStartupSync(result.created, result.updated, errors);
 }
 
+/**
+ * Normaliza un destino para compararlo contra la librería: los esquemas se
+ * comparan en minúsculas con su separador original y las rutas se resuelven
+ * (la comparación final ignora mayúsculas, como el propio Windows).
+ */
+function normalizedLaunchTarget(target: string): string {
+  const scheme = protocolScheme(target);
+  if (scheme && scheme !== 'file') {
+    return (scheme + target.slice(target.indexOf(':')).toLowerCase());
+  }
+  return path.resolve(target).toLowerCase();
+}
+
+/** Destinos que la librería y los recientes permiten lanzar ahora mismo. */
+function allowedLaunchTargets(): Set<string> {
+  const allowed = new Set<string>();
+  const shortcuts = Array.isArray(config.shortcutsList) ? config.shortcutsList : [];
+  for (const shortcut of shortcuts) {
+    const target = (shortcut as { target?: unknown })?.target;
+    if (typeof target === 'string' && target.trim()) allowed.add(normalizedLaunchTarget(target));
+  }
+  for (const recent of trayRecents) {
+    if (recent.path) allowed.add(normalizedLaunchTarget(recent.path));
+  }
+  return allowed;
+}
+
 // ── IPC INTERACTIVE COMMS BINDERS ──
 function registerIpcHandlers() {
   ipcMain.handle('launch-app', async (_, appPath, isAdmin, args, cwd) => {
-    return launchAppInternal(appPath, isAdmin, args, cwd);
+    // El renderer manda el destino crudo, así que solo se lanza lo que está
+    // en la librería o en los recientes: un renderer comprometido no puede
+    // pedir un ejecutable o un esquema que no esté ya en la configuración.
+    const target = typeof appPath === 'string' ? appPath.trim() : '';
+    if (!target) {
+      return { success: false, error: 'Empty target' };
+    }
+    if (!allowedLaunchTargets().has(normalizedLaunchTarget(target))) {
+      return { success: false, error: 'Target is not in the launcher library' };
+    }
+    return launchAppInternal(target, isAdmin, args, cwd);
   });
 
   ipcMain.handle('tray:set-recents', (_event, items: unknown) => {
@@ -4030,6 +4130,13 @@ app.whenReady().then(async () => {
       createWindows();
     }
   });
+}).catch((error) => {
+  // Un arranque que falla era un unhandled rejection: sin bandeja, sin
+  // ventana y sin mensaje. La causa se muestra al usuario.
+  const text = error instanceof Error ? error.stack || error.message : String(error);
+  console.error('[MAIN] startup failed:', text);
+  dialog.showErrorBox('CyberTray', `CyberTray no pudo iniciarse / CyberTray could not start:\n\n${text.slice(0, 600)}`);
+  app.exit(1);
 });
 
 app.on('window-all-closed', () => {
