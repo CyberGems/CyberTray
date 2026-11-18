@@ -8,7 +8,7 @@
 
 <!-- IMPORTANT FOR AGENTS & MAINTAINERS: Always rewrite this entire section and highlights with the ACTUAL release notes for this specific new version before tagging. NEVER leave or copy previous version notes! Use 25-45 words for the summary, lead with user-facing changes, and do not repeat the app name or version. Keep the Spanish mirror inside the details block in sync: translate the summary and rewrite the highlights. -->
 <!-- changelog-summary:start -->
-The folder sidebar and status bar get a cleaner rebuild, empty views offer a minimal add action, and the tray menu wears app-style bubbles with red donate and exit accents. Hotspots no longer fire after UAC prompts, uninstall metadata gains the website, and releases ship winget manifests.
+System tray submenus for Recent launches and Help now open as side-by-side flyout panels with number shortcuts, hover dwell, and arrow navigation. Every window gains navigation locking, validated launch targets and config writes, safer elevated launches, and clearer startup error reporting.
 <!-- changelog-summary:end -->
 
 > **New to CyberTray?** A system tray launchpad for Windows with a searchable shelf of apps, files and links, live system telemetry, a process viewer, and a PIN-protected vault.
@@ -17,29 +17,15 @@ The folder sidebar and status bar get a cleaner rebuild, empty views offer a min
 
 ### ✨ Key Features & Highlights
 
-- 🗂️ **A calmer panel**:
-  - The folder sidebar drops its duplicate row, lists child folders before a folder's shortcuts, and scrolls overflowing names and counts on hover.
-  - The status bar follows one typographic scale, and empty views become a contained panel with a minimal add-shortcut action instead of banners.
-
-- 🎨 **Refined surfaces**:
-  - A fine-grain panel background replaces the dot mesh, the global tooltip sizes itself to its content, and the settings drawer matches CyberLauncher's layout.
-
-- 🧰 **A neater tray menu**:
-  - App-style tooltip bubbles, a red donate heart, a diamond website icon, and an exit icon that keeps its red hover.
-
-- 🛡️ **Hotspots under control**:
-  - A native helper verifies the input desktop, so corner gestures no longer fire after a UAC prompt: the shelf hides during the switch and the gesture waits for a fresh corner entry.
-
-- 🧹 **Uninstall and updates**:
-  - The Windows Apps entry shows the CyberTray website and description, and forced-close retries behave correctly for all-users installs.
-  - The in-app update notes skip the "Before you install" guidance, and every release now ships winget manifests for the Windows Package Manager.
+- 🪟 **Side-by-side tray flyout panels**: `Recent launches` (with `1` to `0` quick-launch keys) and `Help` open beside the main card on hover or click, support arrow keys and `Escape`, and anchor cleanly to any monitor edge.
+- 🛡️ **Hardened windows and launching**: Navigation is locked across the shelf, tray, and watcher windows, launch actions check saved items and recents, elevated launches pass encoded PowerShell commands, config values normalize per key, and startup errors show clearly.
 
 <details>
 <summary><b>🇪🇸 Ver notas de la versión en Español</b></summary>
 
 ### 🚀 Novedades de esta versión
 
-La barra lateral de carpetas y la barra de estado lucen una reconstrucción más limpia, las vistas vacías ofrecen una acción mínima de añadir y el menú de la bandeja viste burbujas tipo app con acentos rojos de donación y salida. Los hotspots ya no se activan tras avisos de UAC, la entrada de desinstalación suma la web y los releases publican manifiestos winget.
+Los submenús de bandeja de Lanzamientos recientes y Ayuda ahora se abren como paneles flyout laterales con atajos numéricos, retardo hover y navegación con flechas. Todas las ventanas añaden bloqueo de navegación, validación de accesos y ajustes, lanzamientos elevados más seguros e informes claros ante fallos de inicio.
 
 > **¿Nuevo en CyberTray?** Un lanzador desde la bandeja del sistema para Windows, con una estantería con búsqueda de apps, archivos y enlaces, telemetría del sistema en vivo, visor de procesos y bóveda protegida con PIN.
 
@@ -47,22 +33,8 @@ La barra lateral de carpetas y la barra de estado lucen una reconstrucción más
 
 ### ✨ Novedades destacadas
 
-- 🗂️ **Un panel más sereno**:
-  - La barra lateral de carpetas elimina su fila duplicada, lista las subcarpetas antes de los accesos de una carpeta y desplaza los nombres y conteos que no caben al pasar el ratón.
-  - La barra de estado sigue una única escala tipográfica, y las vistas vacías pasan a un panel contenido con una acción mínima de añadir acceso en lugar de banners.
-
-- 🎨 **Superficies refinadas**:
-  - Un fondo de grano fino sustituye a la malla de puntos, el tooltip global se ajusta a su contenido y el cajón de ajustes empareja con el diseño de CyberLauncher.
-
-- 🧰 **Un menú de bandeja más pulcro**:
-  - Tooltips tipo burbuja de la app, corazón de donación en rojo, icono de web en rombo y salida que mantiene su rojo al pasar el ratón.
-
-- 🛡️ **Hotspots bajo control**:
-  - Un asistente nativo comprueba el escritorio de entrada, así los gestos de esquina ya no se activan tras un aviso de UAC: el estante se oculta durante el cambio y el gesto espera una entrada nueva a la esquina.
-
-- 🧹 **Desinstalación y actualizaciones**:
-  - La entrada de Aplicaciones de Windows muestra el sitio web y la descripción de CyberTray, y los reintentos de cierre forzado funcionan bien en instalaciones para todos los usuarios.
-  - Las notas de actualización dentro de la app omiten la guía «Antes de instalar», y cada release publica manifiestos winget para el Windows Package Manager.
+- 🪟 **Paneles flyout laterales en la bandeja**: `Lanzamientos recientes` (con teclas `1` a `0`) y `Ayuda` se abren junto a la tarjeta principal al pasar el cursor o pulsar, responden a flechas y `Escape` y se orientan según el borde del monitor.
+- 🛡️ **Ventanas y lanzamientos reforzados**: Se bloquea la navegación en el estante, bandeja y avisos, los lanzamientos se validan contra la biblioteca y recientes, los comandos elevados van codificados para PowerShell, los ajustes se normalizan clave a clave y los errores de arranque se muestran al usuario.
 
 ### ℹ️ Antes de instalar
 

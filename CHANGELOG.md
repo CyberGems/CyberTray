@@ -2,6 +2,18 @@
 
 All notable changes to CyberTray are documented here.
 
+## [1.9.2] - 2026-11-18
+
+### 🇺🇸 English
+
+- Convert the tray submenus (`Recent launches` and `Help`) into side-by-side flyout panels with dwell hover, click toggling, `1` to `0` quick-launch shortcuts, automatic monitor-edge placement, and keyboard arrow navigation.
+- Lock navigation across the shelf, tray menu, and watcher prompt windows, validate launch targets against saved items and recents, encode elevated PowerShell launch commands, normalize config writes per key, and report startup failures.
+
+### 🇪🇸 Español
+
+- Convierte los submenús de la bandeja (`Lanzamientos recientes` y `Ayuda`) en paneles flyout laterales con retardo al pasar el cursor, alternancia por clic, atajos numéricos `1` a `0`, colocación automática según el monitor y navegación con flechas del teclado.
+- Bloquea la navegación en el estante, menú de bandeja y avisos, valida los destinos de lanzamiento contra la biblioteca y recientes, codifica los comandos elevados de PowerShell, normaliza ajustes clave por clave e informa fallos de arranque.
+
 ## [1.9.1] - 2026-11-16
 
 ### 🇺🇸 English

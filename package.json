@@ -1,7 +1,7 @@
 {
   "name": "cyber-tray",
   "private": true,
-  "version": "1.9.1",
+  "version": "1.9.2",
   "author": "CyberGems",
   "license": "GPL-3.0-only",
   "homepage": "https://cybergems.org",
@@ -42,29 +42,29 @@
         "to": "hotspot-cursor.exe"
       }
     ],
-  "win": {
-    "icon": "public/icon.ico",
-    "target": [
-      {
-        "target": "nsis",
-        "arch": [
-          "x64"
-        ]
-      },
-      {
-        "target": "portable",
-        "arch": [
-          "x64"
-        ]
-      }
-    ],
-    "artifactName": "${productName}-Setup-${version}.${ext}"
-  },
-  "portable": {
-    "artifactName": "${productName}-Portable-${version}.${ext}",
-    "unpackDirName": "CyberTray-portable",
-    "requestExecutionLevel": "user"
-  },
+    "win": {
+      "icon": "public/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}",
+      "unpackDirName": "CyberTray-portable",
+      "requestExecutionLevel": "user"
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
