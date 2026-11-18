@@ -992,7 +992,11 @@ function launchShortcutFromTray(item: TrayRecentItem): void {
 }
 
 const TRAY_MENU_CARD_WIDTH = 292;
+const TRAY_MENU_FLYOUT_WIDTH = 292;
+const TRAY_MENU_FLYOUT_GAP = 8;
+const TRAY_MENU_FLYOUT_SPAN = TRAY_MENU_FLYOUT_GAP + TRAY_MENU_FLYOUT_WIDTH;
 const TRAY_MENU_SHADOW_PAD = 24;
+const TRAY_MENU_WINDOW_WIDTH = TRAY_MENU_CARD_WIDTH + TRAY_MENU_FLYOUT_SPAN + 2 * TRAY_MENU_SHADOW_PAD;
 const TRAY_MENU_EST_HEIGHT = 520;
 
 let trayMenuWin: BrowserWindow | null = null;
@@ -1004,6 +1008,8 @@ let trayMenuRevealTimer: NodeJS.Timeout | null = null;
 let trayMenuLastShown = 0;
 let mainViewHeight = TRAY_MENU_EST_HEIGHT;
 let lastTrayMenuHeight = TRAY_MENU_EST_HEIGHT;
+let trayMenuFlyoutSide: 'left' | 'right' = 'left';
+let trayMenuVerticalAlign: 'bottom' | 'top' = 'bottom';
 
 function getTrayMenuHtmlPath(): string {
   const candidates = [
@@ -1018,7 +1024,7 @@ function getTrayMenuHtmlPath(): string {
   return candidates[0];
 }
 
-function trayMenuGeometry(iconBounds: any, windowW: number, windowH: number) {
+function trayMenuGeometry(iconBounds: any, _windowW: number, windowH: number) {
   let b = (iconBounds && typeof iconBounds.x === 'number' && (iconBounds.width || iconBounds.height))
     ? { x: iconBounds.x, y: iconBounds.y, width: iconBounds.width || 0, height: iconBounds.height || 0 }
     : null;
@@ -1032,14 +1038,16 @@ function trayMenuGeometry(iconBounds: any, windowW: number, windowH: number) {
   let display: any;
   try { display = screen.getDisplayNearestPoint({ x: cx, y: cy }); }
   catch (_) { display = screen.getPrimaryDisplay(); }
-  const work = (display && display.workArea) || { x: 0, y: 0, width: windowW, height: windowH };
+  const work = (display && display.workArea) || { x: 0, y: 0, width: TRAY_MENU_WINDOW_WIDTH, height: windowH };
 
   const gap = 4;
   const pad = TRAY_MENU_SHADOW_PAD;
-  const cardW = windowW - 2 * pad;
+  const cardW = TRAY_MENU_CARD_WIDTH;
+  const mainWindowW = cardW + 2 * pad;
   const cardH = windowH - 2 * pad;
 
   let cardX: number, cardY: number;
+  let verticalAlign: 'bottom' | 'top' = 'bottom';
   const dLeft = cx - work.x;
   const dRight = (work.x + work.width) - cx;
   const dTop = cy - work.y;
@@ -1048,25 +1056,38 @@ function trayMenuGeometry(iconBounds: any, windowW: number, windowH: number) {
   if (dBottom <= dLeft && dBottom <= dRight && dBottom <= dTop) {
     cardX = cx - cardW / 2;
     cardY = b.y - gap - cardH;
+    verticalAlign = 'bottom';
   } else if (dTop <= dLeft && dTop <= dRight) {
     cardX = cx - cardW / 2;
     cardY = b.y + b.height + gap;
+    verticalAlign = 'top';
   } else if (dLeft <= dRight) {
     cardX = b.x + b.width + gap;
     cardY = cy - cardH / 2;
+    verticalAlign = 'bottom';
   } else {
     cardX = b.x - gap - cardW;
     cardY = cy - cardH / 2;
+    verticalAlign = 'bottom';
   }
 
-  let windowX = cardX - pad;
-  let windowY = cardY - pad;
+  const mainWindowX = Math.min(Math.max(cardX - pad, work.x + 2), work.x + work.width - mainWindowW - 2);
+  const spaceLeft = mainWindowX - (work.x + 2);
+  const spaceRight = (work.x + work.width - 2) - (mainWindowX + mainWindowW);
+  const preferLeft = cx >= work.x + work.width / 2;
+  const flyoutSide: 'left' | 'right' = preferLeft
+    ? ((spaceLeft >= TRAY_MENU_FLYOUT_SPAN || spaceLeft >= spaceRight) ? 'left' : 'right')
+    : ((spaceRight >= TRAY_MENU_FLYOUT_SPAN || spaceRight >= spaceLeft) ? 'right' : 'left');
 
-  windowX = Math.min(Math.max(windowX, work.x + 2), work.x + work.width - windowW - 2);
+  const rawWindowX = flyoutSide === 'left' ? mainWindowX - TRAY_MENU_FLYOUT_SPAN : mainWindowX;
+  const windowX = Math.min(Math.max(rawWindowX, work.x + 2), work.x + work.width - TRAY_MENU_WINDOW_WIDTH - 2);
   const screenBottom = (display.bounds ? display.bounds.y + display.bounds.height : work.y + work.height) - 2;
-  windowY = Math.min(Math.max(windowY, work.y + 2), screenBottom - windowH);
+  const windowY = Math.min(Math.max(cardY - pad, work.y + 2), screenBottom - windowH);
 
-  return { x: Math.round(windowX), y: Math.round(windowY), width: Math.round(windowW), height: Math.round(windowH) };
+  trayMenuFlyoutSide = flyoutSide;
+  trayMenuVerticalAlign = verticalAlign;
+
+  return { x: Math.round(windowX), y: Math.round(windowY), width: Math.round(TRAY_MENU_WINDOW_WIDTH), height: Math.round(windowH) };
 }
 
 /**
@@ -1099,7 +1120,7 @@ function lockNavigation(win: BrowserWindow): void {
 function ensureTrayMenuWin(): BrowserWindow {
   if (trayMenuWin && !trayMenuWin.isDestroyed()) return trayMenuWin;
 
-  const windowW = TRAY_MENU_CARD_WIDTH + 2 * TRAY_MENU_SHADOW_PAD;
+  const windowW = TRAY_MENU_WINDOW_WIDTH;
   trayMenuWin = new BrowserWindow({
     width: windowW,
     height: TRAY_MENU_EST_HEIGHT,
@@ -1178,6 +1199,8 @@ function buildTrayMenuState(resetView = false) {
         icon: icon ? icon.toDataURL() : '',
       };
     }),
+    flyoutSide: trayMenuFlyoutSide,
+    verticalAlign: trayMenuVerticalAlign,
     resetView,
   };
 }
@@ -1220,7 +1243,7 @@ function showCustomTrayMenu(eventBounds?: any) {
   const w = ensureTrayMenuWin();
   if (!w || w.isDestroyed()) return;
 
-  const windowW = TRAY_MENU_CARD_WIDTH + 2 * TRAY_MENU_SHADOW_PAD;
+  const windowW = TRAY_MENU_WINDOW_WIDTH;
   const initialH = mainViewHeight || lastTrayMenuHeight || TRAY_MENU_EST_HEIGHT;
   const geo = trayMenuGeometry(trayMenuAnchor, windowW, initialH);
   const current = w.getBounds();
@@ -3026,8 +3049,7 @@ function registerIpcHandlers() {
 
   ipcMain.on('tray-menu-ready', (_event, rect) => {
     if (!trayMenuWin || trayMenuWin.isDestroyed() || !rect) return;
-    const pad = TRAY_MENU_SHADOW_PAD;
-    const targetW = Math.round(rect.width || (TRAY_MENU_CARD_WIDTH + 2 * pad));
+    const targetW = TRAY_MENU_WINDOW_WIDTH;
     const rawH = Math.round(rect.height || TRAY_MENU_EST_HEIGHT);
     const isMain = rect.view === 'main' || !rect.view;
     const desiredH = isMain ? rawH : Math.max(rawH, mainViewHeight);

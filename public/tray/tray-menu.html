@@ -12,12 +12,18 @@
 </head>
 <body>
   <div id="root" class="shell">
-    <div id="card" class="card" role="menu">
-      <div id="head" class="head"></div>
-      <div class="divider" id="headDivider"></div>
-      <div id="group" class="group"></div>
-      <div class="divider" id="exitDivider"></div>
-      <div id="exitGroup" class="group group-bottom"></div>
+    <div id="stage" class="stage" data-flyout-side="left" data-vertical-align="bottom">
+      <div id="card" class="card" role="menu">
+        <div id="head" class="head"></div>
+        <div class="divider" id="headDivider"></div>
+        <div id="group" class="group"></div>
+        <div class="divider" id="exitDivider"></div>
+        <div id="exitGroup" class="group group-bottom"></div>
+      </div>
+      <div id="flyoutSlot" class="flyout-slot">
+        <div id="flyoutRecents" class="card flyout" role="menu" aria-hidden="true"></div>
+        <div id="flyoutHelp" class="card flyout" role="menu" aria-hidden="true"></div>
+      </div>
     </div>
   </div>
   <script src="tray-menu.js"></script>
