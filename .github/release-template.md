@@ -8,7 +8,7 @@
 
 <!-- IMPORTANT FOR AGENTS & MAINTAINERS: Always rewrite this entire section and highlights with the ACTUAL release notes for this specific new version before tagging. NEVER leave or copy previous version notes! Use 25-45 words for the summary, lead with user-facing changes, and do not repeat the app name or version. Keep the Spanish mirror inside the details block in sync: translate the summary and rewrite the highlights. -->
 <!-- changelog-summary:start -->
-System tray submenus for Recent launches and Help now open as side-by-side flyout panels with number shortcuts, hover dwell, and arrow navigation. Every window gains navigation locking, validated launch targets and config writes, safer elevated launches, and clearer startup error reporting.
+Eliminates system tray menu flicker on repeated opens and position jumps across mixed-DPI monitors using a fresh prewarmed tray window with two-step reveal, aligns the flyout gap to 4px, and adds Exit to the titlebar More menu.
 <!-- changelog-summary:end -->
 
 > **New to CyberTray?** A system tray launchpad for Windows with a searchable shelf of apps, files and links, live system telemetry, a process viewer, and a PIN-protected vault.
@@ -17,15 +17,15 @@ System tray submenus for Recent launches and Help now open as side-by-side flyou
 
 ### ✨ Key Features & Highlights
 
-- 🪟 **Side-by-side tray flyout panels**: `Recent launches` (with `1` to `0` quick-launch keys) and `Help` open beside the main card on hover or click, support arrow keys and `Escape`, and anchor cleanly to any monitor edge.
-- 🛡️ **Hardened windows and launching**: Navigation is locked across the shelf, tray, and watcher windows, launch actions check saved items and recents, elevated launches pass encoded PowerShell commands, config values normalize per key, and startup errors show clearly.
+- 🪟 **Flicker-free multi-monitor tray menu**: Replaced window hide/reuse with a fresh prewarmed tray window and two-step transparent reveal so repeated clicks and mixed-DPI monitor switches open cleanly with a `4px` flyout gap.
+- 🚪 **Exit from the titlebar menu**: Added an `Exit CyberTray` item to the titlebar More menu for quick full shutdown without using the system tray.
 
 <details>
 <summary><b>🇪🇸 Ver notas de la versión en Español</b></summary>
 
 ### 🚀 Novedades de esta versión
 
-Los submenús de bandeja de Lanzamientos recientes y Ayuda ahora se abren como paneles flyout laterales con atajos numéricos, retardo hover y navegación con flechas. Todas las ventanas añaden bloqueo de navegación, validación de accesos y ajustes, lanzamientos elevados más seguros e informes claros ante fallos de inicio.
+Elimina el parpadeo del menú de bandeja en aperturas repetidas y los saltos de posición entre monitores con DPI mixto mediante una ventana precalentada con revelado en dos pasos, ajusta el espacio de flyouts a 4px y añade Salir al menú Más.
 
 > **¿Nuevo en CyberTray?** Un lanzador desde la bandeja del sistema para Windows, con una estantería con búsqueda de apps, archivos y enlaces, telemetría del sistema en vivo, visor de procesos y bóveda protegida con PIN.
 
@@ -33,8 +33,8 @@ Los submenús de bandeja de Lanzamientos recientes y Ayuda ahora se abren como p
 
 ### ✨ Novedades destacadas
 
-- 🪟 **Paneles flyout laterales en la bandeja**: `Lanzamientos recientes` (con teclas `1` a `0`) y `Ayuda` se abren junto a la tarjeta principal al pasar el cursor o pulsar, responden a flechas y `Escape` y se orientan según el borde del monitor.
-- 🛡️ **Ventanas y lanzamientos reforzados**: Se bloquea la navegación en el estante, bandeja y avisos, los lanzamientos se validan contra la biblioteca y recientes, los comandos elevados van codificados para PowerShell, los ajustes se normalizan clave a clave y los errores de arranque se muestran al usuario.
+- 🪟 **Menú de bandeja sin parpadeos en multimonitor**: Se reemplazó la reutilización tras ocultar por una ventana precalentada con revelado transparente en dos pasos para abrir sin parpadeos ni saltos entre monitores con DPI mixto y con un espacio de `4px` entre flyouts.
+- 🚪 **Opción Salir en la barra de título**: Se agregó `Salir de CyberTray` al menú Más de la barra de título para cerrar la aplicación por completo sin pasar por la bandeja del sistema.
 
 ### ℹ️ Antes de instalar
 
