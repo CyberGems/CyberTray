@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // --- Window Controls ---
   windowHideToTray: () => ipcRenderer.invoke('window-hide-to-tray'),
+  quitApp: () => ipcRenderer.send('tray-menu-action', 'quit'),
 
   // --- Settings Binders ---
   setAutoLaunch: (enabled: boolean) => ipcRenderer.invoke('set-auto-launch', enabled),

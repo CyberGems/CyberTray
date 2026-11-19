@@ -21,6 +21,7 @@ declare global {
       setMonitor: (monitorId: string) => Promise<void>;
       registerShortcut: (shortcut: string) => Promise<{ success: boolean; shortcut: string; error?: 'shortcut_conflict' }>;
       windowHideToTray: () => Promise<void>;
+      quitApp: () => void;
       setAutoLaunch: (enabled: boolean) => Promise<{ success: boolean; enabled: boolean }>;
       setHideOnBlur: (enabled: boolean) => Promise<{ success: boolean; enabled: boolean }>;
       setShowTaskbarIcon: (enabled: boolean) => Promise<{ success: boolean; enabled: boolean }>;

@@ -41,7 +41,7 @@ import ShortcutGlyph from './components/ShortcutGlyph';
 import { useBundledAssetUrl } from './lib/useBundledAsset';
 import {
   Search, Plus, Settings, X, Trash2, Info,
-  Pin, Play, ArrowDown, Shrink, MoreHorizontal,
+  Pin, Play, ArrowDown, Shrink, MoreHorizontal, Power,
   RefreshCw, Check, Activity, Lock,
   CheckSquare, Heart, BookOpen, HelpCircle, Tag, Globe, Sliders, History,
   LayoutGrid, List, Download, Eye, EyeOff
@@ -3090,6 +3090,20 @@ export default function App() {
                     {(updateStatus.state === 'available' || updateStatus.state === 'downloaded') && (
                       <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]" />
                     )}
+                  </button>
+
+                  <div className="h-px bg-white/10 my-1 mx-1.5" />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMoreMenuOpen(false);
+                      window.electronAPI?.quitApp?.();
+                    }}
+                    className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
+                  >
+                    <Power className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                    <span className="flex-1">{translate('more_menu_exit')}</span>
                   </button>
                 </motion.div>
               )}
