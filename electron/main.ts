@@ -993,18 +993,20 @@ function launchShortcutFromTray(item: TrayRecentItem): void {
 
 const TRAY_MENU_CARD_WIDTH = 292;
 const TRAY_MENU_FLYOUT_WIDTH = 292;
-const TRAY_MENU_FLYOUT_GAP = 8;
+const TRAY_MENU_FLYOUT_GAP = 4;
 const TRAY_MENU_FLYOUT_SPAN = TRAY_MENU_FLYOUT_GAP + TRAY_MENU_FLYOUT_WIDTH;
 const TRAY_MENU_SHADOW_PAD = 24;
 const TRAY_MENU_WINDOW_WIDTH = TRAY_MENU_CARD_WIDTH + TRAY_MENU_FLYOUT_SPAN + 2 * TRAY_MENU_SHADOW_PAD;
 const TRAY_MENU_EST_HEIGHT = 520;
 
 let trayMenuWin: BrowserWindow | null = null;
+let trayMenuLoaded = false;
+let trayMenuPrewarmTimer: NodeJS.Timeout | null = null;
 let trayMenuAnchor: any = null;
 let trayMenuHideTimer: NodeJS.Timeout | null = null;
 let trayMenuShowPending = false;
 let trayMenuShowFallback: NodeJS.Timeout | null = null;
-let trayMenuRevealTimer: NodeJS.Timeout | null = null;
+let trayMenuPendingGeo: Electron.Rectangle | null = null;
 let trayMenuLastShown = 0;
 let mainViewHeight = TRAY_MENU_EST_HEIGHT;
 let lastTrayMenuHeight = TRAY_MENU_EST_HEIGHT;
@@ -1025,7 +1027,7 @@ function getTrayMenuHtmlPath(): string {
 }
 
 function trayMenuGeometry(iconBounds: any, _windowW: number, windowH: number) {
-  let b = (iconBounds && typeof iconBounds.x === 'number' && (iconBounds.width || iconBounds.height))
+  let b = (iconBounds && typeof iconBounds.x === 'number')
     ? { x: iconBounds.x, y: iconBounds.y, width: iconBounds.width || 0, height: iconBounds.height || 0 }
     : null;
   if (!b) {
@@ -1043,7 +1045,6 @@ function trayMenuGeometry(iconBounds: any, _windowW: number, windowH: number) {
   const gap = 4;
   const pad = TRAY_MENU_SHADOW_PAD;
   const cardW = TRAY_MENU_CARD_WIDTH;
-  const mainWindowW = cardW + 2 * pad;
   const cardH = windowH - 2 * pad;
 
   let cardX: number, cardY: number;
@@ -1071,18 +1072,24 @@ function trayMenuGeometry(iconBounds: any, _windowW: number, windowH: number) {
     verticalAlign = 'bottom';
   }
 
-  const mainWindowX = Math.min(Math.max(cardX - pad, work.x + 2), work.x + work.width - mainWindowW - 2);
-  const spaceLeft = mainWindowX - (work.x + 2);
-  const spaceRight = (work.x + work.width - 2) - (mainWindowX + mainWindowW);
+  cardX = Math.min(Math.max(cardX, work.x + 4), work.x + work.width - cardW - 4);
+  cardY = Math.min(Math.max(cardY, work.y + 4), work.y + work.height - cardH - 4);
+
+  const spaceLeft = cardX - work.x;
+  const spaceRight = (work.x + work.width) - (cardX + cardW);
   const preferLeft = cx >= work.x + work.width / 2;
   const flyoutSide: 'left' | 'right' = preferLeft
     ? ((spaceLeft >= TRAY_MENU_FLYOUT_SPAN || spaceLeft >= spaceRight) ? 'left' : 'right')
     : ((spaceRight >= TRAY_MENU_FLYOUT_SPAN || spaceRight >= spaceLeft) ? 'right' : 'left');
 
+  const mainWindowX = cardX - pad;
   const rawWindowX = flyoutSide === 'left' ? mainWindowX - TRAY_MENU_FLYOUT_SPAN : mainWindowX;
-  const windowX = Math.min(Math.max(rawWindowX, work.x + 2), work.x + work.width - TRAY_MENU_WINDOW_WIDTH - 2);
-  const screenBottom = (display.bounds ? display.bounds.y + display.bounds.height : work.y + work.height) - 2;
-  const windowY = Math.min(Math.max(cardY - pad, work.y + 2), screenBottom - windowH);
+  const minWindowX = work.x - pad;
+  const maxWindowX = Math.max(minWindowX, work.x + work.width + pad - TRAY_MENU_WINDOW_WIDTH);
+  const windowX = Math.min(Math.max(rawWindowX, minWindowX), maxWindowX);
+  const minWindowY = work.y - pad;
+  const maxWindowY = Math.max(minWindowY, work.y + work.height + pad - windowH);
+  const windowY = Math.min(Math.max(cardY - pad, minWindowY), maxWindowY);
 
   trayMenuFlyoutSide = flyoutSide;
   trayMenuVerticalAlign = verticalAlign;
@@ -1120,12 +1127,14 @@ function lockNavigation(win: BrowserWindow): void {
 function ensureTrayMenuWin(): BrowserWindow {
   if (trayMenuWin && !trayMenuWin.isDestroyed()) return trayMenuWin;
 
+  trayMenuLoaded = false;
   const windowW = TRAY_MENU_WINDOW_WIDTH;
-  trayMenuWin = new BrowserWindow({
+  const win = new BrowserWindow({
     width: windowW,
     height: TRAY_MENU_EST_HEIGHT,
     show: false,
     frame: false,
+    thickFrame: false,
     transparent: true,
     hasShadow: false,
     resizable: false,
@@ -1135,6 +1144,7 @@ function ensureTrayMenuWin(): BrowserWindow {
     skipTaskbar: true,
     alwaysOnTop: true,
     focusable: true,
+    paintWhenInitiallyHidden: true,
     backgroundColor: '#00000000',
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
@@ -1143,22 +1153,23 @@ function ensureTrayMenuWin(): BrowserWindow {
       backgroundThrottling: false,
     },
   });
+  trayMenuWin = win;
 
-  trayMenuWin.setAlwaysOnTop(true, 'pop-up-menu');
-  lockNavigation(trayMenuWin);
-  trayMenuWin.loadFile(getTrayMenuHtmlPath()).catch((error) => {
+  win.setAlwaysOnTop(true, 'pop-up-menu');
+  lockNavigation(win);
+  win.loadFile(getTrayMenuHtmlPath()).catch((error) => {
     console.error('[TRAY] the tray menu failed to load:', error);
   });
 
   // Un renderer que muere no deja menú muerto: la ventana se suelta y la
   // siguiente apertura la construye de nuevo.
-  trayMenuWin.webContents.on('render-process-gone', (_event, details) => {
+  win.webContents.on('render-process-gone', (_event, details) => {
     if (details.reason === 'clean-exit') return;
     console.error('[TRAY] tray menu renderer gone:', details.reason);
-    if (trayMenuWin && !trayMenuWin.isDestroyed()) trayMenuWin.destroy();
+    if (!win.isDestroyed()) win.destroy();
   });
 
-  trayMenuWin.on('blur', () => {
+  win.on('blur', () => {
     if (trayMenuHideTimer) return;
     if (Date.now() - trayMenuLastShown < 250) return;
     trayMenuHideTimer = setTimeout(() => {
@@ -1167,16 +1178,30 @@ function ensureTrayMenuWin(): BrowserWindow {
     }, 120);
   });
 
-  trayMenuWin.on('closed', () => {
-    trayMenuWin = null;
+  win.on('closed', () => {
+    if (trayMenuWin === win) {
+      trayMenuWin = null;
+      trayMenuLoaded = false;
+    }
   });
 
-  trayMenuWin.webContents.once('did-finish-load', () => {
-    if (!trayMenuWin || trayMenuWin.isDestroyed()) return;
-    trayMenuWin.webContents.send('tray-menu-state', buildTrayMenuState(true));
+  win.webContents.once('did-finish-load', () => {
+    if (trayMenuWin !== win || win.isDestroyed()) return;
+    trayMenuLoaded = true;
+    win.webContents.send('tray-menu-state', { ...buildTrayMenuState(true), prepareReveal: trayMenuShowPending });
   });
 
-  return trayMenuWin;
+  return win;
+}
+
+function schedulePrewarmTrayMenuWin(): void {
+  if (trayMenuPrewarmTimer) { clearTimeout(trayMenuPrewarmTimer); trayMenuPrewarmTimer = null; }
+  if (isQuitting || !tray || tray.isDestroyed()) return;
+  trayMenuPrewarmTimer = setTimeout(() => {
+    trayMenuPrewarmTimer = null;
+    if (isQuitting || !tray || tray.isDestroyed() || trayMenuWin) return;
+    try { ensureTrayMenuWin(); } catch { /* ignore */ }
+  }, 80);
 }
 
 function buildTrayMenuState(resetView = false) {
@@ -1205,76 +1230,118 @@ function buildTrayMenuState(resetView = false) {
   };
 }
 
+function resolveTrayAnchor(eventBounds?: any): { x: number; y: number; width: number; height: number } {
+  let cursor: { x: number; y: number } | null = null;
+  try { cursor = screen.getCursorScreenPoint(); } catch { cursor = null; }
+  const nearCursor = (r: { x: number; y: number; width: number; height: number }): boolean => {
+    if (!cursor) return true;
+    const cx = r.x + r.width / 2;
+    const cy = r.y + r.height / 2;
+    return Math.abs(cx - cursor.x) <= 80 && Math.abs(cy - cursor.y) <= 80;
+  };
+  if (eventBounds && typeof eventBounds.x === 'number' && (eventBounds.width || eventBounds.height)) {
+    const r = { x: eventBounds.x, y: eventBounds.y, width: eventBounds.width || 0, height: eventBounds.height || 0 };
+    if (nearCursor(r)) return r;
+  }
+  try {
+    const tb = tray?.getBounds();
+    if (tb && typeof tb.x === 'number' && (tb.width > 0 || tb.height > 0)) {
+      const r = { x: tb.x, y: tb.y, width: tb.width, height: tb.height };
+      if (nearCursor(r)) return r;
+    }
+  } catch { /* ignore */ }
+  return cursor ? { x: cursor.x, y: cursor.y, width: 0, height: 0 } : { x: 0, y: 0, width: 0, height: 0 };
+}
+
+function boundsClose(a: Electron.Rectangle, b: Electron.Rectangle, tol = 2): boolean {
+  return (
+    Math.abs(a.x - b.x) <= tol &&
+    Math.abs(a.y - b.y) <= tol &&
+    Math.abs(a.width - b.width) <= tol &&
+    Math.abs(a.height - b.height) <= tol
+  );
+}
+
+function applyTrayBounds(win: BrowserWindow, geo: Electron.Rectangle): void {
+  try {
+    const before = win.getBounds();
+    if (boundsClose(before, geo)) return;
+    win.setBounds(geo, false);
+    const after = win.getBounds();
+    if (!boundsClose(after, geo)) {
+      win.setBounds(geo, false);
+    }
+  } catch { /* ignore */ }
+}
+
 function revealTrayMenuWin() {
   if (!trayMenuWin || trayMenuWin.isDestroyed()) return;
   if (trayMenuShowFallback) { clearTimeout(trayMenuShowFallback); trayMenuShowFallback = null; }
   trayMenuShowPending = false;
+  if (trayMenuPendingGeo) {
+    applyTrayBounds(trayMenuWin, trayMenuPendingGeo);
+  }
+  trayMenuLastShown = Date.now();
   if (!trayMenuWin.isVisible()) {
-    try { trayMenuWin.setOpacity(0); } catch { /* ignore */ }
     trayMenuWin.show();
-    if (trayMenuRevealTimer) clearTimeout(trayMenuRevealTimer);
-    trayMenuRevealTimer = setTimeout(() => {
-      trayMenuRevealTimer = null;
-      if (trayMenuWin && !trayMenuWin.isDestroyed()) {
-        try { trayMenuWin.setOpacity(1); } catch { /* ignore */ }
-      }
-    }, 40);
-  } else {
-    try { trayMenuWin.setOpacity(1); } catch { /* ignore */ }
   }
   trayMenuWin.focus();
-  trayMenuLastShown = Date.now();
+  try {
+    trayMenuWin.webContents.send('tray-menu-show');
+  } catch { /* ignore */ }
 }
 
 function showCustomTrayMenu(eventBounds?: any) {
   if (!tray || tray.isDestroyed()) return;
-  let b = (eventBounds && typeof eventBounds.x === 'number' && (eventBounds.width || eventBounds.height))
-    ? eventBounds : null;
-  if (!b) { try { b = tray.getBounds(); } catch (_) { b = null; } }
-  if (!b || (!b.width && !b.height)) {
-    let p: any = null;
-    try { p = screen.getCursorScreenPoint(); } catch (_) { p = { x: 0, y: 0 }; }
-    b = p ? { x: p.x, y: p.y, width: 0, height: 0 } : { x: 0, y: 0, width: 0, height: 0 };
+  if (trayMenuHideTimer) { clearTimeout(trayMenuHideTimer); trayMenuHideTimer = null; }
+  if (trayMenuPrewarmTimer) { clearTimeout(trayMenuPrewarmTimer); trayMenuPrewarmTimer = null; }
+  if (trayMenuShowFallback) { clearTimeout(trayMenuShowFallback); trayMenuShowFallback = null; }
+
+  // Never reuse a previously shown/hidden BrowserWindow: Chromium on Windows
+  // suspends Viz while hidden and retains/evicts stale DirectComposition frames
+  // across hide->show, causing 2nd-click flicker and cross-monitor side jumps.
+  if (trayMenuWin && !trayMenuWin.isDestroyed() && trayMenuWin.isVisible()) {
+    const stale = trayMenuWin;
+    trayMenuWin = null;
+    trayMenuLoaded = false;
+    try { stale.destroy(); } catch { /* ignore */ }
   }
 
-  trayMenuAnchor = b;
-  if (trayMenuHideTimer) { clearTimeout(trayMenuHideTimer); trayMenuHideTimer = null; }
+  trayMenuAnchor = resolveTrayAnchor(eventBounds);
+  const windowW = TRAY_MENU_WINDOW_WIDTH;
+  const initialH = mainViewHeight || lastTrayMenuHeight || TRAY_MENU_EST_HEIGHT;
+  const geo = trayMenuGeometry(trayMenuAnchor, windowW, initialH);
 
   const w = ensureTrayMenuWin();
   if (!w || w.isDestroyed()) return;
 
-  const windowW = TRAY_MENU_WINDOW_WIDTH;
-  const initialH = mainViewHeight || lastTrayMenuHeight || TRAY_MENU_EST_HEIGHT;
-  const geo = trayMenuGeometry(trayMenuAnchor, windowW, initialH);
-  const current = w.getBounds();
-  if (current.x !== geo.x || current.y !== geo.y || current.width !== geo.width || current.height !== geo.height) {
-    w.setBounds(geo);
-  }
+  applyTrayBounds(w, geo);
+  trayMenuPendingGeo = geo;
 
   trayMenuShowPending = true;
-  if (trayMenuShowFallback) { clearTimeout(trayMenuShowFallback); trayMenuShowFallback = null; }
   trayMenuShowFallback = setTimeout(() => {
     trayMenuShowFallback = null;
     if (trayMenuShowPending) revealTrayMenuWin();
-  }, 500);
+  }, 450);
 
-  if (!w.webContents.isLoading()) {
-    w.webContents.send('tray-menu-state', buildTrayMenuState(true));
+  if (trayMenuLoaded) {
+    w.webContents.send('tray-menu-state', { ...buildTrayMenuState(true), prepareReveal: true });
   }
 }
 
 function hideCustomTrayMenu() {
   if (trayMenuHideTimer) { clearTimeout(trayMenuHideTimer); trayMenuHideTimer = null; }
   if (trayMenuShowFallback) { clearTimeout(trayMenuShowFallback); trayMenuShowFallback = null; }
-  if (trayMenuRevealTimer) { clearTimeout(trayMenuRevealTimer); trayMenuRevealTimer = null; }
+  if (trayMenuPrewarmTimer) { clearTimeout(trayMenuPrewarmTimer); trayMenuPrewarmTimer = null; }
   trayMenuShowPending = false;
-  if (trayMenuWin && !trayMenuWin.isDestroyed()) {
-    try { trayMenuWin.setOpacity(1); } catch { /* ignore */ }
-    if (trayMenuWin.isVisible()) trayMenuWin.hide();
-    if (!trayMenuWin.webContents.isLoading()) {
-      trayMenuWin.webContents.send('tray-menu-reset');
-    }
+  trayMenuPendingGeo = null;
+  const win = trayMenuWin;
+  trayMenuWin = null;
+  trayMenuLoaded = false;
+  if (win && !win.isDestroyed()) {
+    try { win.destroy(); } catch { /* ignore */ }
   }
+  schedulePrewarmTrayMenuWin();
 }
 
 // ── AVISO DEL VIGILANTE DE ESCRITORIO ──
@@ -3047,8 +3114,8 @@ function registerIpcHandlers() {
     hideCustomTrayMenu();
   });
 
-  ipcMain.on('tray-menu-ready', (_event, rect) => {
-    if (!trayMenuWin || trayMenuWin.isDestroyed() || !rect) return;
+  ipcMain.on('tray-menu-ready', (event, rect) => {
+    if (!trayMenuWin || trayMenuWin.isDestroyed() || event.sender !== trayMenuWin.webContents || !rect) return;
     const targetW = TRAY_MENU_WINDOW_WIDTH;
     const rawH = Math.round(rect.height || TRAY_MENU_EST_HEIGHT);
     const isMain = rect.view === 'main' || !rect.view;
@@ -3060,13 +3127,19 @@ function registerIpcHandlers() {
       lastTrayMenuHeight = clampedH;
     }
 
-    const geo = trayMenuGeometry(trayMenuAnchor, targetW, clampedH);
-    const current = trayMenuWin.getBounds();
-    if (current.x !== geo.x || current.y !== geo.y || current.width !== geo.width || current.height !== geo.height) {
-      trayMenuWin.setBounds(geo);
+    if (trayMenuAnchor) {
+      const geo = trayMenuGeometry(trayMenuAnchor, targetW, clampedH);
+      trayMenuPendingGeo = geo;
+      if (trayMenuShowPending && rect.prepared) {
+        revealTrayMenuWin();
+        return;
+      }
+      if (trayMenuWin.isVisible()) {
+        applyTrayBounds(trayMenuWin, geo);
+      }
+    } else if (trayMenuShowPending && rect.prepared) {
+      revealTrayMenuWin();
     }
-
-    if (trayMenuShowPending) revealTrayMenuWin();
   });
 
   ipcMain.handle('select-file', async (_, options) => {
@@ -4168,6 +4241,8 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
+  isQuitting = true;
+  if (trayMenuPrewarmTimer) { clearTimeout(trayMenuPrewarmTimer); trayMenuPrewarmTimer = null; }
   globalShortcut.unregisterAll();
   unregisterShortcutHotkeys();
   stopHotspotPolling();

@@ -494,7 +494,7 @@ function renderRecentsFlyout() {
   );
 }
 
-function renderView() {
+function renderView(prepared = false) {
   if (stageEl) {
     stageEl.dataset.flyoutSide = currentState?.flyoutSide === 'right' ? 'right' : 'left';
     stageEl.dataset.verticalAlign = currentState?.verticalAlign === 'top' ? 'top' : 'bottom';
@@ -512,7 +512,7 @@ function renderView() {
   }
   setActiveFlyout(activeFlyout);
 
-  reportSize();
+  reportSize(prepared);
 }
 
 function measureCardHeight(el) {
@@ -520,23 +520,32 @@ function measureCardHeight(el) {
   return Math.max(el.scrollHeight, Math.ceil(el.getBoundingClientRect().height));
 }
 
-function reportSize() {
+let revealRaf = null;
+
+function cancelPendingReveal() {
+  if (revealRaf !== null) { cancelAnimationFrame(revealRaf); revealRaf = null; }
+}
+
+function sendMeasuredSize(prepared) {
   if (!cardEl) return;
-  requestAnimationFrame(() => {
-    const pad = 24;
-    const recents = (currentState && Array.isArray(currentState.recents)) ? currentState.recents : [];
-    const cardH = Math.max(
-      measureCardHeight(cardEl),
-      measureCardHeight(flyoutHelpEl),
-      recents.length > 4 ? measureCardHeight(flyoutRecentsEl) : 0
-    );
-    const h = Math.ceil(cardH + 2 * pad);
-    const w = Math.ceil(cardEl.offsetWidth + 2 * pad);
-    const api = getApi();
-    if (api && api.ready && w > 0 && h > 0) {
-      api.ready({ width: w, height: h, view: 'main' });
-    }
-  });
+  if (stageEl) void stageEl.offsetWidth;
+  const pad = 24;
+  const recents = (currentState && Array.isArray(currentState.recents)) ? currentState.recents : [];
+  const cardH = Math.max(
+    measureCardHeight(cardEl),
+    measureCardHeight(flyoutHelpEl),
+    recents.length > 4 ? measureCardHeight(flyoutRecentsEl) : 0
+  );
+  const h = Math.ceil(cardH + 2 * pad);
+  const w = Math.ceil(cardEl.offsetWidth + 2 * pad);
+  const api = getApi();
+  if (api && api.ready && w > 0 && h > 0) {
+    api.ready({ width: w, height: h, view: 'main', prepared: Boolean(prepared) });
+  }
+}
+
+function reportSize(prepared) {
+  sendMeasuredSize(prepared);
 }
 
 function applyState(state) {
@@ -545,7 +554,7 @@ function applyState(state) {
     cancelFlyoutTimers();
     activeFlyout = null;
   }
-  renderView();
+  renderView(Boolean(state && state.prepareReveal));
 }
 
 if (cardEl) {
@@ -644,18 +653,18 @@ if (api) {
   if (api.onState) api.onState(applyState);
   if (api.onShow) {
     api.onShow(() => {
-      cancelFlyoutTimers();
-      setActiveFlyout(null);
-      requestAnimationFrame(() => requestAnimationFrame(() => reportSize()));
+      cancelPendingReveal();
+      revealRaf = requestAnimationFrame(() => {
+        revealRaf = null;
+        if (stageEl) stageEl.classList.remove('is-offscreen');
+      });
     });
   }
   if (api.onReset) {
     api.onReset(() => {
+      cancelPendingReveal();
       cancelFlyoutTimers();
       setActiveFlyout(null);
-      renderView();
     });
   }
 }
-
-renderView();
