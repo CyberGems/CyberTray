@@ -1614,7 +1614,7 @@ function updateCustomTrayMenuState() {
 
 function rebuildTrayMenu(): void {
   if (!tray) return;
-  tray.setToolTip(`CyberTray v${app.getVersion()}`);
+  tray.setToolTip(formatTrayTooltip(config.shortcut));
   updateCustomTrayMenuState();
 }
 
@@ -1632,7 +1632,8 @@ function getTrayIcon(): Electron.NativeImage {
 
 function formatTrayTooltip(shortcut?: string): string {
   const clean = String(shortcut || '').trim();
-  return clean ? `CyberTray · ${clean}` : 'CyberTray';
+  const text = clean ? `CyberTray · ${clean}` : 'CyberTray';
+  return text.length > 63 ? `${text.slice(0, 62)}…` : text;
 }
 
 // ── SYSTEM TRAY (Bandeja del sistema) ──
