@@ -318,6 +318,8 @@ npm test       # pruebas unitarias (Vitest)
 | `Escape` | Salir del modo de selección | Aplicación |
 | `Ctrl+A` | Seleccionar todos los accesos | Modo de selección |
 
+Para la referencia completa de atajos, consulta la [wiki de Atajos de teclado](https://github.com/CyberGems/CyberTray/wiki/Keyboard-Shortcuts-es).
+
 ---
 
 ## ❤️ Donar

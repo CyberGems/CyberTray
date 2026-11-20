@@ -319,6 +319,8 @@ npm test       # unit tests (Vitest)
 | `Escape` | Exit selection mode | Application |
 | `Ctrl+A` | Select all shortcuts | Selection mode |
 
+For the full shortcut reference, see the [Keyboard Shortcuts wiki](https://github.com/CyberGems/CyberTray/wiki/Keyboard-Shortcuts).
+
 ---
 
 ## ❤️ Donate
