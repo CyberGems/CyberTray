@@ -1,416 +1,419 @@
-<p align="center">
-  English · <a href="./README.es.md">Español</a>
-</p>
-
-<p align="center">
-  <a href="https://cybergems.org/apps/cybertray/">
-    <img src="https://cybergems.org/banners/cybertray.png" alt="Organize your shortcuts and reach them instantly" />
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/CyberGems/CyberTray/releases/latest"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FCyberGems%2FCyberTray%2Fmain%2Fpackage.json&query=%24.version&prefix=%20Download%20v&suffix=%20&style=for-the-badge&label=&labelColor=0891B2&color=0891B2" alt="Download Latest Release" /><img src="https://img.shields.io/badge/Windows_10%2F11_(64--bit)-2563EB?style=for-the-badge" alt="Windows 10/11 (64-bit)" /></a>
-  &nbsp;<a href="https://github.com/CyberGems/CyberTray/releases"><img src="https://img.shields.io/badge/All_releases-30363D?style=for-the-badge&logo=github&logoColor=white" alt="All Releases" /></a>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/License-GPL--3.0-1F2428.svg?style=flat-square&color=334155" alt="License" />&nbsp;
-  <img src="https://img.shields.io/badge/Platform-Windows_10%2F11-1F2428.svg?style=flat-square&color=334155" alt="Platform" />&nbsp;
-  <img src="https://img.shields.io/badge/Electron-42-1F2428.svg?style=flat-square&logo=electron&logoColor=white&color=334155" alt="Electron" />&nbsp;
-  <a href="https://github.com/CyberGems/CyberTray/wiki"><img src="https://img.shields.io/badge/Wiki-Documentation-1F2428?style=flat-square&logo=gitbook&logoColor=white&color=334155" alt="Wiki" /></a>&nbsp;
-  <a href="https://github.com/CyberGems/CyberTray/blob/main/CHANGELOG.md"><img src="https://img.shields.io/badge/Changelog-475569?style=flat-square" alt="Changelog" /></a>
-</p>
-
----
-
-<div align="center">
-
-### Your shortcuts, system stats and secure files, one click from the tray
-
-</div>
-
----
-
-## 📑 Table of Contents
-
-- [👋 Introduction](#-introduction)
-- [🖼️ Screenshots](#️-screenshots)
-- [🎯 Why CyberTray?](#-why-cybertray)
-- [✨ Key Features](#-key-features)
-- [⬇️ Installation](#️-installation)
-- [🧭 Using the App](#-using-the-app)
-- [🛠️ Tech Stack & Architecture](#️-tech-stack--architecture)
-- [⌨️ Keyboard Shortcuts](#️-keyboard-shortcuts)
-- [❤️ Donate](#️-donate)
-- [📄 License](#-license)
-- [❓ FAQ](#-faq)
-- [🔗 See also](#-see-also)
-
-<details>
-<summary><strong>🔗 Related links (outside this README)</strong></summary>
-
-- 🌐 [CyberTray on the web](https://cybergems.org/apps/cybertray/) — overview, download and SmartScreen guide
-- 📚 [Documentation & FAQ — Wiki](https://github.com/CyberGems/CyberTray/wiki) — troubleshooting and deep-dives
-- 💾 [Releases](https://github.com/CyberGems/CyberTray/releases) — installers, portable builds and changelog
-- 🟣 [CyberGems suite](https://github.com/CyberGems) — all open-source apps
-
-</details>
-
----
-
-## 👋 Introduction
-
-Your taskbar runs out of room, the Start menu takes three clicks and the files you actually use end up buried in folders. CyberTray keeps a launchpad one click away in the system tray: a shelf of apps, files, folders and URLs with search, categories and drag-and-drop, summoned by a global hotkey or a screen corner and hidden again the moment you are done. Beside it, real-time RAM, CPU, disk and VRAM telemetry, a process viewer that can end what is misbehaving, and a PIN-protected vault you can sweep the desktop into. Portable mode and automatic backups keep the whole setup with you. Built with **Electron 42**, **React 19** and **TypeScript**.
-
-*Free and open source: no ads, no tracking, and no data collection. Just enjoy it.*
-
----
-
-<!-- Screenshots: pending the bilingual EN/ES gallery in the capture plan at https://github.com/CyberGems/CyberGems.github.io/blob/main/docs/screenshots.md — replace the blockquote, keep this heading and the TOC entry. -->
-
-## 🖼️ Screenshots
-
-> Coming soon...
-
----
-
-## 🎯 Why CyberTray?
-
-Most launchers make you leave what you are doing: open a window, find a menu, click through folders. CyberTray gives you a **dedicated launchpad** that stays out of the way until you need it, deploying instantly to launch anything in milliseconds.
-
-| Need | Solution |
-|---|---|
-| Quick access to apps & files | Shortcut shelf with search, categories, and drag-and-drop import |
-| Save taskbar space | System tray icon + auto-hiding shelf |
-| Launch from anywhere | Global hotkey (`Alt+Shift+T`) and hot corners |
-| Monitor your system | Real-time RAM, CPU, disk, and VRAM telemetry |
-| Manage running processes | Process viewer with kill functionality |
-| Secure sensitive files | PIN-protected vault with desktop sweep |
-| Make it yours | 5 neon themes, custom backgrounds, grid or list layout |
-
----
-
-## ✨ Key Features
-
-### 🚀 Shortcut Launcher
-- **Shortcut Management**: Register, edit, and launch applications, files, and URLs
-- **First-Run Assistant**: Pick language, import shortcuts and set the global hotkey in three steps. It only appears on new installations and can be reopened from Settings.
-- **Drag & Drop Import**: Drag files or executables directly into the shelf
-- **Windows Import & Sync**: Review Desktop, Start Menu, custom folders and Microsoft Store apps before importing. Later synchronizations add new shortcuts and update changed targets without overwriting your folders, names, icons, hotkeys, favorites or usage stats. Missing items are never deleted automatically, and the last import can be undone.
-- **Real Icons & Steam Resolution**: Imported shortcuts render the real application logo at up to 256 px (Store apps included), Steam shortcuts resolve to the actual game executable so the tile shows a meaningful path and the game folder can be opened, and a desktop shortcut pointing at a Microsoft Store app resolves to its app id, so it keeps working after the desktop file is gone.
-- **Filter by Type**: Every shortcut is classified by its destination (programs, Microsoft Store apps, Steam games, links, scripts, files and folders) and the content header filters the grid by kind, with the real count of each kind inside the current folder and search.
-- **Icon Refresh**: Refresh a shortcut's icon from its context menu, which re-reads a Store app's package manifest or repeats the 256 px extraction, handy after an app updates and changes its logo.
-- **Shelf Toolbar Quick Controls**: Switch grid/list view, toggle the watcher and open the import without leaving the bar.
-- **New-Item Watcher**: Watches the Desktop, Start Menu and Microsoft Store apps and offers to add whatever appears there. The notice never steals focus, and anything left undecided waits in the notification center until you add or dismiss it. Off by default.
-- **Categories & Folders**: Organize shortcuts with nested folder support
-- **Favorites System**: Mark shortcuts for quick access
-- **Group Launch**: Launch all shortcuts in a category at once
-- **Multi-Selection**: Bulk delete with selection mode (`Ctrl+A`, `Escape`)
-- **Real-Time Search**: Instant filtering across all shortcuts
-- **Sort Options**: Alphabetical, most used, recently added
-- **Recent Strip**: The last launched shortcuts, one click away
-- **Full Keyboard Control**: Navigate the shelf with the arrow keys and launch with `Enter`
-- **Per-Shortcut Hotkeys**: Give any shortcut its own global hotkey
-- **Working Directory**: Choose the folder a shortcut starts in
-
-### 🔲 Hotspots (Screen Corners)
-- **Corner activation**: Trigger CyberTray by dwelling cursor in any screen corner
-- **Configurable delay** before activation
-- **UAC secure desktop guard**: Auto-hides when UAC prompt appears
-
-### 📊 Neural Telemetry (System Monitoring)
-- **RAM Usage**: Real-time progress bar with percentage
-- **CPU Info**: Model and core count
-- **Disk Space**: Per-drive monitoring with real values (no WMI)
-- **VRAM Detection**: Background GPU memory fetch
-- **System Uptime**: Track since last boot
-
-### ⚙️ Process Matrix
-- **Running Processes**: View PID, name, and memory usage
-- **Kill Processes**: Terminate directly from the list
-- **Search & Sort**: Find processes quickly
-
-### 🔐 Cyber-Vault (Secure Files)
-- **PIN Protection**: 4-digit PIN to lock/unlock the vault
-- **Hashed PIN**: The PIN is never stored in clear, not even in a backup
-- **Desktop Sweep**: Move all desktop files/folders to the secure vault
-- **Auto-Lock Timeout**: Configurable (immediate, 1min, 5min, 15min, session)
-- **Custom Vault Path**: Store vault files in any location
-
-### 🖱️ Context Menu
-- **Open file location**, **open containing folder** and **open a terminal there**
-- **Copy path** to the clipboard
-- **Move to folder**, **pin to taskbar**, **add to favorites** and **run as administrator**
-
-### 🎨 Appearance Customization
-- **5 accent colors**: Cyan, Purple, Amber, Crimson, Emerald
-- **Background Types**: Solid color, gradient presets, 4 built-in image presets, custom image
-- **Blur Level**: Adjustable backdrop blur intensity
-- **Opacity**: Background transparency control
-- **Icon Size**: Adjustable grid icon sizing
-- **View Modes**: Grid or list layout
-
-### 🔊 Sound System
-- **Launch Sound**: Default chime on shortcut launch
-- **Custom Audio**: MP3, WAV, OGG, AAC, M4A support
-- **Folder Navigation Sounds**: Audio feedback when browsing categories
-
-### 💾 Data Management
-- **Automatic Backups**: Scheduled copies of your configuration (every 6 h, 12 h, 24 h or 7 days), keeping 1, 3, 5 or 7 copies — 3 by default. Pick any destination folder, restore any copy in one click, and every restore saves the current state first so it can be undone.
-- **Backup & Restore**: Export/import configuration as JSON (with embedded icons)
-- **In-app Updates**: Check, download, and install from About via GitHub Releases (`electron-updater`). Auto-check on boot notifies you; install is always confirmed.
-- **Bilingual UI**: Full English and Spanish interface
-- **Accessible by design**: Visible focus, real dialogs, screen reader announcements and full keyboard control
-
----
-
-## ⬇️ Installation
-
-### Install (Recommended)
-
-1. Download the latest installer from [Releases](https://github.com/CyberGems/CyberTray/releases/latest)
-2. Run the `.exe` installer and follow the setup wizard
-3. Launch CyberTray and press `Alt+Shift+T` to toggle the shelf from anywhere. No other requirements needed: you do **not** need Node.js or npm
-
-### 💼 Portable Edition
-
-No installation wanted? Download `CyberTray-Portable-x.x.x.exe`, drop it in any folder and run it. Settings, backups and the vault live in a `data` folder beside the executable, so the whole install travels on a USB stick. Auto-launch works, but new versions are downloaded by hand from [Releases](https://github.com/CyberGems/CyberTray/releases/latest); About says so and links there.
-
-### 🛡️ Windows SmartScreen
-
-Windows may show a SmartScreen warning the first time you run the CyberTray installer: this is an unsigned hobby app, so Windows hasn't built reputation for the file yet. This is expected; the source is public so you can inspect exactly what it does.
-
-To continue:
-
-<details>
-<summary><strong>See how to run the installer (step by step)</strong></summary>
-
-Windows shows this warning for any installer without a paid code-signing certificate; it does not mean the file is unsafe. Do <strong>not</strong> click "Don't run":
-
-1. Run the `CyberTray-Setup.exe` installer. Windows may show the blue "Windows protected your PC" dialog.
-
-![Windows SmartScreen warning](https://cybergems.org/branding/smartscreen-warning.svg)
-
-2. Click the small **More info** link. The expanded dialog shows your installer: `CyberTray-Setup.exe`.
-
-![SmartScreen dialog after More info](https://cybergems.org/branding/smartscreen-runanyway.svg)
-
-3. Click **Run anyway**. The installer starts normally.
-
-You can verify the file independently: compare the SHA with the GitHub release, scan it on VirusTotal, or build from source. More details: [SmartScreen guide on the website](https://cybergems.org/download#smartscreen).
-
-</details>
-
----
-
-## 🧭 Using the App
-
-CyberTray lives in the system tray; the shelf opens from the tray icon or with `Alt+Shift+T`.
-
-1. Open the shelf and drag your `.exe` or `.lnk` files into it once.
-2. From then on, type to filter and single-click to launch.
-3. Mark daily apps as favourites so they stay at the top of the shelf.
-
-The first-run assistant imports existing shortcuts and sets the global hotkey (`Alt+Shift+T` by default, customizable). In the portable edition, settings, backups and the vault live in a `data` folder beside the executable.
-
-See [How Do You Use CyberTray?](https://github.com/CyberGems/CyberTray/wiki/How-Do-You-Use) for everyday examples and the full guides.
-
----
-
-## 🛠️ Tech Stack & Architecture
-
-- **Platform:** Windows 10 / 11
-- **Framework:** Electron 42 + React 19 + TypeScript
-- **Bundler:** Vite 6
-- **Styling:** CSS custom properties with glassmorphism effects
-- **Architecture:** Single shelf window with system tray integration
-
-```
-CyberTray/
-├── electron/
-│   ├── main.ts           Main process (windows, tray, IPC, hotspots, icons)
-│   ├── preload.ts        Context bridge (IPC API)
-│   └── updater.ts        Auto-update via GitHub Releases
-├── src/
-│   ├── App.tsx           Main application component
-│   ├── main.tsx          React entry point
-│   ├── locales.ts        i18n (English / Spanish)
-│   ├── lib/
-│   │   ├── appUtils.ts        Folder and shortcut helpers
-│   │   ├── configDefaults.ts  Shared default configuration
-│   │   ├── pin.ts             Vault PIN derivation (PBKDF2)
-│   │   ├── iconSrc.ts         Local resource URL helpers
-│   │   └── useModalAccessibility.ts  Dialog focus and keyboard handling
-│   ├── components/
-│   │   ├── ShortcutGrid.tsx      Main shortcut display grid
-│   │   ├── ShortcutFormModal.tsx Add/edit shortcut dialog
-│   │   ├── SettingsPanel.tsx     Configuration modal
-│   │   ├── TelemetryBar.tsx      System metrics footer
-│   │   ├── ProcessMatrixModal.tsx Process viewer/killer
-│   │   ├── VaultPanel.tsx        Secure file vault settings
-│   │   ├── PinPadModal.tsx       PIN entry for vault
-│   │   ├── AboutModal.tsx        Version and update info
-│   │   ├── FolderTree.tsx        Category/folder navigation
-│   │   ├── ToastStack.tsx        Notification toasts
-│   │   └── CyberTrayLogo.tsx     Animated logo
-├── public/               Static assets & icons
-├── vite.config.ts        Vite configuration
-└── vitest.config.ts      Test configuration
-```
-
-### Window Architecture
-
-| Window | Purpose | Behavior |
-|---|---|---|
-| **Shelf** | Main shortcut panel | Resizable, always-on-top, instant deployment |
-
-Communication between frontend and backend uses Electron IPC via `contextBridge`. On Windows, a native helper verifies the input desktop and cursor position for hotspots. When the secure desktop takes over, CyberTray discards the current gesture and waits for the cursor to leave and re-enter an active corner. An open shelf hides during the switch.
-
-### Building from Source (Developers)
-
-Only needed if you want to work on CyberTray or build it yourself; regular users can skip this section.
-
-#### Prerequisites
-
-- [Node.js](https://nodejs.org/) v22+
-- npm
-- Windows with the .NET Framework C# compiler included with Windows 10/11 (only needed to rebuild the Microsoft Store activation helper)
-
-#### Development
-
-```bash
-git clone https://github.com/CyberGems/CyberTray.git
-cd CyberTray
-npm install
-npm run dev
-```
-
-#### Build for Production
-
-```bash
-npm run build
-npm run build:electron
-```
-
-The installer will be in the `release/` directory.
-
-#### Tests
-
-```bash
-npm run lint   # type checking (TypeScript, strict mode)
-npm test       # unit tests (Vitest)
-```
-
----
-
-## ⌨️ Keyboard Shortcuts
-
-| Key | Action | Scope |
-|---|---|---|
-| `Alt+Shift+T` (default) | Toggle CyberTray shelf | Global |
-| `Ctrl+Alt+…` | Per-shortcut hotkey (configurable in the shortcut form) | Global |
-| `↓` / `Esc` | Move the focus from the search box to the grid | Application |
-| `←` `→` `↑` `↓` | Move between shortcuts | Application |
-| `Home` / `End` | Jump to the first or last shortcut | Application |
-| `Enter` | Launch the focused shortcut | Application |
-| `Delete` | Delete the focused shortcut (asks for confirmation) | Application |
-| `A-Z` | Jump to the shortcut that starts with what you type | Application |
-| `Esc` | Close a dialog or the context menu | Application |
-| `Escape` | Exit selection mode | Application |
-| `Ctrl+A` | Select all shortcuts | Selection mode |
-
-For the full shortcut reference, see the [Keyboard Shortcuts wiki](https://github.com/CyberGems/CyberTray/wiki/Keyboard-Shortcuts).
-
----
-
-## ❤️ Donate
-
-**CyberTray** is 100% free and open source. If it helps you, please consider [donating](https://cybergems.org/donate) or [starring the repo on GitHub](https://github.com/CyberGems/CyberTray) to support continued development. [Read the full story](https://cybergems.org/about/) behind the project. Thank you! 🙏
-
-<p align="center">
-  <a href="https://www.paypal.com/donate/?hosted_button_id=M4PY3UPJA5Y6Q"><img src="https://img.shields.io/badge/Donate-PayPal-0070BA?style=for-the-badge&logo=paypal" alt="Donate via PayPal" /></a>
-</p>
-
-<p align="center">
-  <a href="https://ko-fi.com/cybergems"><img src="https://img.shields.io/badge/Support_me_on_Ko--fi-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support me on Ko-fi" /></a>
-</p>
-
-<p align="center">
-  <a href="https://buymeacoffee.com/cybergems"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me a Coffee" /></a>
-</p>
-
-<div align="center">
-
-<details>
-<summary><b>Crypto donations (BTC, ETH, USDT, LTC): click to view addresses</b></summary>
-
-<div align="left">
-
-| Asset | Network | Address | QR |
-|---|---|---|---|
-| <img src="docs/donate/btc.svg" width="18" height="18" valign="middle" alt="BTC" /> **BTC** | Bitcoin | `bc1q5mxzz05nmvsheqzx7970euswta3fksxzcfzag4` | ![BTC QR](docs/donate/qr-btc.png) |
-| <img src="docs/donate/eth.svg" width="18" height="18" valign="middle" alt="ETH" /> **ETH** | Ethereum (ERC20) | `0x79b703Ec0f77493679Fcd280aF3b983E20c580B8` | ![ETH QR](docs/donate/qr-eth.png) |
-| <img src="docs/donate/usdt.svg" width="18" height="18" valign="middle" alt="USDT" /> **USDT** | Ethereum (ERC20) | `0x79b703Ec0f77493679Fcd280aF3b983E20c580B8` | ![USDT ERC20 QR](docs/donate/qr-eth.png) |
-| <img src="docs/donate/usdt.svg" width="18" height="18" valign="middle" alt="USDT" /> **USDT** | BNB Smart Chain (BEP20) | `0x79b703Ec0f77493679Fcd280aF3b983E20c580B8` | ![USDT BEP20 QR](docs/donate/qr-eth.png) |
-| <img src="docs/donate/usdt.svg" width="18" height="18" valign="middle" alt="USDT" /> **USDT** | Tron (TRC20) | `TSVbSk1HSyZ1NprCnAYiw56ECwXgH887mD` | ![USDT TRC20 QR](docs/donate/qr-usdt-tron.png) |
-| <img src="docs/donate/ltc.svg" width="18" height="18" valign="middle" alt="LTC" /> **LTC** | Litecoin | `LWGnEHgcFCE2BRkzLnsdPDD8Y8ZeDK577X` | ![LTC QR](docs/donate/qr-ltc.png) |
-
-> ⚠️ Send only the selected asset on the indicated network. Using the wrong network will result in permanent loss of funds.
-
-</div>
-
-</details>
-
-</div>
-
----
-
-## 📄 License
-
-CyberTray is distributed under the terms of the GNU General Public License v3.0. See [LICENSE](LICENSE) for the full license text.
-
-Copyright (C) 2026 CyberGems
-
----
-
-## ❓ FAQ
-
-For frequently asked questions, troubleshooting guides, and detailed configuration instructions, visit the [FAQ](https://github.com/CyberGems/CyberTray/wiki/FAQ) or the [online documentation](https://cybergems.org/docs/cybertray/FAQ).
-
----
-
-<div align="center" style="background:#0D0F17; border:1px solid rgba(0,255,255,0.12); border-radius:12px; padding:28px 20px; margin-top:32px;">
-
-### Thanks for using CyberTray! 🎉
-
-Made by [**CyberGems**](https://cybergems.org)
-
-</div>
-<p align="center">
-  <a href="https://www.reddit.com/submit?url=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F&title=CyberTray%3A%20free%20%26%20open-source%20desktop%20tool%20for%20Windows"><img src="https://img.shields.io/badge/Share_on_Reddit-FF4500?style=for-the-badge&logo=reddit&logoColor=white" alt="Share on Reddit" /></a>
-  &nbsp;<a href="https://twitter.com/intent/tweet?text=CyberTray%3A%20free%20%26%20open-source%20desktop%20tool%20for%20Windows&url=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F"><img src="https://img.shields.io/badge/Share_on_X-1DA1F2?style=for-the-badge&logo=x&logoColor=white" alt="Share on X" /></a>
-  &nbsp;<a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F"><img src="https://img.shields.io/badge/Share_on_Facebook-1877F2?style=for-the-badge&logo=facebook&logoColor=white" alt="Share on Facebook" /></a>
-  &nbsp;<a href="mailto:?subject=CyberTray%3A%20free%20%26%20open-source%20desktop%20tool%20for%20Windows&body=CyberTray%3A%20free%20%26%20open-source%20desktop%20tool%20for%20Windows%20https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F"><img src="https://img.shields.io/badge/Share_by_Email-EA4335?style=for-the-badge&logo=gmail&logoColor=white" alt="Share by Email" /></a>
-  &nbsp;<a href="https://t.me/share/url?url=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F&text=CyberTray%3A%20free%20%26%20open-source%20desktop%20tool%20for%20Windows"><img src="https://img.shields.io/badge/Share_on_Telegram-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Share on Telegram" /></a>
-  &nbsp;<a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F"><img src="https://img.shields.io/badge/Share_on_LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" alt="Share on LinkedIn" /></a>
-</p>
-
----
-
-## 🔗 See also
-
-More free, open-source, privacy-first apps from [**CyberGems**](https://github.com/CyberGems):
-
-| App | Description |
-|:---:|---|
-| 🕐&nbsp;[**CyberClock**](https://github.com/CyberGems/CyberClock#readme) | Desktop clock with analog & digital display, calendar, timer, stopwatch and relaxation module. |
-| 📢&nbsp;[**CyberFeeds**](https://github.com/CyberGems/CyberFeeds#readme) | High-performance, local-first RSS and Atom reader built for speed, privacy and clean reading. |
-| 🚀&nbsp;[**CyberLauncher**](https://github.com/CyberGems/CyberLauncher#readme) | Windows application launcher with hot corners, scheduler, system monitor and integrated terminal. |
-| 💻&nbsp;[**CyberManager**](https://github.com/CyberGems/CyberManager#readme) | Lightweight, high-performance task manager, virtualized and NT-native, a powerful Task Manager alternative. |
-| 📝&nbsp;[**CyberNotes**](https://github.com/CyberGems/CyberNotes#readme) | Privacy-focused note-taking app with rich text, folders, tabs and bcrypt-protected local storage. |
-| ⚡&nbsp;[**CyberPaste**](https://github.com/CyberGems/CyberPaste#readme) | Privacy-first clipboard manager for text, code, images, HTML and files. |
-| 📸&nbsp;[**CyberSnap**](https://github.com/CyberGems/CyberSnap#readme) | Screen capture and annotation suite with vector tools, high-speed OCR, screen recording and color picker. |
-| 💫&nbsp;[**CyberViewer**](https://github.com/CyberGems/CyberViewer#readme) | Full-featured image viewer and editor engineered for casual and power users. |
-| 🛡️&nbsp;[**CyberWall**](https://github.com/CyberGems/CyberWall#readme) | User-friendly Windows firewall with real-time per-app rules powered by the WFP kernel engine. |
-
-➡️ **[Browse all apps at cybergems.org](https://cybergems.org)**
+<p align="center">
+  English · <a href="./README.es.md">Español</a>
+</p>
+
+<p align="center">
+  <a href="https://cybergems.org/apps/cybertray/">
+    <img src="https://cybergems.org/banners/cybertray.png" alt="Organize your shortcuts and reach them instantly" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/CyberGems/CyberTray/releases/latest"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FCyberGems%2FCyberTray%2Fmain%2Fpackage.json&query=%24.version&prefix=%20Download%20v&suffix=%20&style=for-the-badge&label=&labelColor=0891B2&color=0891B2" alt="Download Latest Release" /><img src="https://img.shields.io/badge/Windows_10%2F11_(64--bit)-2563EB?style=for-the-badge" alt="Windows 10/11 (64-bit)" /></a>
+  &nbsp;<a href="https://github.com/CyberGems/CyberTray/releases"><img src="https://img.shields.io/badge/All_releases-30363D?style=for-the-badge&logo=github&logoColor=white" alt="All Releases" /></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/License-GPL--3.0-1F2428.svg?style=flat-square&color=334155" alt="License" />&nbsp;
+  <img src="https://img.shields.io/badge/Platform-Windows_10%2F11-1F2428.svg?style=flat-square&color=334155" alt="Platform" />&nbsp;
+  <img src="https://img.shields.io/badge/Electron-42-1F2428.svg?style=flat-square&logo=electron&logoColor=white&color=334155" alt="Electron" />&nbsp;
+  <a href="https://github.com/CyberGems/CyberTray/wiki"><img src="https://img.shields.io/badge/Wiki-Documentation-1F2428?style=flat-square&logo=gitbook&logoColor=white&color=334155" alt="Wiki" /></a>&nbsp;
+  <a href="https://github.com/CyberGems/CyberTray/blob/main/CHANGELOG.md"><img src="https://img.shields.io/badge/Changelog-475569?style=flat-square" alt="Changelog" /></a>
+</p>
+
+---
+
+<div align="center">
+
+### Your shortcuts, system stats and secure files, one click from the tray
+
+</div>
+
+---
+
+## 📑 Table of Contents
+
+- [👋 Introduction](#-introduction)
+- [🖼️ Screenshots](#️-screenshots)
+- [🎯 Why CyberTray?](#-why-cybertray)
+- [✨ Key Features](#-key-features)
+- [⬇️ Installation](#️-installation)
+- [🧭 Using the App](#-using-the-app)
+- [🛠️ Tech Stack & Architecture](#️-tech-stack--architecture)
+- [⌨️ Keyboard Shortcuts](#️-keyboard-shortcuts)
+- [❤️ Donate](#️-donate)
+- [📄 License](#-license)
+- [❓ FAQ](#-faq)
+- [🔗 See also](#-see-also)
+
+<details>
+<summary><strong>🔗 Related links (outside this README)</strong></summary>
+
+- 🌐 [CyberTray on the web](https://cybergems.org/apps/cybertray/) — overview, download and SmartScreen guide
+- 📚 [Documentation & FAQ — Wiki](https://github.com/CyberGems/CyberTray/wiki) — troubleshooting and deep-dives
+- 💾 [Releases](https://github.com/CyberGems/CyberTray/releases) — installers, portable builds and changelog
+- 🟣 [CyberGems suite](https://github.com/CyberGems) — all open-source apps
+
+</details>
+
+---
+
+## 👋 Introduction
+
+Your taskbar runs out of room, the Start menu takes three clicks and the files you actually use end up buried in folders. CyberTray keeps a launchpad one click away in the system tray: a shelf of apps, files, folders and URLs with search, categories and drag-and-drop, summoned by a global hotkey or a screen corner and hidden again the moment you are done. Beside it, real-time RAM, CPU, disk and VRAM telemetry, a process viewer that can end what is misbehaving, and a PIN-protected vault you can sweep the desktop into. Portable mode and automatic backups keep the whole setup with you. Built with **Electron 42**, **React 19** and **TypeScript**.
+
+*Free and open source: no ads, no tracking, no telemetry and no analytics SDK. Just enjoy it.*
+
+
+- **Privacy:** see [PRIVACY.md](PRIVACY.md). CyberTray does not send your data anywhere by itself. The only automatic connections are listed there, and none of them carries personal data.
+
+---
+
+<!-- Screenshots: pending the bilingual EN/ES gallery in the capture plan at https://github.com/CyberGems/CyberGems.github.io/blob/main/docs/screenshots.md — replace the blockquote, keep this heading and the TOC entry. -->
+
+## 🖼️ Screenshots
+
+> Coming soon...
+
+---
+
+## 🎯 Why CyberTray?
+
+Most launchers make you leave what you are doing: open a window, find a menu, click through folders. CyberTray gives you a **dedicated launchpad** that stays out of the way until you need it, deploying instantly to launch anything in milliseconds.
+
+| Need | Solution |
+|---|---|
+| Quick access to apps & files | Shortcut shelf with search, categories, and drag-and-drop import |
+| Save taskbar space | System tray icon + auto-hiding shelf |
+| Launch from anywhere | Global hotkey (`Alt+Shift+T`) and hot corners |
+| Monitor your system | Real-time RAM, CPU, disk, and VRAM telemetry |
+| Manage running processes | Process viewer with kill functionality |
+| Secure sensitive files | PIN-protected vault with desktop sweep |
+| Make it yours | 5 neon themes, custom backgrounds, grid or list layout |
+
+---
+
+## ✨ Key Features
+
+### 🚀 Shortcut Launcher
+- **Shortcut Management**: Register, edit, and launch applications, files, and URLs
+- **First-Run Assistant**: Pick language, import shortcuts and set the global hotkey in three steps. It only appears on new installations and can be reopened from Settings.
+- **Drag & Drop Import**: Drag files or executables directly into the shelf
+- **Windows Import & Sync**: Review Desktop, Start Menu, custom folders and Microsoft Store apps before importing. Later synchronizations add new shortcuts and update changed targets without overwriting your folders, names, icons, hotkeys, favorites or usage stats. Missing items are never deleted automatically, and the last import can be undone.
+- **Real Icons & Steam Resolution**: Imported shortcuts render the real application logo at up to 256 px (Store apps included), Steam shortcuts resolve to the actual game executable so the tile shows a meaningful path and the game folder can be opened, and a desktop shortcut pointing at a Microsoft Store app resolves to its app id, so it keeps working after the desktop file is gone.
+- **Filter by Type**: Every shortcut is classified by its destination (programs, Microsoft Store apps, Steam games, links, scripts, files and folders) and the content header filters the grid by kind, with the real count of each kind inside the current folder and search.
+- **Icon Refresh**: Refresh a shortcut's icon from its context menu, which re-reads a Store app's package manifest or repeats the 256 px extraction, handy after an app updates and changes its logo.
+- **Shelf Toolbar Quick Controls**: Switch grid/list view, toggle the watcher and open the import without leaving the bar.
+- **New-Item Watcher**: Watches the Desktop, Start Menu and Microsoft Store apps and offers to add whatever appears there. The notice never steals focus, and anything left undecided waits in the notification center until you add or dismiss it. Off by default.
+- **Categories & Folders**: Organize shortcuts with nested folder support
+- **Favorites System**: Mark shortcuts for quick access
+- **Group Launch**: Launch all shortcuts in a category at once
+- **Multi-Selection**: Bulk delete with selection mode (`Ctrl+A`, `Escape`)
+- **Real-Time Search**: Instant filtering across all shortcuts
+- **Sort Options**: Alphabetical, most used, recently added
+- **Recent Strip**: The last launched shortcuts, one click away
+- **Full Keyboard Control**: Navigate the shelf with the arrow keys and launch with `Enter`
+- **Per-Shortcut Hotkeys**: Give any shortcut its own global hotkey
+- **Working Directory**: Choose the folder a shortcut starts in
+
+### 🔲 Hotspots (Screen Corners)
+- **Corner activation**: Trigger CyberTray by dwelling cursor in any screen corner
+- **Configurable delay** before activation
+- **UAC secure desktop guard**: Auto-hides when UAC prompt appears
+
+### 📊 Neural Telemetry (System Monitoring)
+- **RAM Usage**: Real-time progress bar with percentage
+- **CPU Info**: Model and core count
+- **Disk Space**: Per-drive monitoring with real values (no WMI)
+- **VRAM Detection**: Background GPU memory fetch
+- **System Uptime**: Track since last boot
+
+### ⚙️ Process Matrix
+- **Running Processes**: View PID, name, and memory usage
+- **Kill Processes**: Terminate directly from the list
+- **Search & Sort**: Find processes quickly
+
+### 🔐 Cyber-Vault (Secure Files)
+- **PIN Protection**: 4-digit PIN to lock/unlock the vault
+- **Hashed PIN**: The PIN is never stored in clear, not even in a backup
+- **Desktop Sweep**: Move all desktop files/folders to the secure vault
+- **Auto-Lock Timeout**: Configurable (immediate, 1min, 5min, 15min, session)
+- **Custom Vault Path**: Store vault files in any location
+
+### 🖱️ Context Menu
+- **Open file location**, **open containing folder** and **open a terminal there**
+- **Copy path** to the clipboard
+- **Move to folder**, **pin to taskbar**, **add to favorites** and **run as administrator**
+
+### 🎨 Appearance Customization
+- **5 accent colors**: Cyan, Purple, Amber, Crimson, Emerald
+- **Background Types**: Solid color, gradient presets, 4 built-in image presets, custom image
+- **Blur Level**: Adjustable backdrop blur intensity
+- **Opacity**: Background transparency control
+- **Icon Size**: Adjustable grid icon sizing
+- **View Modes**: Grid or list layout
+
+### 🔊 Sound System
+- **Launch Sound**: Default chime on shortcut launch
+- **Custom Audio**: MP3, WAV, OGG, AAC, M4A support
+- **Folder Navigation Sounds**: Audio feedback when browsing categories
+
+### 💾 Data Management
+- **Automatic Backups**: Scheduled copies of your configuration (every 6 h, 12 h, 24 h or 7 days), keeping 1, 3, 5 or 7 copies — 3 by default. Pick any destination folder, restore any copy in one click, and every restore saves the current state first so it can be undone.
+- **Backup & Restore**: Export/import configuration as JSON (with embedded icons)
+- **In-app Updates**: Check, download, and install from About via GitHub Releases (`electron-updater`). Auto-check on boot notifies you; install is always confirmed.
+- **Bilingual UI**: Full English and Spanish interface
+- **Accessible by design**: Visible focus, real dialogs, screen reader announcements and full keyboard control
+
+---
+
+## ⬇️ Installation
+
+### Install (Recommended)
+
+1. Download the latest installer from [Releases](https://github.com/CyberGems/CyberTray/releases/latest)
+2. Run the `.exe` installer and follow the setup wizard
+3. Launch CyberTray and press `Alt+Shift+T` to toggle the shelf from anywhere. No other requirements needed: you do **not** need Node.js or npm
+
+### 💼 Portable Edition
+
+No installation wanted? Download `CyberTray-Portable-x.x.x.exe`, drop it in any folder and run it. Settings, backups and the vault live in a `data` folder beside the executable, so the whole install travels on a USB stick. Auto-launch works, but new versions are downloaded by hand from [Releases](https://github.com/CyberGems/CyberTray/releases/latest); About says so and links there.
+
+### 🛡️ Windows SmartScreen
+
+Windows may show a SmartScreen warning the first time you run the CyberTray installer: this is an unsigned hobby app, so Windows hasn't built reputation for the file yet. This is expected; the source is public so you can inspect exactly what it does.
+
+To continue:
+
+<details>
+<summary><strong>See how to run the installer (step by step)</strong></summary>
+
+Windows shows this warning for any installer without a paid code-signing certificate; it does not mean the file is unsafe. Do <strong>not</strong> click "Don't run":
+
+1. Run the `CyberTray-Setup.exe` installer. Windows may show the blue "Windows protected your PC" dialog.
+
+![Windows SmartScreen warning](https://cybergems.org/branding/smartscreen-warning.svg)
+
+2. Click the small **More info** link. The expanded dialog shows your installer: `CyberTray-Setup.exe`.
+
+![SmartScreen dialog after More info](https://cybergems.org/branding/smartscreen-runanyway.svg)
+
+3. Click **Run anyway**. The installer starts normally.
+
+You can verify the file independently: compare the SHA with the GitHub release, scan it on VirusTotal, or build from source. More details: [SmartScreen guide on the website](https://cybergems.org/download#smartscreen).
+
+</details>
+
+---
+
+## 🧭 Using the App
+
+CyberTray lives in the system tray; the shelf opens from the tray icon or with `Alt+Shift+T`.
+
+1. Open the shelf and drag your `.exe` or `.lnk` files into it once.
+2. From then on, type to filter and single-click to launch.
+3. Mark daily apps as favourites so they stay at the top of the shelf.
+
+The first-run assistant imports existing shortcuts and sets the global hotkey (`Alt+Shift+T` by default, customizable). In the portable edition, settings, backups and the vault live in a `data` folder beside the executable.
+
+See [How Do You Use CyberTray?](https://github.com/CyberGems/CyberTray/wiki/How-Do-You-Use) for everyday examples and the full guides.
+
+---
+
+## 🛠️ Tech Stack & Architecture
+
+- **Platform:** Windows 10 / 11
+- **Framework:** Electron 42 + React 19 + TypeScript
+- **Bundler:** Vite 6
+- **Styling:** CSS custom properties with glassmorphism effects
+- **Architecture:** Single shelf window with system tray integration
+
+```
+CyberTray/
+├── electron/
+│   ├── main.ts           Main process (windows, tray, IPC, hotspots, icons)
+│   ├── preload.ts        Context bridge (IPC API)
+│   └── updater.ts        Auto-update via GitHub Releases
+├── src/
+│   ├── App.tsx           Main application component
+│   ├── main.tsx          React entry point
+│   ├── locales.ts        i18n (English / Spanish)
+│   ├── lib/
+│   │   ├── appUtils.ts        Folder and shortcut helpers
+│   │   ├── configDefaults.ts  Shared default configuration
+│   │   ├── pin.ts             Vault PIN derivation (PBKDF2)
+│   │   ├── iconSrc.ts         Local resource URL helpers
+│   │   └── useModalAccessibility.ts  Dialog focus and keyboard handling
+│   ├── components/
+│   │   ├── ShortcutGrid.tsx      Main shortcut display grid
+│   │   ├── ShortcutFormModal.tsx Add/edit shortcut dialog
+│   │   ├── SettingsPanel.tsx     Configuration modal
+│   │   ├── TelemetryBar.tsx      System metrics footer
+│   │   ├── ProcessMatrixModal.tsx Process viewer/killer
+│   │   ├── VaultPanel.tsx        Secure file vault settings
+│   │   ├── PinPadModal.tsx       PIN entry for vault
+│   │   ├── AboutModal.tsx        Version and update info
+│   │   ├── FolderTree.tsx        Category/folder navigation
+│   │   ├── ToastStack.tsx        Notification toasts
+│   │   └── CyberTrayLogo.tsx     Animated logo
+├── public/               Static assets & icons
+├── vite.config.ts        Vite configuration
+└── vitest.config.ts      Test configuration
+```
+
+### Window Architecture
+
+| Window | Purpose | Behavior |
+|---|---|---|
+| **Shelf** | Main shortcut panel | Resizable, always-on-top, instant deployment |
+
+Communication between frontend and backend uses Electron IPC via `contextBridge`. On Windows, a native helper verifies the input desktop and cursor position for hotspots. When the secure desktop takes over, CyberTray discards the current gesture and waits for the cursor to leave and re-enter an active corner. An open shelf hides during the switch.
+
+### Building from Source (Developers)
+
+Only needed if you want to work on CyberTray or build it yourself; regular users can skip this section.
+
+#### Prerequisites
+
+- [Node.js](https://nodejs.org/) v22+
+- npm
+- Windows with the .NET Framework C# compiler included with Windows 10/11 (only needed to rebuild the Microsoft Store activation helper)
+
+#### Development
+
+```bash
+git clone https://github.com/CyberGems/CyberTray.git
+cd CyberTray
+npm install
+npm run dev
+```
+
+#### Build for Production
+
+```bash
+npm run build
+npm run build:electron
+```
+
+The installer will be in the `release/` directory.
+
+#### Tests
+
+```bash
+npm run lint   # type checking (TypeScript, strict mode)
+npm test       # unit tests (Vitest)
+```
+
+---
+
+## ⌨️ Keyboard Shortcuts
+
+| Key | Action | Scope |
+|---|---|---|
+| `Alt+Shift+T` (default) | Toggle CyberTray shelf | Global |
+| `Ctrl+Alt+…` | Per-shortcut hotkey (configurable in the shortcut form) | Global |
+| `↓` / `Esc` | Move the focus from the search box to the grid | Application |
+| `←` `→` `↑` `↓` | Move between shortcuts | Application |
+| `Home` / `End` | Jump to the first or last shortcut | Application |
+| `Enter` | Launch the focused shortcut | Application |
+| `Delete` | Delete the focused shortcut (asks for confirmation) | Application |
+| `A-Z` | Jump to the shortcut that starts with what you type | Application |
+| `Esc` | Close a dialog or the context menu | Application |
+| `Escape` | Exit selection mode | Application |
+| `Ctrl+A` | Select all shortcuts | Selection mode |
+
+For the full shortcut reference, see the [Keyboard Shortcuts wiki](https://github.com/CyberGems/CyberTray/wiki/Keyboard-Shortcuts).
+
+---
+
+## ❤️ Donate
+
+**CyberTray** is 100% free and open source. If it helps you, please consider [donating](https://cybergems.org/donate) or [starring the repo on GitHub](https://github.com/CyberGems/CyberTray) to support continued development. [Read the full story](https://cybergems.org/about/) behind the project. Thank you! 🙏
+
+<p align="center">
+  <a href="https://www.paypal.com/donate/?hosted_button_id=M4PY3UPJA5Y6Q"><img src="https://img.shields.io/badge/Donate-PayPal-0070BA?style=for-the-badge&logo=paypal" alt="Donate via PayPal" /></a>
+</p>
+
+<p align="center">
+  <a href="https://ko-fi.com/cybergems"><img src="https://img.shields.io/badge/Support_me_on_Ko--fi-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support me on Ko-fi" /></a>
+</p>
+
+<p align="center">
+  <a href="https://buymeacoffee.com/cybergems"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me a Coffee" /></a>
+</p>
+
+<div align="center">
+
+<details>
+<summary><b>Crypto donations (BTC, ETH, USDT, LTC): click to view addresses</b></summary>
+
+<div align="left">
+
+| Asset | Network | Address | QR |
+|---|---|---|---|
+| <img src="docs/donate/btc.svg" width="18" height="18" valign="middle" alt="BTC" /> **BTC** | Bitcoin | `bc1q5mxzz05nmvsheqzx7970euswta3fksxzcfzag4` | ![BTC QR](docs/donate/qr-btc.png) |
+| <img src="docs/donate/eth.svg" width="18" height="18" valign="middle" alt="ETH" /> **ETH** | Ethereum (ERC20) | `0x79b703Ec0f77493679Fcd280aF3b983E20c580B8` | ![ETH QR](docs/donate/qr-eth.png) |
+| <img src="docs/donate/usdt.svg" width="18" height="18" valign="middle" alt="USDT" /> **USDT** | Ethereum (ERC20) | `0x79b703Ec0f77493679Fcd280aF3b983E20c580B8` | ![USDT ERC20 QR](docs/donate/qr-eth.png) |
+| <img src="docs/donate/usdt.svg" width="18" height="18" valign="middle" alt="USDT" /> **USDT** | BNB Smart Chain (BEP20) | `0x79b703Ec0f77493679Fcd280aF3b983E20c580B8` | ![USDT BEP20 QR](docs/donate/qr-eth.png) |
+| <img src="docs/donate/usdt.svg" width="18" height="18" valign="middle" alt="USDT" /> **USDT** | Tron (TRC20) | `TSVbSk1HSyZ1NprCnAYiw56ECwXgH887mD` | ![USDT TRC20 QR](docs/donate/qr-usdt-tron.png) |
+| <img src="docs/donate/ltc.svg" width="18" height="18" valign="middle" alt="LTC" /> **LTC** | Litecoin | `LWGnEHgcFCE2BRkzLnsdPDD8Y8ZeDK577X` | ![LTC QR](docs/donate/qr-ltc.png) |
+
+> ⚠️ Send only the selected asset on the indicated network. Using the wrong network will result in permanent loss of funds.
+
+</div>
+
+</details>
+
+</div>
+
+---
+
+## 📄 License
+
+CyberTray is distributed under the terms of the GNU General Public License v3.0. See [LICENSE](LICENSE) for the full license text.
+
+Copyright (C) 2026 CyberGems
+
+---
+
+## ❓ FAQ
+
+For frequently asked questions, troubleshooting guides, and detailed configuration instructions, visit the [FAQ](https://github.com/CyberGems/CyberTray/wiki/FAQ) or the [online documentation](https://cybergems.org/docs/cybertray/FAQ).
+
+---
+
+<div align="center" style="background:#0D0F17; border:1px solid rgba(0,255,255,0.12); border-radius:12px; padding:28px 20px; margin-top:32px;">
+
+### Thanks for using CyberTray! 🎉
+
+Made by [**CyberGems**](https://cybergems.org)
+
+</div>
+<p align="center">
+  <a href="https://www.reddit.com/submit?url=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F&title=CyberTray%3A%20free%20%26%20open-source%20desktop%20tool%20for%20Windows"><img src="https://img.shields.io/badge/Share_on_Reddit-FF4500?style=for-the-badge&logo=reddit&logoColor=white" alt="Share on Reddit" /></a>
+  &nbsp;<a href="https://twitter.com/intent/tweet?text=CyberTray%3A%20free%20%26%20open-source%20desktop%20tool%20for%20Windows&url=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F"><img src="https://img.shields.io/badge/Share_on_X-1DA1F2?style=for-the-badge&logo=x&logoColor=white" alt="Share on X" /></a>
+  &nbsp;<a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F"><img src="https://img.shields.io/badge/Share_on_Facebook-1877F2?style=for-the-badge&logo=facebook&logoColor=white" alt="Share on Facebook" /></a>
+  &nbsp;<a href="mailto:?subject=CyberTray%3A%20free%20%26%20open-source%20desktop%20tool%20for%20Windows&body=CyberTray%3A%20free%20%26%20open-source%20desktop%20tool%20for%20Windows%20https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F"><img src="https://img.shields.io/badge/Share_by_Email-EA4335?style=for-the-badge&logo=gmail&logoColor=white" alt="Share by Email" /></a>
+  &nbsp;<a href="https://t.me/share/url?url=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F&text=CyberTray%3A%20free%20%26%20open-source%20desktop%20tool%20for%20Windows"><img src="https://img.shields.io/badge/Share_on_Telegram-26A5E4?style=for-the-badge&logo=telegram&logoColor=white" alt="Share on Telegram" /></a>
+  &nbsp;<a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fcybergems.org%2Fapps%2Fcybertray%2F"><img src="https://img.shields.io/badge/Share_on_LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" alt="Share on LinkedIn" /></a>
+</p>
+
+---
+
+## 🔗 See also
+
+More free, open-source, privacy-first apps from [**CyberGems**](https://github.com/CyberGems):
+
+| App | Description |
+|:---:|---|
+| 🕐&nbsp;[**CyberClock**](https://github.com/CyberGems/CyberClock#readme) | Desktop clock with analog & digital display, calendar, timer, stopwatch and relaxation module. |
+| 📢&nbsp;[**CyberFeeds**](https://github.com/CyberGems/CyberFeeds#readme) | High-performance, local-first RSS and Atom reader built for speed, privacy and clean reading. |
+| 🚀&nbsp;[**CyberLauncher**](https://github.com/CyberGems/CyberLauncher#readme) | Windows application launcher with hot corners, scheduler, system monitor and integrated terminal. |
+| 💻&nbsp;[**CyberManager**](https://github.com/CyberGems/CyberManager#readme) | Lightweight, high-performance task manager, virtualized and NT-native, a powerful Task Manager alternative. |
+| 📝&nbsp;[**CyberNotes**](https://github.com/CyberGems/CyberNotes#readme) | Privacy-focused note-taking app with rich text, folders, tabs and bcrypt-protected local storage. |
+| ⚡&nbsp;[**CyberPaste**](https://github.com/CyberGems/CyberPaste#readme) | Privacy-first clipboard manager for text, code, images, HTML and files. |
+| 📸&nbsp;[**CyberSnap**](https://github.com/CyberGems/CyberSnap#readme) | Screen capture and annotation suite with vector tools, high-speed OCR, screen recording and color picker. |
+| 💫&nbsp;[**CyberViewer**](https://github.com/CyberGems/CyberViewer#readme) | Full-featured image viewer and editor engineered for casual and power users. |
+| 🛡️&nbsp;[**CyberWall**](https://github.com/CyberGems/CyberWall#readme) | User-friendly Windows firewall with real-time per-app rules powered by the WFP kernel engine. |
+
+➡️ **[Browse all apps at cybergems.org](https://cybergems.org)**
