@@ -14,6 +14,7 @@ import { scanImportSources } from './importScanner';
 import { activateStoreApp, isStoreAppUserModelId, resolveStoreAppLauncher } from './store-app-launch';
 import { listStartAppIds } from './store-apps';
 import { resolveSteamGameExecutable, steamAppIdFromUrl } from './steam-library';
+import { formatTrayTooltip } from './tray-tooltip';
 import { applyImportPlan, reconcileImport, type ImportPlan, type ImportSourceConfig, type ScannedShortcut, type ShortcutRecord } from '../src/lib/shortcutImport';
 import type { CyberFolder } from '../src/lib/appUtils';
 import { UNCATEGORIZED_ID } from '../src/lib/appUtils';
@@ -1628,12 +1629,6 @@ function getTrayIcon(): Electron.NativeImage {
     if (!img.isEmpty()) return img;
   }
   return nativeImage.createEmpty();
-}
-
-function formatTrayTooltip(shortcut?: string): string {
-  const clean = String(shortcut || '').trim();
-  const text = clean ? `CyberTray · ${clean}` : 'CyberTray';
-  return text.length > 63 ? `${text.slice(0, 62)}…` : text;
 }
 
 // ── SYSTEM TRAY (Bandeja del sistema) ──
