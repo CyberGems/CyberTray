@@ -107,6 +107,9 @@ let shelfWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 let isDragActive = false;
+// Alt is tracked from the input events because Alt+F4 (the quit gesture) and the
+// X (which only hides the shelf) both arrive as the same native close.
+let altHeld = false;
 let isDialogOpen = false;
 // Atajo global registrado actualmente (en formato de Electron).
 let currentGlobalShortcut: string | null = null;
@@ -2016,6 +2019,10 @@ function createWindows() {
 
   shelfWindow.on('blur', () => {
     if (!shelfWindow || shelfWindow.isDestroyed()) return;
+
+    // Alt+Tab (or any other focus loss) swallows the Alt keyup, so a stale flag
+    // would turn a later X click into an explicit quit.
+    altHeld = false;
     
     // Si la ventana está anclada (Always on Top), ignorar la pérdida de foco
     if (shelfWindow.isAlwaysOnTop()) {
@@ -2037,6 +2044,17 @@ function createWindows() {
     }, delay);
   });
 
+  // Alt+F4 is the quit gesture even though the X only hides the shelf.
+  shelfWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'Alt') altHeld = input.type !== 'keyUp';
+    if (input.type === 'keyDown' && input.alt && input.key === 'F4') {
+      event.preventDefault();
+      // The quit is user-requested, so the close handler must not hide instead.
+      isQuitting = true;
+      app.quit();
+    }
+  });
+
   // La bandeja vive oculta y se muestra a demanda: sin fallback de reveal
   // (rejectUnexpectedReveal manda), pero el renderer que muere se recarga y
   // la navegación queda bloqueada como en el resto de ventanas.
@@ -2056,6 +2074,7 @@ function createWindows() {
   });
 
   shelfWindow.on('close', (e) => {
+    if (altHeld) isQuitting = true;
     if (!isQuitting) {
       e.preventDefault();
       hideShelf();
