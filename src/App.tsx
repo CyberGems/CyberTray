@@ -3104,6 +3104,7 @@ export default function App() {
                   >
                     <Power className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                     <span className="flex-1">{translate('more_menu_exit')}</span>
+                    <kbd className="px-1.5 py-0.5 text-[9px] font-mono font-semibold bg-white/10 text-cyan-300 rounded border border-white/15 shadow-sm">Alt+F4</kbd>
                   </button>
                 </motion.div>
               )}
