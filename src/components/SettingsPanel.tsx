@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   AlertTriangle, Archive, ArrowUpDown, Droplets, Download, Eye, FileJson, FolderOpen, Globe,
   Grid, HardDrive, Image as ImageIcon, Keyboard, LayoutGrid, List as ListIcon,
-  Lock, Monitor, MousePointer2, Palette, Pin, Power, Radar, RotateCcw, Settings, Shield, Sparkles, Store, Terminal,
+  Lock, Monitor, MousePointer2, Palette, Pin, Power, Radar, RefreshCw, RotateCcw, Settings, Shield, Sparkles, Store, Terminal,
   Timer, Trash2, Upload, Volume2, X, type LucideIcon,
 } from 'lucide-react';
 import { translate } from '../locales';
@@ -214,6 +214,7 @@ export interface SettingsPanelProps {
   iconSortOrder: 'alpha' | 'recent' | 'added';
   setIconSortOrder: (v: 'alpha' | 'recent' | 'added') => void;
   handleTogglePin: () => void | Promise<void>;
+  onAutoUpdateChange: (enabled: boolean) => void;
 }
 
 export default function SettingsPanel({
@@ -275,7 +276,17 @@ export default function SettingsPanel({
   iconSortOrder,
   setIconSortOrder,
   handleTogglePin,
+  onAutoUpdateChange,
 }: SettingsPanelProps) {
+  const [supportsUpdateNotifications, setSupportsUpdateNotifications] = React.useState(false);
+
+  React.useEffect(() => {
+    let active = true;
+    if (isElectron) void window.electronAPI?.getAppVersions?.().then(versions => {
+      if (active) setSupportsUpdateNotifications(!versions.portable);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
   const hotspotDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settingsPanelRef = useRef<HTMLDivElement>(null);
 
@@ -526,6 +537,17 @@ export default function SettingsPanel({
                         }}
                       />
                     </div>
+
+                    {supportsUpdateNotifications && (
+                      <ToggleCard
+                        icon={RefreshCw}
+                        tone="cyan"
+                        title={translate('about_auto_updates')}
+                        desc={translate('about_auto_updates_desc')}
+                        on={config.autoUpdate !== false}
+                        onClick={() => onAutoUpdateChange(config.autoUpdate === false)}
+                      />
+                    )}
 
                     {/* Vigilante de escritorio */}
                     <div className="space-y-2">

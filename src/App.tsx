@@ -3406,6 +3406,7 @@ export default function App() {
         iconSortOrder={iconSortOrder}
         setIconSortOrder={setIconSortOrder}
         handleTogglePin={handleTogglePin}
+        onAutoUpdateChange={handleAutoUpdateChange}
         onOpenOnboarding={() => {
           setShowSettings(false);
           setShowOnboarding(true);
