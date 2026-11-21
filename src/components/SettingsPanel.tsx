@@ -85,7 +85,7 @@ function ToggleCard({
         <BadgeIcon icon={icon} tone={tone} />
         <div className="min-w-0 flex-1">
           <h5 className="text-xs font-cyber font-bold text-slate-300 tracking-wide leading-tight">{title}</h5>
-          <p className="text-xs text-slate-500 mt-1 leading-snug">{desc}</p>
+          <p className="text-xs text-slate-400 mt-1 leading-snug">{desc}</p>
         </div>
         <Toggle on={on} onClick={onClick} colorClass={t.toggle} ringClass={t.ring} ariaLabel={title} className="mt-0.5" />
       </div>
