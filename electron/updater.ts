@@ -32,6 +32,8 @@ export type UpdateStatus =
   | { state: 'error'; message: string };
 
 let autoUpdateEnabled = false;
+let backgroundCheck: { requestedManually: boolean } | null = null;
+let manualChecks = 0;
 let lastStatus: UpdateStatus = { state: 'idle' };
 let ipcRegistered = false;
 let cachedRelease: { version: string; notes?: string; url: string } | null = null;
@@ -132,6 +134,18 @@ export function setAutoUpdate(enabled: boolean): void {
   autoUpdateEnabled = enabled;
 }
 
+async function checkInBackground(): Promise<void> {
+  if (!autoUpdateEnabled || backgroundCheck || manualChecks > 0) return;
+  backgroundCheck = { requestedManually: false };
+  try {
+    await autoUpdater.checkForUpdates();
+  } catch {
+    // Connection failures stay silent on startup.
+  } finally {
+    backgroundCheck = null;
+  }
+}
+
 export function initUpdater(opts: { autoUpdate: boolean }): void {
   autoUpdateEnabled = opts.autoUpdate && !isPortable;
   autoUpdater.autoDownload = false;
@@ -142,6 +156,10 @@ export function initUpdater(opts: { autoUpdate: boolean }): void {
   autoUpdater.on('checking-for-update', () => broadcast({ state: 'checking' }));
 
   autoUpdater.on('update-available', (info) => {
+    if (backgroundCheck && !backgroundCheck.requestedManually && !autoUpdateEnabled) {
+      broadcast({ state: 'idle' });
+      return;
+    }
     const version = info.version;
     const notes = extractReleaseNotes(info);
     const meta = rememberRelease(version, notes);
@@ -172,9 +190,7 @@ export function initUpdater(opts: { autoUpdate: boolean }): void {
   registerUpdateIpc();
 
   if (autoUpdateEnabled) {
-    setTimeout(() => {
-      autoUpdater.checkForUpdates().catch(() => { /* offline: ignore */ });
-    }, 8000);
+    setTimeout(() => { void checkInBackground(); }, 8000);
   }
 }
 
@@ -185,6 +201,8 @@ function registerUpdateIpc(): void {
   ipcMain.handle('update:get-status', () => lastStatus);
 
   ipcMain.handle('update:check', async () => {
+    manualChecks++;
+    if (backgroundCheck) backgroundCheck.requestedManually = true;
     try {
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Update check timed out')), 20000);
@@ -199,6 +217,8 @@ function registerUpdateIpc(): void {
       const message = String((err as Error)?.message || err);
       broadcast({ state: 'error', message });
       return { ok: false, error: message };
+    } finally {
+      manualChecks--;
     }
   });
 

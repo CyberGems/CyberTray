@@ -1019,6 +1019,7 @@ export default function App() {
 
     const applyStatus = (status: UpdateStatus) => {
       setUpdateStatus(status);
+      if (status.state === 'available' && configRef.current.autoUpdate === false) return;
       if (status.state !== 'available' && status.state !== 'downloaded') return;
 
       const key = `${status.state}:${status.version}`;
