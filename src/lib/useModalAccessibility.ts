@@ -12,7 +12,8 @@ import { useEffect, type RefObject } from 'react';
 export function useModalAccessibility(
   modalRef: RefObject<HTMLElement | null>,
   isOpen: boolean,
-  onClose?: () => void
+  onClose?: () => void,
+  foregroundRef?: RefObject<HTMLElement | null>
 ) {
   useEffect(() => {
     if (!isOpen) return;
@@ -41,6 +42,7 @@ export function useModalAccessibility(
     const raf = requestAnimationFrame(focusFirst);
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.target instanceof Node && foregroundRef?.current?.contains(event.target)) return;
       if (event.key === 'Escape' && onClose) {
         event.stopPropagation();
         onClose();
@@ -74,5 +76,5 @@ export function useModalAccessibility(
       document.removeEventListener('keydown', handleKeyDown, true);
       previouslyFocused?.focus?.();
     };
-  }, [isOpen, modalRef, onClose]);
+  }, [isOpen, modalRef, onClose, foregroundRef]);
 }

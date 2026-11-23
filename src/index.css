@@ -78,6 +78,38 @@
   animation: toast-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.update-notice:focus-visible {
+  outline: 2px solid var(--neon-glow-color);
+  outline-offset: 2px;
+}
+
+.update-notice-version {
+  color: color-mix(in srgb, var(--neon-glow-color) 60%, var(--color-slate-100));
+}
+
+.update-notice-primary {
+  background: color-mix(in srgb, var(--neon-glow-color) 76%, var(--color-slate-100));
+  color: var(--color-slate-950);
+}
+
+.update-notice-primary:hover {
+  background: color-mix(in srgb, var(--neon-glow-color) 65%, var(--color-slate-100));
+}
+
+.update-progress {
+  display: block;
+  width: 100%;
+  height: 6px;
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--color-slate-800);
+}
+
+.update-progress::-webkit-progress-bar { background: var(--color-slate-800); }
+.update-progress::-webkit-progress-value { background: var(--neon-glow-color); }
+
 @keyframes scanline {
   0% {
     transform: translateY(-100%);

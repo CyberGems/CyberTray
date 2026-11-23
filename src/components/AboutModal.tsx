@@ -1,55 +1,16 @@
-import React, { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import React, { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  X, Github, RefreshCw, Download, CheckCircle2,
-  Tag, ClipboardCopy, Check, Globe, BookOpen, Bug, Heart, ExternalLink
+  X, Github, RefreshCw,
+  Tag, ClipboardCopy, Check, Globe, BookOpen, Bug, Heart
 } from 'lucide-react';
 import { translate, TranslationKey, getLocale } from '../locales';
 import { isElectron } from '../lib/appUtils';
 import { useModalAccessibility } from '../lib/useModalAccessibility';
 import CyberTrayLogo, { CyberTrayWordmark } from './CyberTrayLogo';
-import Toggle from './Toggle';
 import { pickSuiteApps } from '../lib/suiteApps';
 
 const REPO_URL = 'https://github.com/CyberGems/CyberTray';
-
-export function githubReleaseUrl(version: string): string {
-  const tag = version.startsWith('v') ? version : `v${version}`;
-  return `${REPO_URL}/releases/tag/${tag}`;
-}
-
-/** The Before you install block is release-page furniture: the updater is
- * automatic, so the About panel and toasts skip SmartScreen guidance. */
-export function stripInstallBlock(text: string): string {
-  return text
-    .replace(/^#{1,6}\s*⚠️\s*(?:Before you install|Antes de instalar)[\s\S]*?\n---/gim, '')
-    .replace(/^#{1,6}\s*⚠️\s*(?:Before you install|Antes de instalar)[\s\S]*$/gim, '');
-}
-
-/** Plain-text teaser of GitHub release notes for toasts. */
-export function peekReleaseNotes(body: string, maxChars = 220): string {
-  const lines = stripInstallBlock(body)
-    .replace(/^\uFEFF/, '')
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .map((line) =>
-      line
-        .replace(/^#{1,6}\s+/, '')
-        .replace(/^[-*]\s+/, '• ')
-        .replace(/\*\*/g, '')
-        .trim()
-    )
-    .filter((line) => {
-      if (!line || /^---+/.test(line)) return false;
-      if (/^Release Notes/i.test(line)) return false;
-      if (/^Full Changelog/i.test(line)) return false;
-      if (/Before you install|Antes de instalar/i.test(line)) return false;
-      return true;
-    });
-  const text = lines.slice(0, 4).join('\n');
-  if (text.length <= maxChars) return text;
-  return `${text.slice(0, maxChars).trimEnd()}…`;
-}
 
 export type AppVersions = {
   app: string;
@@ -63,20 +24,13 @@ export type AppVersions = {
   portable?: boolean;
 };
 
-export type UpdateStatus =
-  | { state: 'idle' }
-  | { state: 'checking' }
-  | { state: 'available'; version: string; releaseNotes?: string; releaseUrl?: string }
-  | { state: 'not-available'; version: string }
-  | { state: 'downloading'; percent: number }
-  | { state: 'downloaded'; version: string; releaseNotes?: string; releaseUrl?: string }
-  | { state: 'error'; message: string };
+type CheckStatus = 'idle' | 'checking' | 'available' | 'latest' | 'error';
 
 interface AboutModalProps {
   showAboutModal: boolean;
   setShowAboutModal: (v: boolean) => void;
-  autoUpdate: boolean;
-  onAutoUpdateChange: (enabled: boolean) => void;
+  onUpdateAvailable: (version: string) => void;
+  updateNoticeRef: RefObject<HTMLDivElement | null>;
   playCyberBeep: () => void;
   autoCheckSeq?: number;
   showTooltip: (e: React.MouseEvent, text: string, subText?: string, borderColor?: string) => void;
@@ -95,17 +49,18 @@ const t = (key: TranslationKey, variables?: Record<string, string>) => translate
 export default function AboutModal({
   showAboutModal,
   setShowAboutModal,
-  autoUpdate,
-  onAutoUpdateChange,
+  onUpdateAvailable,
+  updateNoticeRef,
   playCyberBeep,
   autoCheckSeq,
   showTooltip,
   hideTooltip,
 }: AboutModalProps) {
   const aboutDialogRef = useRef<HTMLDivElement>(null);
-  useModalAccessibility(aboutDialogRef, showAboutModal, () => setShowAboutModal(false));
+  const closeAbout = useCallback(() => setShowAboutModal(false), [setShowAboutModal]);
+  useModalAccessibility(aboutDialogRef, showAboutModal, closeAbout, updateNoticeRef);
   const [versions, setVersions] = useState<AppVersions | null>(null);
-  const [status, setStatus] = useState<UpdateStatus>({ state: 'idle' });
+  const [status, setStatus] = useState<CheckStatus>('idle');
   const [diagCopied, setDiagCopied] = useState(false);
   const [suitePick, setSuitePick] = useState(pickSuiteApps);
 
@@ -119,10 +74,7 @@ export default function AboutModal({
   useEffect(() => {
     if (!isElectron || !window.electronAPI) return;
     window.electronAPI.getAppVersions?.().then((v) => setVersions(v as AppVersions)).catch(() => {});
-    window.electronAPI.getUpdateStatus?.().then((s) => { if (s) setStatus(s as UpdateStatus); }).catch(() => {});
-    const off = window.electronAPI.onUpdateStatus?.((s) => setStatus(s as UpdateStatus));
     return () => {
-      off?.();
       if (copiedTimer.current) clearTimeout(copiedTimer.current);
     };
   }, []);
@@ -130,27 +82,27 @@ export default function AboutModal({
   const appVersion = versions?.app || '';
 
   const handleCheck = useCallback(async () => {
-    if (!window.electronAPI?.checkForUpdates) {
-      setStatus({ state: 'error', message: 'Updater unavailable in this environment' });
+    if (!window.electronAPI) {
+      setStatus('error');
       return;
     }
-    setStatus({ state: 'checking' });
+    setStatus('checking');
     playCyberBeep();
     try {
-      const res = await window.electronAPI.checkForUpdates();
-      if (!res?.ok) {
-        setStatus({ state: 'error', message: res?.error || 'Update check failed' });
-        return;
+      const result = await window.electronAPI.checkForUpdates();
+      if (!result.ok) {
+        setStatus('error');
+      } else if (result.available) {
+        setStatus('available');
+        onUpdateAvailable(result.version);
+      } else {
+        setStatus('latest');
       }
-      setStatus((prev) =>
-        prev.state === 'checking'
-          ? { state: 'not-available', version: res.version || appVersion }
-          : prev
-      );
-    } catch (e) {
-      setStatus({ state: 'error', message: String((e as Error)?.message || e) });
+    } catch (error) {
+      console.warn('[Updater] Could not check for updates:', error);
+      setStatus('error');
     }
-  }, [appVersion, playCyberBeep]);
+  }, [onUpdateAvailable, playCyberBeep]);
 
   useEffect(() => {
     if (autoCheckSeq && autoCheckSeq > lastHandledSeqRef.current) {
@@ -158,16 +110,6 @@ export default function AboutModal({
       void handleCheck();
     }
   }, [autoCheckSeq, handleCheck]);
-
-  const handleDownload = async () => {
-    playCyberBeep();
-    await window.electronAPI?.downloadUpdate?.();
-  };
-
-  const handleInstall = () => {
-    playCyberBeep();
-    window.electronAPI?.installUpdate?.();
-  };
 
   const handleCopyDiagnostics = useCallback(async () => {
     if (!versions) return;
@@ -263,62 +205,27 @@ export default function AboutModal({
                   <div className="h-px flex-1 bg-[var(--neon-glow-color-raw)]/20" />
                 </div>
 
-                <UpdateStatusLine status={status} />
-
-                {(status.state === 'available' || status.state === 'downloaded') && (
-                  <ReleaseNotesPanel status={status} currentVersion={appVersion} />
+                {status !== 'idle' && (
+                  <div
+                    role="status"
+                    className={`mb-2.5 text-center text-[11px] font-medium ${status === 'available'
+                      ? 'text-[var(--neon-glow-color)]'
+                      : status === 'latest' ? 'text-emerald-400' : 'text-slate-400'}`}
+                  >
+                    {t(`about_status_${status}`)}
+                  </div>
                 )}
 
                 <div className="grid grid-cols-1 gap-2">
-                  {status.state === 'available' ? (
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openUrl(status.releaseUrl || githubReleaseUrl(status.version))}
-                        className="flex items-center justify-center gap-1.5 w-full py-2.5 px-2 rounded-xl text-[11px] font-cyber font-bold tracking-wide bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 border border-white/10 transition-colors cursor-pointer"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                        {t('about_view_release')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleDownload}
-                        className="flex items-center justify-center gap-1.5 w-full py-2.5 px-2 rounded-xl text-[11px] font-cyber font-bold tracking-wide bg-[var(--neon-glow-color-raw)]/15 hover:bg-[var(--neon-glow-color-raw)]/25 text-[var(--neon-glow-color)] border border-[var(--neon-glow-border)] transition-colors cursor-pointer"
-                      >
-                        <Download className="w-3.5 h-3.5 shrink-0" />
-                        {t('about_download_btn')}
-                      </button>
-                    </div>
-                  ) : status.state === 'downloaded' ? (
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openUrl(status.releaseUrl || githubReleaseUrl(status.version))}
-                        className="flex items-center justify-center gap-1.5 w-full py-2.5 px-2 rounded-xl text-[11px] font-cyber font-bold tracking-wide bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 border border-white/10 transition-colors cursor-pointer"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                        {t('about_view_release')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleInstall}
-                        className="flex items-center justify-center gap-1.5 w-full py-2.5 px-2 rounded-xl text-[11px] font-cyber font-bold tracking-wide bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition-colors cursor-pointer"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                        {t('about_install_btn')}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleCheck}
-                      disabled={status.state === 'checking' || status.state === 'downloading'}
-                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-cyber font-bold tracking-wider bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 border border-white/10 disabled:opacity-50 transition-colors cursor-pointer disabled:cursor-not-allowed"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${status.state === 'checking' ? 'animate-spin' : ''}`} />
-                      {t('about_check_updates')}
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleCheck}
+                    disabled={status === 'checking'}
+                    className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs font-cyber font-bold tracking-wider bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 border border-white/10 disabled:opacity-50 transition-colors cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${status === 'checking' ? 'animate-spin' : ''}`} aria-hidden="true" />
+                    {t('about_check_updates')}
+                  </button>
 
                   <button
                     type="button"
@@ -334,25 +241,6 @@ export default function AboutModal({
                     {diagCopied ? t('about_diagnostics_copied') : t('about_copy_diagnostics')}
                   </button>
 
-                  {versions?.portable ? (
-                    <div className="px-3 py-2.5 mt-1 text-[11px] text-slate-400 leading-snug bg-white/[0.03] border border-white/5 rounded-lg text-left">
-                      {t('about_portable_updates')}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between px-1 py-2 mt-1 gap-3">
-                      <div className="flex flex-col text-left">
-                        <span className="text-xs text-slate-200 font-medium leading-tight uppercase">{t('about_auto_updates')}</span>
-                        <span className="text-[11px] text-slate-400 leading-snug mt-0.5">{t('about_auto_updates_desc')}</span>
-                      </div>
-                      <Toggle
-                        on={!!autoUpdate}
-                        onClick={() => { onAutoUpdateChange(!autoUpdate); playCyberBeep(); }}
-                        colorClass="bg-[var(--neon-glow-color)]"
-                        ringClass="focus-visible:ring-cyan-500/40"
-                        ariaLabel={t('about_auto_updates')}
-                      />
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -450,149 +338,4 @@ function FooterIconButton({
       {children}
     </button>
   );
-}
-
-function UpdateStatusLine({ status }: { status: UpdateStatus }) {
-  if (status.state === 'idle') return null;
-
-  if (status.state === 'downloading') {
-    return (
-      <div className="text-center text-[11px] text-slate-400 mb-2.5 font-medium">
-        {t('about_status_downloading', { percent: String(status.percent) })}
-      </div>
-    );
-  }
-
-  const color =
-    status.state === 'error' ? 'text-red-400'
-      : status.state === 'available' ? 'text-[var(--neon-glow-color)]'
-      : status.state === 'downloaded' || status.state === 'not-available' ? 'text-emerald-400'
-      : 'text-slate-400';
-
-  const text =
-    status.state === 'checking' ? t('about_status_checking')
-      : status.state === 'not-available' ? t('about_status_latest')
-      : status.state === 'available' ? t('about_status_available', { version: status.version })
-      : status.state === 'downloaded' ? t('about_status_downloaded', { version: status.version })
-      : status.state === 'error' ? t('about_status_error')
-      : '';
-
-  return (
-    <div className={`text-center text-[11px] mb-2.5 font-medium ${color}`}>
-      {text}
-      {status.state === 'error' && status.message && (
-        <div className="mt-1 text-[10px] text-slate-600 break-words font-normal">
-          {status.message}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ReleaseNotesPanel({
-  status,
-  currentVersion,
-}: {
-  status: Extract<UpdateStatus, { state: 'available' } | { state: 'downloaded' }>;
-  currentVersion: string;
-}) {
-  return (
-    <div className="mb-3 space-y-2.5 text-left">
-      <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
-        <div>
-          <div className="text-[10px] font-cyber font-bold uppercase tracking-wider text-slate-500 mb-1">
-            {t('about_current_version')}
-          </div>
-          <span className="inline-block text-[11px] font-bold text-slate-300 bg-white/5 px-2 py-0.5 rounded">
-            v{currentVersion || '…'}
-          </span>
-        </div>
-        <div>
-          <div className="text-[10px] font-cyber font-bold uppercase tracking-wider text-[var(--neon-glow-color)]/80 mb-1">
-            {t('about_latest_version')}
-          </div>
-          <span className="inline-block text-[11px] font-bold text-[var(--neon-glow-color)] bg-[var(--neon-glow-color-raw)]/10 border border-[var(--neon-glow-border)] px-2 py-0.5 rounded">
-            v{status.version}
-          </span>
-        </div>
-      </div>
-
-      {status.releaseNotes && (
-        <div>
-          <div className="text-[10px] font-cyber font-bold uppercase tracking-wider text-slate-500 mb-1.5">
-            {t('about_release_notes')}
-          </div>
-          <div className="selectable-text min-h-[6.5rem] max-h-[200px] overflow-y-auto custom-scrollbar rounded-xl border border-slate-800 bg-slate-950/50 px-3.5 py-3 text-left text-[12px] leading-relaxed text-slate-300">
-            <ReleaseNotes body={status.releaseNotes} />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function renderInline(text: string): ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return (
-        <strong key={i} className="font-semibold text-slate-100">
-          {part.slice(2, -2)}
-        </strong>
-      );
-    }
-    if (part.startsWith('`') && part.endsWith('`')) {
-      return (
-        <code key={i} className="rounded bg-white/10 px-1 py-px font-mono text-[11px] text-cyan-100/90">
-          {part.slice(1, -1)}
-        </code>
-      );
-    }
-    return part;
-  });
-}
-
-function ReleaseNotes({ body }: { body: string }) {
-  const lines = stripInstallBlock(body).replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').split('\n');
-  const nodes: ReactNode[] = [];
-  let listItems: string[] = [];
-
-  const flushList = () => {
-    if (!listItems.length) return;
-    const items = listItems;
-    listItems = [];
-    nodes.push(
-      <ul key={`list-${nodes.length}`} className="my-1.5 list-disc space-y-1 pl-4 marker:text-[var(--neon-glow-color)]/70">
-        {items.map((item, i) => (
-          <li key={i}>{renderInline(item)}</li>
-        ))}
-      </ul>
-    );
-  };
-
-  for (const line of lines) {
-    const heading = line.match(/^#{1,3}\s+(.*)$/);
-    const bullet = line.match(/^[-*]\s+(.*)$/);
-    if (heading) {
-      flushList();
-      nodes.push(
-        <h4 key={`h-${nodes.length}`} className="mb-1 mt-2.5 first:mt-0 text-[13px] font-semibold text-slate-100">
-          {renderInline(heading[1])}
-        </h4>
-      );
-    } else if (bullet) {
-      listItems.push(bullet[1]);
-    } else if (!line.trim() || /^---+/.test(line.trim())) {
-      flushList();
-    } else {
-      flushList();
-      nodes.push(
-        <p key={`p-${nodes.length}`} className="text-[12.5px] leading-relaxed">
-          {renderInline(line)}
-        </p>
-      );
-    }
-  }
-  flushList();
-  return <div className="space-y-0.5">{nodes}</div>;
 }

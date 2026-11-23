@@ -1,5 +1,6 @@
 import type { ImportPlan, ImportSourceConfig } from './lib/shortcutImport';
 import type { BackupItem, BackupResult, BackupStatus } from './lib/backup';
+import type { PendingUpdate, UpdateCheckResult } from './lib/update';
 
 export {};
 
@@ -66,13 +67,14 @@ declare global {
         platform: string; arch: string; osRelease: string; osType: string;
         portable?: boolean;
       }>;
-      getUpdateStatus: () => Promise<any>;
-      checkForUpdates: () => Promise<{ ok: boolean; version?: string; error?: string }>;
-      downloadUpdate: () => Promise<{ ok: boolean; error?: string }>;
-      installUpdate: () => Promise<void>;
+      getUpdateStatus: () => Promise<PendingUpdate | null>;
+      checkForUpdates: () => Promise<UpdateCheckResult>;
+      downloadUpdate: (version: string) => Promise<void>;
+      cancelUpdateDownload: (version: string) => Promise<void>;
+      installUpdate: (version: string) => Promise<void>;
       setAutoUpdate: (enabled: boolean) => Promise<{ success: boolean; enabled: boolean }>;
       openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
-      onUpdateStatus: (callback: (status: any) => void) => () => void;
+      onUpdateStatus: (callback: (status: PendingUpdate | null) => void) => () => void;
       setDragActive: (active: boolean) => Promise<void>;
       setShelfHold: (reason: string, active: boolean) => Promise<{ success: boolean; held: boolean }>;
       onShelfStateChange: (callback: (visible: boolean) => void) => () => void;

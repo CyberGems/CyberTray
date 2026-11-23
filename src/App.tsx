@@ -9,7 +9,8 @@ import TelemetryBar from './components/TelemetryBar';
 import ToastStack from './components/ToastStack';
 import SettingsPanel, { type SettingsTab } from './components/SettingsPanel';
 import PinPadModal from './components/PinPadModal';
-import AboutModal, { UpdateStatus, peekReleaseNotes } from './components/AboutModal';
+import AboutModal from './components/AboutModal';
+import UpdateNotice from './components/UpdateNotice';
 import ShelfOverlays from './components/ShelfOverlays';
 import ImportSyncModal from './components/ImportSyncModal';
 import OnboardingModal from './components/OnboardingModal';
@@ -19,6 +20,7 @@ import NotificationCenter from './components/NotificationCenter';
 import TypeFilterMenu from './components/TypeFilterMenu';
 import { classifyShortcut, countShortcutKinds, isStoreAppId, type ShortcutKindFilter } from './lib/shortcutKind';
 import { emptyNotificationState, type NotificationState } from './lib/notificationCenter';
+import type { PendingUpdate } from './lib/update';
 import {
   isElectron,
   getDefaultCategories,
@@ -49,6 +51,7 @@ import {
 
 let globalAudioCtx: AudioContext | null = null;
 const DEFAULT_LAUNCH_SOUND = '/sounds/launch-thud.wav';
+const SKIPPED_UPDATE_KEY = 'cybertray_skipped_update_version';
 
 /**
  * Punto de corte después de cada separador de ruta o URL.
@@ -113,8 +116,46 @@ export default function App() {
   // About & Updates States
   const [showAboutModal, setShowAboutModal] = useState<boolean>(false);
   const [aboutAutoCheckSeq, setAboutAutoCheckSeq] = useState(0);
-  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ state: 'idle' });
-  const updateNotifSeenRef = useRef<string>('');
+  const [updateStatus, setUpdateStatus] = useState<PendingUpdate | null>(null);
+  const [manualUpdateVersion, setManualUpdateVersion] = useState<string | null>(null);
+  const [hiddenUpdateStage, setHiddenUpdateStage] = useState<string | null>(null);
+  const [skippedUpdateVersion, setSkippedUpdateVersion] = useState(() => {
+    try { return localStorage.getItem(SKIPPED_UPDATE_KEY); }
+    catch { return null; }
+  });
+  const updateNoticeRef = useRef<HTMLDivElement | null>(null);
+  const focusNextUpdateNotice = useRef(false);
+  const updateNoticeTrigger = useRef<HTMLElement | null>(null);
+  const updateVersion = updateStatus?.release.version;
+  const updateNoticeStatus = updateVersion && (
+    manualUpdateVersion === updateVersion ||
+    (configLoaded && config.autoUpdate !== false && skippedUpdateVersion !== updateVersion)
+  ) ? updateStatus : null;
+  const updateStage = updateNoticeStatus
+    ? `${updateVersion}:${updateNoticeStatus.state === 'installing' ? 'downloaded' : updateNoticeStatus.state}`
+    : null;
+  const attachUpdateNotice = useCallback((element: HTMLDivElement | null) => {
+    updateNoticeRef.current = element;
+    if (element && focusNextUpdateNotice.current) {
+      focusNextUpdateNotice.current = false;
+      element.focus();
+    }
+  }, []);
+  const openUpdateNotice = useCallback((version?: string) => {
+    if (version) setManualUpdateVersion(version);
+    setHiddenUpdateStage(null);
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && !updateNoticeRef.current?.contains(active)) {
+      updateNoticeTrigger.current = active;
+    }
+    if (updateNoticeRef.current) updateNoticeRef.current.focus();
+    else focusNextUpdateNotice.current = true;
+  }, []);
+  const dismissUpdateNotice = () => {
+    setHiddenUpdateStage(updateStage);
+    updateNoticeTrigger.current?.focus();
+    updateNoticeTrigger.current = null;
+  };
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<NotificationState>(emptyNotificationState);
@@ -1015,55 +1056,22 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!isElectron || !window.electronAPI?.onUpdateStatus) return;
-
-    const applyStatus = (status: UpdateStatus) => {
+    if (!isElectron || !window.electronAPI) return;
+    let active = true;
+    let receivedEvent = false;
+    const unsubscribe = window.electronAPI.onUpdateStatus(status => {
+      receivedEvent = true;
       setUpdateStatus(status);
-      if (status.state === 'available' && configRef.current.autoUpdate === false) return;
-      if (status.state !== 'available' && status.state !== 'downloaded') return;
-
-      const key = `${status.state}:${status.version}`;
-      const seen = updateNotifSeenRef.current || localStorage.getItem('update_notif_seen') || '';
-      const detail = status.releaseNotes ? peekReleaseNotes(status.releaseNotes) : undefined;
-      if (seen === key) return;
-
-      updateNotifSeenRef.current = key;
-      localStorage.setItem('update_notif_seen', key);
-      pushToast(
-        'info',
-        status.state === 'available'
-          ? translate('about_notif_available', { version: status.version })
-          : translate('about_notif_downloaded', { version: status.version }),
-        {
-          duration: 8000,
-          detail,
-          onBodyClick: () => setShowAboutModal(true),
-          secondaryActionLabel: status.releaseUrl ? translate('about_view_release') : undefined,
-          onSecondaryAction: status.releaseUrl
-            ? () => {
-                if (window.electronAPI?.openExternal) {
-                  window.electronAPI.openExternal(status.releaseUrl!);
-                }
-              }
-            : undefined,
-          actionLabel: status.state === 'available'
-            ? translate('about_download_btn')
-            : translate('about_install_btn'),
-          onAction: () => {
-            if (status.state === 'available') {
-              void window.electronAPI?.downloadUpdate?.();
-              setShowAboutModal(true);
-            } else {
-              window.electronAPI?.installUpdate?.();
-            }
-          },
-        }
-      );
+      setManualUpdateVersion(version => version === status?.release.version ? version : null);
+      if (!status) setHiddenUpdateStage(null);
+    });
+    void window.electronAPI.getUpdateStatus().then(snapshot => {
+      if (active && !receivedEvent) setUpdateStatus(snapshot);
+    }).catch(error => console.warn('[Updater] Could not read the update status:', error));
+    return () => {
+      active = false;
+      unsubscribe();
     };
-
-    window.electronAPI.getUpdateStatus?.().then((s) => { if (s) applyStatus(s); }).catch(() => {});
-    const off = window.electronAPI.onUpdateStatus(applyStatus);
-    return off;
   }, []);
 
   useEffect(() => {
@@ -2905,23 +2913,16 @@ export default function App() {
 
           <div className="w-px h-3.5 bg-white/10 mx-1" />
 
-          {config.autoUpdate !== false && (updateStatus.state === 'available' || updateStatus.state === 'downloaded' || updateStatus.state === 'downloading') && (
+          {updateNoticeStatus && (
             <button
               type="button"
-              onClick={() => { setShowAboutModal(true); playCyberBeep(); hideTooltip(); }}
-              onMouseEnter={(e) => showTooltip(
-                e,
-                updateStatus.state === 'downloaded'
-                  ? translate('about_status_downloaded', { version: updateStatus.version || '' })
-                  : updateStatus.state === 'downloading'
-                  ? translate('about_status_downloading', { percent: String(updateStatus.percent || 0) })
-                  : translate('about_status_available', { version: (updateStatus as { version?: string }).version || '' })
-              )}
+              onClick={() => { openUpdateNotice(); playCyberBeep(); hideTooltip(); }}
+              onMouseEnter={(e) => showTooltip(e, translate('update_open_notice'), `v${updateNoticeStatus.release.version}`)}
               onMouseLeave={hideTooltip}
-              aria-label={translate('about_status_available', { version: (updateStatus as { version?: string }).version || '' })}
-              className="relative flex items-center justify-center w-7 h-7 rounded-full bg-[#1D2636] hover:bg-[#253246] border border-[#2D3A4E] hover:border-[#3B4E6E] text-[#6C9BFF] shadow-[0_0_12px_rgba(108,155,255,0.2)] hover:shadow-[0_0_16px_rgba(108,155,255,0.45)] transition-all cursor-pointer"
+              aria-label={translate('update_open_notice')}
+              className="relative flex items-center justify-center w-7 h-7 rounded-full bg-[var(--neon-glow-color-raw)] hover:bg-[var(--neon-glow-border)] border border-[var(--neon-glow-border)] text-[var(--neon-glow-color)] transition-colors cursor-pointer"
             >
-              <ArrowDown className={`w-4 h-4 text-[#6C9BFF] ${updateStatus.state === 'downloading' ? 'animate-bounce' : ''}`} />
+              <ArrowDown className={`w-4 h-4 ${updateNoticeStatus.state === 'downloading' ? 'motion-safe:animate-bounce' : ''}`} aria-hidden="true" />
             </button>
           )}
 
@@ -2999,8 +3000,8 @@ export default function App() {
               }`}
             >
               <MoreHorizontal className="w-3.5 h-3.5" />
-              {(updateStatus.state === 'available' || updateStatus.state === 'downloaded') && (
-                <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)] animate-pulse" />
+              {updateNoticeStatus && (
+                <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-[var(--neon-glow-color)] motion-safe:animate-pulse" />
               )}
             </button>
 
@@ -3088,10 +3089,21 @@ export default function App() {
                   >
                     <Info className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors shrink-0" />
                     <span className="flex-1">{translate('more_menu_about')}</span>
-                    {(updateStatus.state === 'available' || updateStatus.state === 'downloaded') && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]" />
-                    )}
                   </button>
+                  {updateNoticeStatus && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMoreMenuOpen(false);
+                        openUpdateNotice();
+                        playCyberBeep();
+                      }}
+                      className="group flex items-center gap-2.5 w-full px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/10 transition-colors text-left cursor-pointer"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5 text-[var(--neon-glow-color)] shrink-0" aria-hidden="true" />
+                      {translate('update_open_notice')}
+                    </button>
+                  )}
 
                   <div className="h-px bg-white/10 my-1 mx-1.5" />
 
@@ -3537,13 +3549,40 @@ export default function App() {
       <AboutModal
         showAboutModal={showAboutModal}
         setShowAboutModal={setShowAboutModal}
-        autoUpdate={config.autoUpdate !== false}
-        onAutoUpdateChange={handleAutoUpdateChange}
+        onUpdateAvailable={openUpdateNotice}
+        updateNoticeRef={updateNoticeRef}
         playCyberBeep={playCyberBeep}
         autoCheckSeq={aboutAutoCheckSeq}
         showTooltip={showTooltip}
         hideTooltip={hideTooltip}
       />
+
+      {updateNoticeStatus && updateStage !== hiddenUpdateStage && (
+        <UpdateNotice
+          key={updateNoticeStatus.release.version}
+          status={updateNoticeStatus}
+          noticeRef={attachUpdateNotice}
+          onDismiss={dismissUpdateNotice}
+          onSkip={version => {
+            try { localStorage.setItem(SKIPPED_UPDATE_KEY, version); }
+            catch (error) { console.warn('[Updater] Could not save the skipped version:', error); }
+            setSkippedUpdateVersion(version);
+            setManualUpdateVersion(null);
+            dismissUpdateNotice();
+          }}
+          onDownload={async version => {
+            if (skippedUpdateVersion === version) {
+              try { localStorage.removeItem(SKIPPED_UPDATE_KEY); }
+              catch (error) { console.warn('[Updater] Could not clear the skipped version:', error); }
+              setSkippedUpdateVersion(null);
+            }
+            setManualUpdateVersion(version);
+            await window.electronAPI?.downloadUpdate(version);
+          }}
+          showTooltip={showTooltip}
+          hideTooltip={hideTooltip}
+        />
+      )}
 
       {/* Root-Level Global Tooltip */}
       {globalTooltip.visible && (

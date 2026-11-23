@@ -1,250 +1,201 @@
 import electronUpdater from 'electron-updater';
-import { ipcMain, BrowserWindow, app, shell } from 'electron';
+import { CancellationToken } from 'builder-util-runtime';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import os from 'node:os';
+import type { ElectronHttpExecutor } from 'electron-updater/out/electronHttpExecutor';
+import type { PendingUpdate, UpdateCheckResult } from '../src/lib/update';
 
 // electron-updater is CJS; named ESM import fails when the module is externalized.
 const { autoUpdater } = electronUpdater;
-
 const GITHUB_REPO = 'CyberGems/CyberTray';
-const NOTES_MAX_CHARS = 8000;
-// The portable build extracts itself into %TEMP%, so it cannot install updates
-// in place: download and install are redirected to the releases page instead.
+const REPO_URL = `https://github.com/${GITHUB_REPO}`;
 const isPortable = Boolean(process.env.PORTABLE_EXECUTABLE_DIR);
 
-type UpdateInfoLike = {
-  version?: string;
-  releaseNotes?: string | Array<{ version: string; note: string | null }> | null;
-  releaseName?: string | null;
-};
-
-/**
- * Update lifecycle via electron-updater + GitHub Releases.
- * Auto-download is off: the user always confirms download and install.
- */
-
-export type UpdateStatus =
-  | { state: 'idle' }
-  | { state: 'checking' }
-  | { state: 'available'; version: string; releaseNotes?: string; releaseUrl?: string }
-  | { state: 'not-available'; version: string }
-  | { state: 'downloading'; percent: number }
-  | { state: 'downloaded'; version: string; releaseNotes?: string; releaseUrl?: string }
-  | { state: 'error'; message: string };
-
 let autoUpdateEnabled = false;
-let backgroundCheck: { requestedManually: boolean } | null = null;
-let manualChecks = 0;
-let lastStatus: UpdateStatus = { state: 'idle' };
-let ipcRegistered = false;
-let cachedRelease: { version: string; notes?: string; url: string } | null = null;
+let currentStatus: PendingUpdate | null = null;
+let activeCheck: Promise<UpdateCheckResult> | null = null;
+let activeDownload: { token: CancellationToken; requests: Set<Electron.ClientRequest> } | null = null;
 
-function githubReleaseUrl(version: string): string {
-  const tag = version.startsWith('v') ? version : `v${version}`;
-  return `https://github.com/${GITHUB_REPO}/releases/tag/${tag}`;
-}
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<\/h[1-6]>/gi, '\n')
-    .replace(/<h[1-6][^>]*>/gi, '### ')
-    .replace(/<\/li>/gi, '\n')
-    .replace(/<li[^>]*>/gi, '- ')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-function extractReleaseNotes(info: UpdateInfoLike): string | undefined {
-  const raw = info.releaseNotes;
-  let text = '';
-  if (typeof raw === 'string') {
-    text = raw;
-  } else if (Array.isArray(raw) && raw.length > 0) {
-    const match = raw.find((n) => n.version === info.version) || raw[0];
-    text = match?.note || '';
+function broadcast(status: PendingUpdate | null): void {
+  currentStatus = status;
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) window.webContents.send('update:status', status);
   }
-  if (!text && info.releaseName && info.releaseName !== info.version) {
-    text = info.releaseName;
-  }
-  const cleaned = stripHtml(text);
-  if (!cleaned) return undefined;
-  return cleaned.length > NOTES_MAX_CHARS ? `${cleaned.slice(0, NOTES_MAX_CHARS).trimEnd()}…` : cleaned;
 }
 
-function rememberRelease(version: string, notes?: string, url?: string): { notes?: string; url: string } {
-  const resolvedUrl = url || cachedRelease?.url || githubReleaseUrl(version);
-  const resolvedNotes = notes || (cachedRelease?.version === version ? cachedRelease.notes : undefined);
-  cachedRelease = { version, notes: resolvedNotes, url: resolvedUrl };
-  return { notes: resolvedNotes, url: resolvedUrl };
-}
-
-async function fetchGithubReleaseMeta(version: string): Promise<{ notes?: string; url?: string } | null> {
-  const tag = version.startsWith('v') ? version : `v${version}`;
-  try {
-    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/tags/${encodeURIComponent(tag)}`, {
-      headers: {
-        Accept: 'application/vnd.github+json',
-        'User-Agent': 'CyberTray',
-      },
+function refreshReleaseNotes(version: string, tag: string): void {
+  void fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/tags/${encodeURIComponent(tag)}`, {
+    signal: AbortSignal.timeout(10000),
+    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'CyberTray' },
+  })
+    .then(async (response) => {
+      if (!response.ok) return undefined;
+      const release = await response.json();
+      return typeof release?.body === 'string' ? release.body.trim() || undefined : undefined;
+    })
+    .catch((error) => {
+      console.warn('[Updater] Could not fetch release notes:', error);
+      return undefined;
+    })
+    .then((notes) => {
+      if (currentStatus?.release.version !== version) return;
+      broadcast({
+        ...currentStatus,
+        release: {
+          ...currentStatus.release,
+          releaseNotes: notes ?? currentStatus.release.releaseNotes,
+          notesLoading: false,
+        },
+      });
     });
-    if (!res.ok) return null;
-    const data = await res.json() as { body?: string | null; html_url?: string | null };
-    const notes = extractReleaseNotes({ version, releaseNotes: data.body || '' });
-    return {
-      notes,
-      url: data.html_url || githubReleaseUrl(version),
-    };
-  } catch {
-    return null;
+}
+
+function checkForUpdates(): Promise<UpdateCheckResult> {
+  if (currentStatus && currentStatus.state !== 'available') {
+    return Promise.resolve({ ok: true, available: true, version: currentStatus.release.version });
   }
+  if (activeCheck) return activeCheck;
+
+  activeCheck = autoUpdater.checkForUpdates()
+    .then<UpdateCheckResult>((result) => {
+      if (!result?.isUpdateAvailable) {
+        broadcast(null);
+        return { ok: true, available: false };
+      }
+
+      const { version, releaseNotes } = result.updateInfo;
+      if (currentStatus?.release.version !== version) {
+        const notes = typeof releaseNotes === 'string'
+          ? releaseNotes.trim()
+          : releaseNotes?.find((release) => release.version === version)?.note?.trim();
+        const tag = version.startsWith('v') ? version : `v${version}`;
+        broadcast({
+          state: 'available',
+          release: {
+            version,
+            releaseUrl: `${REPO_URL}/releases/tag/${tag}`,
+            releaseNotes: notes || undefined,
+            notesLoading: !notes,
+            portableUrl: isPortable
+              ? `${REPO_URL}/releases/download/${tag}/CyberTray-Portable-${tag.slice(1)}.exe`
+              : undefined,
+          },
+        });
+        // The feed can contain an English summary without the Spanish details.
+        if (!notes || !/<details\b/i.test(notes)) refreshReleaseNotes(version, tag);
+      }
+      return { ok: true, available: true, version };
+    })
+    .catch<UpdateCheckResult>((error) => {
+      console.warn('[Updater] Check failed:', error);
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    })
+    .finally(() => { activeCheck = null; });
+
+  return activeCheck;
 }
 
-function enrichFromGithubIfNeeded(version: string, alreadyHasNotes: boolean): void {
-  if (alreadyHasNotes && cachedRelease?.url) return;
-  void fetchGithubReleaseMeta(version).then((meta) => {
-    if (!meta) return;
-    if (lastStatus.state !== 'available' && lastStatus.state !== 'downloaded') return;
-    if (lastStatus.version !== version) return;
-    const next = rememberRelease(version, lastStatus.releaseNotes || meta.notes, meta.url);
-    if (next.notes === lastStatus.releaseNotes && next.url === lastStatus.releaseUrl) return;
-    broadcast({ ...lastStatus, releaseNotes: next.notes, releaseUrl: next.url });
-  });
+function connectDownloadCancellation(): void {
+  const { httpExecutor } = autoUpdater as typeof autoUpdater & { httpExecutor: ElectronHttpExecutor };
+  const createRequest = httpExecutor.createRequest.bind(httpExecutor);
+  httpExecutor.createRequest = (options, onResponse) => {
+    const download = activeDownload;
+    if (!download) return createRequest(options, onResponse);
+
+    // ClientRequest closes its writable side before the response has arrived.
+    // Track the request until the response ends so cancellation stops the transfer.
+    const request = createRequest(options, (response: Electron.IncomingMessage) => {
+      response.once('end', forgetRequest);
+      response.once('error', forgetRequest);
+      onResponse(response);
+    });
+    function forgetRequest(): void { download?.requests.delete(request); }
+
+    download.requests.add(request);
+    request.once('abort', forgetRequest);
+    request.once('error', forgetRequest);
+    if (download.token.cancelled) request.abort();
+    return request;
+  };
 }
 
-function broadcast(status: UpdateStatus): void {
-  lastStatus = status;
-  for (const win of BrowserWindow.getAllWindows()) {
-    win.webContents.send('update:status', status);
-  }
-}
-
-export function getLastUpdateStatus(): UpdateStatus {
-  return lastStatus;
-}
-
-export function setAutoUpdate(enabled: boolean): void {
-  autoUpdateEnabled = enabled;
-}
-
-async function checkInBackground(): Promise<void> {
-  if (!autoUpdateEnabled || backgroundCheck || manualChecks > 0) return;
-  backgroundCheck = { requestedManually: false };
-  try {
-    await autoUpdater.checkForUpdates();
-  } catch {
-    // Connection failures stay silent on startup.
-  } finally {
-    backgroundCheck = null;
-  }
-}
-
-export function initUpdater(opts: { autoUpdate: boolean }): void {
-  autoUpdateEnabled = opts.autoUpdate && !isPortable;
+export function initUpdater({ autoUpdate }: { autoUpdate: boolean }): void {
+  autoUpdateEnabled = autoUpdate && !isPortable;
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
+  connectDownloadCancellation();
 
-  autoUpdater.removeAllListeners();
-
-  autoUpdater.on('checking-for-update', () => broadcast({ state: 'checking' }));
-
-  autoUpdater.on('update-available', (info) => {
-    if (backgroundCheck && !backgroundCheck.requestedManually && !autoUpdateEnabled) {
-      broadcast({ state: 'idle' });
-      return;
+  autoUpdater.on('download-progress', ({ percent, transferred, total }) => {
+    if (currentStatus?.state === 'downloading' && !currentStatus.cancelling) {
+      broadcast({ ...currentStatus, percent: Math.round(percent), transferred, total });
     }
-    const version = info.version;
-    const notes = extractReleaseNotes(info);
-    const meta = rememberRelease(version, notes);
-    broadcast({ state: 'available', version, releaseNotes: meta.notes, releaseUrl: meta.url });
-    enrichFromGithubIfNeeded(version, !!meta.notes);
   });
 
-  autoUpdater.on('update-not-available', (info) => {
-    broadcast({ state: 'not-available', version: info.version });
+  autoUpdater.on('error', () => {
+    if (currentStatus?.state === 'installing') {
+      broadcast({ release: currentStatus.release, state: 'downloaded', installFailed: true });
+    }
   });
 
-  autoUpdater.on('download-progress', (p) => {
-    broadcast({ state: 'downloading', percent: Math.round(p.percent) });
-  });
-
-  autoUpdater.on('update-downloaded', (info) => {
-    const version = info.version;
-    const notes = extractReleaseNotes(info);
-    const meta = rememberRelease(version, notes);
-    broadcast({ state: 'downloaded', version, releaseNotes: meta.notes, releaseUrl: meta.url });
-    enrichFromGithubIfNeeded(version, !!meta.notes);
-  });
-
-  autoUpdater.on('error', (err) => {
-    broadcast({ state: 'error', message: String(err?.message || err) });
-  });
-
-  registerUpdateIpc();
-
-  if (autoUpdateEnabled) {
-    setTimeout(() => { void checkInBackground(); }, 8000);
-  }
-}
-
-function registerUpdateIpc(): void {
-  if (ipcRegistered) return;
-  ipcRegistered = true;
-
-  ipcMain.handle('update:get-status', () => lastStatus);
-
+  ipcMain.handle('update:get-status', () => currentStatus);
   ipcMain.handle('update:check', async () => {
-    manualChecks++;
-    if (backgroundCheck) backgroundCheck.requestedManually = true;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Update check timed out')), 20000);
-      });
-      const result = await Promise.race([
-        autoUpdater.checkForUpdates(),
-        timeoutPromise,
-      ]) as { updateInfo?: { version?: string } } | null;
-      return { ok: true, version: result?.updateInfo?.version };
-    } catch (err) {
-      console.error('[Updater] Check failed:', err);
-      const message = String((err as Error)?.message || err);
-      broadcast({ state: 'error', message });
-      return { ok: false, error: message };
+      return await Promise.race([
+        checkForUpdates(),
+        new Promise<UpdateCheckResult>(resolve => {
+          timeout = setTimeout(() => resolve({ ok: false, error: 'Update check timed out' }), 20000);
+        }),
+      ]);
     } finally {
-      manualChecks--;
+      clearTimeout(timeout);
     }
   });
 
-  ipcMain.handle('update:download', async () => {
-    if (isPortable) {
-      const url = cachedRelease?.url || githubReleaseUrl(cachedRelease?.version || app.getVersion());
-      await shell.openExternal(url);
-      return { ok: true };
-    }
+  ipcMain.handle('update:download', async (_event, version: string) => {
+    // Let any outstanding check finish selecting its installer first.
+    await activeCheck;
+    if (isPortable || currentStatus?.state !== 'available' || currentStatus.release.version !== version) return;
+
+    const { release } = currentStatus;
+    const token = new CancellationToken();
+    activeDownload = { token, requests: new Set() };
+    broadcast({ release, state: 'downloading', percent: 0 });
     try {
-      await autoUpdater.downloadUpdate();
-      return { ok: true };
-    } catch (err) {
-      const message = String((err as Error)?.message || err);
-      broadcast({ state: 'error', message });
-      return { ok: false, error: message };
+      await autoUpdater.downloadUpdate(token);
+      broadcast({ release: currentStatus?.release ?? release, state: 'downloaded' });
+    } catch (error) {
+      if (!token.cancelled) console.error('[Updater] Download failed:', error);
+      broadcast({
+        release: currentStatus?.release ?? release,
+        state: 'available',
+        downloadFailed: !token.cancelled,
+      });
+    } finally {
+      activeDownload = null;
+      token.dispose();
     }
   });
 
-  ipcMain.handle('update:install', async () => {
-    if (isPortable) {
-      const url = cachedRelease?.url || githubReleaseUrl(cachedRelease?.version || app.getVersion());
-      await shell.openExternal(url);
-      return;
+  ipcMain.handle('update:cancel-download', (_event, version: string) => {
+    if (currentStatus?.state !== 'downloading' || currentStatus.release.version !== version || !activeDownload) return;
+    broadcast({ ...currentStatus, cancelling: true });
+    // The updater can reject its promise without closing the HTTP response.
+    activeDownload.token.cancel();
+    for (const request of activeDownload.requests) request.abort();
+  });
+
+  ipcMain.handle('update:install', (_event, version: string) => {
+    if (isPortable || currentStatus?.state !== 'downloaded' || currentStatus.release.version !== version) return;
+    const { release } = currentStatus;
+    broadcast({ release, state: 'installing' });
+    try {
+      // Silent NSIS installation preserves the existing relaunch behavior.
+      autoUpdater.quitAndInstall(true, true);
+    } catch (error) {
+      console.error('[Updater] Installation failed:', error);
+      broadcast({ release, state: 'downloaded', installFailed: true });
     }
-    autoUpdater.quitAndInstall(true, true);
   });
 
   ipcMain.handle('app:get-versions', () => ({
@@ -268,7 +219,11 @@ function registerUpdateIpc(): void {
   });
 
   ipcMain.handle('set-auto-update', (_event, enabled: boolean) => {
-    setAutoUpdate(!!enabled);
-    return { success: true, enabled: !!enabled };
+    autoUpdateEnabled = Boolean(enabled) && !isPortable;
+    return { success: true, enabled: autoUpdateEnabled };
   });
+
+  setTimeout(() => {
+    if (autoUpdateEnabled) void checkForUpdates();
+  }, 8000);
 }
