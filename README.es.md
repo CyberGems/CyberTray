@@ -356,12 +356,12 @@ Si te gustaría apoyar las futuras actualizaciones, te lo agradecería de verdad
 
 | Activo | Red | Dirección | QR |
 |---|---|---|---|
-| <img src="docs/donate/btc.svg" width="18" height="18" valign="middle" alt="BTC" /> **BTC** | Bitcoin | `bc1q5mxzz05nmvsheqzx7970euswta3fksxzcfzag4` | ![QR de BTC](docs/donate/qr-btc.png) |
-| <img src="docs/donate/eth.svg" width="18" height="18" valign="middle" alt="ETH" /> **ETH** | Ethereum (ERC20) | `0x79b703Ec0f77493679Fcd280aF3b983E20c580B8` | ![QR de ETH](docs/donate/qr-eth.png) |
-| <img src="docs/donate/usdt.svg" width="18" height="18" valign="middle" alt="USDT" /> **USDT** | Ethereum (ERC20) | `0x79b703Ec0f77493679Fcd280aF3b983E20c580B8` | ![QR de USDT ERC20](docs/donate/qr-eth.png) |
-| <img src="docs/donate/usdt.svg" width="18" height="18" valign="middle" alt="USDT" /> **USDT** | BNB Smart Chain (BEP20) | `0x79b703Ec0f77493679Fcd280aF3b983E20c580B8` | ![QR de USDT BEP20](docs/donate/qr-eth.png) |
-| <img src="docs/donate/usdt.svg" width="18" height="18" valign="middle" alt="USDT" /> **USDT** | Tron (TRC20) | `TSVbSk1HSyZ1NprCnAYiw56ECwXgH887mD` | ![QR de USDT TRC20](docs/donate/qr-usdt-tron.png) |
-| <img src="docs/donate/ltc.svg" width="18" height="18" valign="middle" alt="LTC" /> **LTC** | Litecoin | `LWGnEHgcFCE2BRkzLnsdPDD8Y8ZeDK577X` | ![QR de LTC](docs/donate/qr-ltc.png) |
+| <img src="docs/donate/btc.svg" width="18" height="18" valign="middle" alt="BTC" />&nbsp;&nbsp;**BTC** | Bitcoin | `bc1q5mxzz05nmvsheqzx7970euswta3fksxzcfzag4` | ![QR de BTC](docs/donate/qr-btc.png) |
+| <img src="docs/donate/eth.svg" width="18" height="18" valign="middle" alt="ETH" />&nbsp;&nbsp;**ETH** | Ethereum (ERC20) | `0x79b703Ec0f77493679Fcd280aF3b983E20c580B8` | ![QR de ETH](docs/donate/qr-eth.png) |
+| <img src="docs/donate/usdt.svg" width="18" height="18" valign="middle" alt="USDT" />&nbsp;&nbsp;**USDT** | Ethereum (ERC20) | `0x79b703Ec0f77493679Fcd280aF3b983E20c580B8` | ![QR de USDT ERC20](docs/donate/qr-eth.png) |
+| <img src="docs/donate/usdt.svg" width="18" height="18" valign="middle" alt="USDT" />&nbsp;&nbsp;**USDT** | BNB Smart Chain (BEP20) | `0x79b703Ec0f77493679Fcd280aF3b983E20c580B8` | ![QR de USDT BEP20](docs/donate/qr-eth.png) |
+| <img src="docs/donate/usdt.svg" width="18" height="18" valign="middle" alt="USDT" />&nbsp;&nbsp;**USDT** | Tron (TRC20) | `TSVbSk1HSyZ1NprCnAYiw56ECwXgH887mD` | ![QR de USDT TRC20](docs/donate/qr-usdt-tron.png) |
+| <img src="docs/donate/ltc.svg" width="18" height="18" valign="middle" alt="LTC" />&nbsp;&nbsp;**LTC** | Litecoin | `LWGnEHgcFCE2BRkzLnsdPDD8Y8ZeDK577X` | ![QR de LTC](docs/donate/qr-ltc.png) |
 
 > ⚠️ Envía solo el activo seleccionado en la red indicada. Usar la red incorrecta provocará la pérdida permanente de fondos.
 
