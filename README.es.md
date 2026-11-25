@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://cybergems.org/es/apps/cybertray/">
-    <img src="https://cybergems.org/banners/es/cybertray.png" alt="Organiza tus accesos y llega al instante" />
+    <img src="https://cybergems.org/banners/es/cybertray.png" alt="Tus accesos, a un clic de la bandeja" />
   </a>
 </p>
 
@@ -25,7 +25,7 @@
 
 <div align="center">
 
-### Tus accesos, las estadísticas del equipo y tus archivos protegidos, a un clic de la bandeja
+### Ten apps, archivos y enlaces favoritos a un gesto sin saturar la barra de tareas.
 
 </div>
 

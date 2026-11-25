@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://cybergems.org/apps/cybertray/">
-    <img src="https://cybergems.org/banners/cybertray.png" alt="Organize your shortcuts and reach them instantly" />
+    <img src="https://cybergems.org/banners/cybertray.png" alt="Your shortcuts, one click from the tray" />
   </a>
 </p>
 
@@ -25,7 +25,7 @@
 
 <div align="center">
 
-### Your shortcuts, system stats and secure files, one click from the tray
+### Keep favorite apps, files and links one gesture away without crowding your taskbar.
 
 </div>
 
