@@ -119,6 +119,7 @@ jobs:
             Replace("{{INSTALLER_HASH}}", $installerHash).
             Replace("{{PORTABLE_HASH}}", $portableHash)
           $utf8 = New-Object System.Text.UTF8Encoding $false
+          $notes = [regex]::Replace($notes, '(?s)<!--.*?-->', '').Trim()
           [System.IO.File]::WriteAllText("FINAL_RELEASE_NOTES.md", $notes, $utf8)
 
       - name: Generate winget manifests
