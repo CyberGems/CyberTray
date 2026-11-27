@@ -18,3 +18,15 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 *.tsbuildinfo
 .eslintcache
 .stylelintcache
+
+# Frontend build output
+dist/
+dist-electron/
+out/
+release/
+release-build/
+
+# Framework caches and generated files
+.npm
+jspm_packages/
+typings/
