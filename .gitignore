@@ -30,3 +30,10 @@ release-build/
 .npm
 jspm_packages/
 typings/
+
+# Local environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
