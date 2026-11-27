@@ -69,11 +69,11 @@ Your taskbar runs out of room, the Start menu takes three clicks and the files y
 
 ---
 
-<!-- Screenshots: pending the bilingual EN/ES gallery in the capture plan at https://github.com/CyberGems/CyberGems.github.io/blob/main/docs/screenshots.md — replace the blockquote, keep this heading and the TOC entry. -->
-
 ## 🖼️ Screenshots
 
-> Coming soon...
+![CyberTray floating shelf with categorized shortcuts, folder sidebar, search bar, and system telemetry footer](docs/screenshots/main-en.png)
+
+*Shortcut shelf with color-coded folder categories, real application icons, live search, and system telemetry footer.*
 
 ---
 

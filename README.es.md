@@ -69,11 +69,11 @@ La barra de tareas se queda sin sitio, el menú Inicio tarda tres clics y los ar
 
 ---
 
-<!-- Capturas: pendiente de la galería bilingüe ES/EN del plan en https://github.com/CyberGems/CyberGems.github.io/blob/main/docs/screenshots.md — sustituir la cita, conservar este título y su entrada en el índice. -->
-
 ## 🖼️ Capturas
 
-> Próximamente...
+![Estante flotante de CyberTray con accesos categorizados, barra lateral de carpetas, búsqueda y pie de telemetría del sistema](docs/screenshots/main-es.png)
+
+*Estante de accesos con carpetas por color, iconos reales de aplicaciones, búsqueda en vivo y barra inferior de telemetría.*
 
 ---
 
