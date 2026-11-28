@@ -75,6 +75,10 @@ La barra de tareas se queda sin sitio, el menú Inicio tarda tres clics y los ar
 
 *Estante de accesos con carpetas por color, iconos reales de aplicaciones, búsqueda en vivo y barra inferior de telemetría.*
 
+![Menú en la bandeja del sistema de CyberTray con interruptor rápido del estante, submenú de accesos recientes, ajustes y ayuda](docs/screenshots/tray-menu-es.png)
+
+*Menú de bandeja personalizado con indicador de visibilidad, insignia de atajo y panel flotante de accesos recientes.*
+
 ---
 
 ## 🎯 ¿Por qué CyberTray?

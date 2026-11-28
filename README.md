@@ -75,6 +75,10 @@ Your taskbar runs out of room, the Start menu takes three clicks and the files y
 
 *Shortcut shelf with color-coded folder categories, real application icons, live search, and system telemetry footer.*
 
+![CyberTray system tray menu with quick shelf toggle, recent shortcuts flyout, settings, and help options](docs/screenshots/tray-menu-en.png)
+
+*Custom themed system tray menu with visibility status, shortcut hotkey badge, and quick recent-shortcuts flyout.*
+
 ---
 
 ## 🎯 Why CyberTray?
